@@ -1,0 +1,8 @@
+channels = 2
+ranks = 2
+chips = 8
+bank_groups = 4
+banks = 4
+rows = 32768
+columns = 256
+pe_num = 10

@@ -13,7 +13,9 @@ pub trait StreamMerger {
 
 /// can provide data from a single output port
 pub trait StreamProvider {
+    /// the output data provided
     type OutputData;
+    /// the mutable context shared by all components.
     type SimContext;
 
     /// get the data from the output port
@@ -22,19 +24,25 @@ pub trait StreamProvider {
         context: &mut Self::SimContext,
         current_cycle: u64,
     ) -> Vec<Self::OutputData>;
+    /// peek the data from the output port
+    fn peek_data(&self, context: &Self::SimContext, current_cycle: u64) -> Vec<&Self::OutputData>;
 }
 
 /// can receive a task from a single input port
 pub trait TaskReceiver {
+    /// the type of the task
     type InputTask;
+    /// the mutable context shared by all components.
     type SimContext;
+    /// the dram spec
+    type LevelType;
 
     /// receive a task from the input port
-    /// - return `Err` if the queue is full
+    /// - return the level where  the queue is full
     fn receive_task(
         &mut self,
-        task: Self::InputTask,
+        task: &Self::InputTask,
         context: &mut Self::SimContext,
         current_cycle: u64,
-    ) -> Result<(), Self::InputTask>;
+    ) -> Result<(), Self::LevelType>;
 }

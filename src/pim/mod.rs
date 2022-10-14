@@ -1,17 +1,23 @@
 use std::marker::PhantomData;
 
+use sprs::{num_kinds::Pattern, CsMat};
+
 use self::{
     config::Config,
     level::{ddr4, LevelTrait},
-    stream_merger::{bank_provider::BankProvider, SimpleStreamMerger},
+    stream_merger::{
+        bank_provider::Provider, SimpleStreamMerger, StreamMerger, StreamProvider, TaskReceiver,
+    },
+    task::{PathId, StreamMessage, Task, TaskType},
+    task_manager::TaskManager,
 };
 mod bank;
 pub mod config;
 pub mod controller;
 pub mod level;
-pub mod merger;
 pub mod stream_merger;
 pub mod task;
+pub mod task_manager;
 pub trait Component {
     /// the mutable context shared by all components.
     type SimContext;
@@ -33,24 +39,27 @@ pub struct SimulationContext<LevelType> {
     message_builder: task::StreamMessageBuilder,
     task_builder: task::TaskBuilder,
     level: PhantomData<LevelType>,
+    finished: bool,
 }
 
-impl<LevelType: LevelTrait> SimulationContext<LevelType> {
+impl<LevelType> SimulationContext<LevelType> {
     /// create a new simulation context
     pub fn new(config: &Config) -> Self {
         Self {
             level: PhantomData,
             message_builder: Default::default(),
             task_builder: Default::default(),
+            finished: false,
         }
     }
     /// return if the simulation is finished
     pub fn finished(&self) -> bool {
-        todo!()
+        self.finished
     }
 
     pub fn gen_task<Storage>(
         &mut self,
+        task_type: TaskType,
         target_id: task::PathId<Storage>,
         from: usize,
         to: usize,
@@ -59,53 +68,129 @@ impl<LevelType: LevelTrait> SimulationContext<LevelType> {
         self.task_builder.gen_task(target_id, from, to, size)
     }
 
-    pub fn gen_message_from_task<Storage>(
+    pub fn generate_msg(
         &mut self,
-        task: &task::Task<Storage>,
+        to: usize,
+        idx: usize,
         generated_cycle: u64,
     ) -> task::StreamMessage {
-        self.message_builder
-            .gen_message_from_task(task, generated_cycle)
+        self.message_builder.generate_msg(to, idx, generated_cycle)
+    }
+
+    pub fn generate_end(&mut self, to: usize) -> StreamMessage {
+        self.message_builder.generate_end_msg(to)
+    }
+
+    pub fn gen_end_task<Storage>(&mut self, to: usize) -> Task<Storage> {
+        self.task_builder.gen_end_task(to)
     }
 }
 
 /// the simulator struct which contains all components.
-pub struct Simulator<T: LevelTrait> {
+pub struct Simulator {
     cycle: u64,
-    context: SimulationContext<T>,
 }
-impl<T: LevelTrait> Simulator<T> {
+impl Simulator {
     /// create a new simulator with config
     pub fn new(config: &Config) -> Self {
-        Self {
-            cycle: 0,
-            context: SimulationContext::new(&config),
-        }
+        Self { cycle: 0 }
     }
 
     /// run the simulator and print the statistics
     pub fn run(&mut self, config: &Config) {
-        // let mut stream_collector = BankProvider::new(
-        //     config.bank_provider_size,
-        //     config.bank_task_queue_size,
-        //     config.precharge_cycle,
-        //     config.activate_cycle,
-        // );
-
-        // let mut stream_merger =
-        //     SimpleStreamMerger::new(&config, vec![stream_collector], ddr4::Level::Channel);
-        // loop {
-        //     // self.cycle += 1;
-        //     // stream_collector.cycle(&mut self.context, self.cycle);
-        //     // stream_merger.cycle(&mut self.context, self.cycle);
-        //     // if self.context.finished() {
-        //     //     break;
-        //     // }
-        // }
+        let mut context = SimulationContext::<ddr4::Level>::new(config);
+        let graph_a = sprs::io::read_matrix_market(&config.graph_path)
+            .unwrap()
+            .to_csr();
+        let graph_b = graph_a.transpose_view().to_csr();
+        match config.dram_type {
+            config::DramType::DDR3 => todo!(),
+            config::DramType::DDR4 => {
+                self.run_inner(
+                    config,
+                    &mut context,
+                    Self::build_merger_ddr4(config, &graph_a, &graph_b),
+                );
+            }
+            config::DramType::LPDDR3 => todo!(),
+            config::DramType::LPDDR4 => todo!(),
+            config::DramType::HBM => todo!(),
+            config::DramType::HBM2 => todo!(),
+        }
+    }
+    fn run_inner<LevelType: LevelTrait>(
+        &mut self,
+        config: &Config,
+        context: &mut SimulationContext<LevelType>,
+        mut merger: impl Component<SimContext = SimulationContext<LevelType>>,
+    ) {
+        while !context.finished() {
+            merger.cycle(context, self.cycle);
+            self.cycle += 1;
+        }
     }
 
-    /// return the context
-    pub fn context(&self) -> &SimulationContext<T> {
-        &self.context
+    fn build_merger_ddr4<'a>(
+        config: &Config,
+        graph_a: &CsMat<Pattern>,
+        graph_b: &'a CsMat<Pattern>,
+    ) -> impl Component<SimContext = SimulationContext<ddr4::Level>> + 'a {
+        let bank_provider = Provider::new(1, 1, 1, 1, 1, 1, graph_b);
+        let bg_merger = SimpleStreamMerger::new(
+            &config,
+            vec![bank_provider; config.banks],
+            ddr4::Level::BankGroup,
+            config.pe_num,
+            1,
+            1,
+            1,
+            1,
+            1,
+        );
+        let chip_merger = SimpleStreamMerger::new(
+            &config,
+            vec![bg_merger; config.bank_groups],
+            ddr4::Level::Chip,
+            config.pe_num,
+            1,
+            1,
+            1,
+            1,
+            1,
+        );
+        let rank_merger = SimpleStreamMerger::new(
+            &config,
+            vec![chip_merger; config.chips],
+            ddr4::Level::Rank,
+            config.pe_num,
+            1,
+            1,
+            1,
+            1,
+            1,
+        );
+        let channel_merger = SimpleStreamMerger::new(
+            &config,
+            vec![rank_merger; config.ranks],
+            ddr4::Level::Channel,
+            config.pe_num,
+            1,
+            1,
+            1,
+            1,
+            1,
+        );
+
+        let total_size = ddr4::Storage::new(
+            config.channels,
+            config.ranks,
+            config.chips,
+            config.bank_groups,
+            config.banks,
+            config.subarrays,
+            config.rows,
+            config.row_size,
+        );
+        TaskManager::new(channel_merger, graph_a, graph_b, &total_size)
     }
 }

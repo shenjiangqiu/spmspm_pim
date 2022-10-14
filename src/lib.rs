@@ -19,7 +19,7 @@ mod tests {
         assert_eq!(2 + 2, 4);
     }
 
-    fn pim_test_impl<T: LevelTrait>(mut simulator: Simulator<T>, config: &Config) {
+    fn pim_test_impl(mut simulator: Simulator, config: &Config) {
         simulator.run(&config);
     }
 
@@ -28,9 +28,7 @@ mod tests {
         let config = Config::new("config.toml");
         match config.dram_type {
             crate::pim::config::DramType::DDR3 => todo!(),
-            crate::pim::config::DramType::DDR4 => {
-                pim_test_impl(Simulator::<ddr4::Level>::new(&config), &config)
-            }
+            crate::pim::config::DramType::DDR4 => pim_test_impl(Simulator::new(&config), &config),
             crate::pim::config::DramType::LPDDR3 => todo!(),
             crate::pim::config::DramType::LPDDR4 => todo!(),
             crate::pim::config::DramType::HBM => todo!(),

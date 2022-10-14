@@ -25,11 +25,15 @@ pub struct Config {
     pub bank_task_queue_size: usize,
     pub precharge_cycle: u64,
     pub activate_cycle: u64,
+    pub subarrays: usize,
     pub rows: usize,
+    pub row_size: usize,
     pub columns: usize,
 
     // pe configuration
     pub pe_num: usize,
+
+    pub graph_path: String,
 }
 impl Config {
     pub fn new(path: impl AsRef<Path>) -> Self {
@@ -53,6 +57,9 @@ impl Config {
             bank_task_queue_size: 2,
             precharge_cycle: 2,
             activate_cycle: 2,
+            subarrays: 16,
+            row_size: 2,
+            graph_path: "data/roadNet-CA.mtx".to_string(),
         }
     }
     pub fn from_hbm() -> Self {
@@ -70,6 +77,9 @@ impl Config {
             bank_task_queue_size: todo!(),
             precharge_cycle: todo!(),
             activate_cycle: todo!(),
+            subarrays: 16,
+            row_size: todo!(),
+            ..todo!()
         }
     }
     pub fn from_hbm2() -> Self {
@@ -87,6 +97,9 @@ impl Config {
             bank_task_queue_size: todo!(),
             precharge_cycle: todo!(),
             activate_cycle: todo!(),
+            subarrays: 16,
+            row_size: todo!(),
+            ..todo!()
         }
     }
     pub fn save_to_file(&self, path: impl AsRef<Path>) {

@@ -1,37 +1,29 @@
-use std::marker::PhantomData;
+//! the pim module
+
+use std::{fmt::Debug, marker::PhantomData};
 
 use sprs::{num_kinds::Pattern, CsMat};
+use tracing::info;
 
 use self::{
     config::Config,
     level::{ddr4, LevelTrait},
-    stream_merger::{
-        bank_provider::Provider, SimpleStreamMerger, StreamMerger, StreamProvider, TaskReceiver,
-    },
-    task::{PathId, StreamMessage, Task, TaskType},
+    stream_merger::{provider::Provider, EmptyComponent, SimpleStreamMerger},
+    task::{StreamMessage, Task},
     task_manager::TaskManager,
 };
-mod bank;
+
 pub mod config;
-pub mod controller;
 pub mod level;
+pub mod row_buffer;
 pub mod stream_merger;
 pub mod task;
 pub mod task_manager;
+
 pub trait Component {
     /// the mutable context shared by all components.
     type SimContext;
     fn cycle(&mut self, context: &mut Self::SimContext, current_cycle: u64);
-}
-struct DramPeBuffer {
-    buffer: Vec<SinglePeBuffer>,
-}
-struct SinglePeBuffer {
-    buffer: Option<task::StreamMessage>,
-}
-struct LevelBuffer<Level: LevelTrait> {
-    level: Level,
-    buffer: Vec<DramPeBuffer>,
 }
 
 /// shared status for all components
@@ -44,7 +36,7 @@ pub struct SimulationContext<LevelType> {
 
 impl<LevelType> SimulationContext<LevelType> {
     /// create a new simulation context
-    pub fn new(config: &Config) -> Self {
+    pub fn new(_config: &Config) -> Self {
         Self {
             level: PhantomData,
             message_builder: Default::default(),
@@ -59,7 +51,6 @@ impl<LevelType> SimulationContext<LevelType> {
 
     pub fn gen_task<Storage>(
         &mut self,
-        task_type: TaskType,
         target_id: task::PathId<Storage>,
         from: usize,
         to: usize,
@@ -92,7 +83,7 @@ pub struct Simulator {
 }
 impl Simulator {
     /// create a new simulator with config
-    pub fn new(config: &Config) -> Self {
+    pub fn new(_config: &Config) -> Self {
         Self { cycle: 0 }
     }
 
@@ -120,62 +111,105 @@ impl Simulator {
     }
     fn run_inner<LevelType: LevelTrait>(
         &mut self,
-        config: &Config,
+        _config: &Config,
         context: &mut SimulationContext<LevelType>,
-        mut merger: impl Component<SimContext = SimulationContext<LevelType>>,
+        mut merger: impl Component<SimContext = SimulationContext<LevelType>> + EmptyComponent + Debug,
     ) {
         while !context.finished() {
             merger.cycle(context, self.cycle);
             self.cycle += 1;
         }
+        // run extra 10 cycle to perform status update
+        for _ in 0..10 {
+            merger.cycle(context, self.cycle);
+            self.cycle += 1;
+        }
+
+        // finished,
+        // make sure all tasks are finished
+        match merger.is_empty() {
+            Ok(_) => {
+                info!("simulation finished");
+            }
+            Err(err_msg) => {
+                tracing::error!("simulation failed: {}", err_msg);
+            }
+        }
+        println!("simulator: {:?}", merger);
     }
 
     fn build_merger_ddr4<'a>(
         config: &Config,
         graph_a: &CsMat<Pattern>,
         graph_b: &'a CsMat<Pattern>,
-    ) -> impl Component<SimContext = SimulationContext<ddr4::Level>> + 'a {
-        let bank_provider = Provider::new(1, 1, 1, 1, 1, 1, graph_b);
-        let bg_merger = SimpleStreamMerger::new(
-            &config,
-            vec![bank_provider; config.banks],
-            ddr4::Level::BankGroup,
-            config.pe_num,
-            1,
-            1,
-            1,
-            1,
-            1,
-        );
-        let chip_merger = SimpleStreamMerger::new(
-            &config,
-            vec![bg_merger; config.bank_groups],
-            ddr4::Level::Chip,
-            config.pe_num,
-            1,
-            1,
-            1,
-            1,
-            1,
-        );
-        let rank_merger = SimpleStreamMerger::new(
-            &config,
-            vec![chip_merger; config.chips],
-            ddr4::Level::Rank,
-            config.pe_num,
-            1,
-            1,
-            1,
-            1,
-            1,
-        );
+    ) -> impl Component<SimContext = SimulationContext<ddr4::Level>> + EmptyComponent + Debug + 'a
+    {
+        let subarray_provider: Vec<_> = (0..config.subarrays)
+            .map(|id| Provider::new(id, 1, 1, 1, 1, 1, graph_b))
+            .collect();
+        let bank_merger: Vec<_> = (0..config.banks)
+            .map(|id| {
+                SimpleStreamMerger::new(
+                    id,
+                    &config,
+                    subarray_provider.clone(),
+                    ddr4::Level::Bank,
+                    config.pe_num,
+                    1,
+                    1,
+                    1,
+                )
+            })
+            .collect();
+        let bg_merger: Vec<_> = (0..config.bank_groups)
+            .map(|id| {
+                SimpleStreamMerger::new(
+                    id,
+                    &config,
+                    bank_merger.clone(),
+                    ddr4::Level::BankGroup,
+                    config.pe_num,
+                    1,
+                    1,
+                    1,
+                )
+            })
+            .collect();
+
+        let chip_merger: Vec<_> = (0..config.chips)
+            .map(|id| {
+                SimpleStreamMerger::new(
+                    id,
+                    &config,
+                    bg_merger.clone(),
+                    ddr4::Level::Chip,
+                    config.pe_num,
+                    1,
+                    1,
+                    1,
+                )
+            })
+            .collect();
+        let rank_merger = (0..config.ranks)
+            .map(|id| {
+                SimpleStreamMerger::new(
+                    id,
+                    &config,
+                    chip_merger.clone(),
+                    ddr4::Level::Rank,
+                    config.pe_num,
+                    1,
+                    1,
+                    1,
+                )
+            })
+            .collect();
         let channel_merger = SimpleStreamMerger::new(
+            0,
             &config,
-            vec![rank_merger; config.ranks],
+            rank_merger,
             ddr4::Level::Channel,
             config.pe_num,
-            1,
-            1,
             1,
             1,
             1,
@@ -192,5 +226,22 @@ impl Simulator {
             config.row_size,
         );
         TaskManager::new(channel_merger, graph_a, graph_b, &total_size)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use crate::init_logger_debug;
+    use tracing::debug;
+
+    #[test]
+    fn test_real_graph() {
+        init_logger_debug();
+        debug!("test real graph");
+        let config = Config::from_ddr4(1, 2, 10);
+        let mut simulator = Simulator::new(&config);
+        simulator.run(&config);
     }
 }

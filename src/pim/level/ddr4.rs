@@ -1,6 +1,12 @@
+//! a implementation of spec DDR4
 use sprs::{num_kinds::Pattern, CsMat};
 
 use super::{LevelTrait, PathStorage};
+
+const LEVELS: usize = 8;
+
+/// the levels of ddr4
+#[allow(missing_docs)]
 #[derive(enum_as_inner::EnumAsInner, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Level {
     Channel = 0,
@@ -12,18 +18,22 @@ pub enum Level {
     Row,
     Column,
 }
+
+/// the storage to store the path
 #[derive(Debug, Clone)]
 pub struct Storage {
-    pub data: [usize; 8],
+    /// 0: channel - 1: rank - 2: chip - 3: bank group - 4: bank - 5: sub array - 6: row - 7: column
+    pub data: [usize; LEVELS],
 }
 
-impl From<[usize; 8]> for Storage {
-    fn from(data: [usize; 8]) -> Self {
+impl From<[usize; LEVELS]> for Storage {
+    fn from(data: [usize; LEVELS]) -> Self {
         Self { data }
     }
 }
 
 impl Storage {
+    /// create a new storage
     pub fn new(
         channel: usize,
         rank: usize,
@@ -40,10 +50,14 @@ impl Storage {
             ],
         }
     }
-
+    /// - when `self` is the size of the whole ddr4
+    /// - it will return the number of subarrays in total
     pub fn get_total_subarrays(&self) -> usize {
         self.data[0] * self.data[1] * self.data[2] * self.data[3] * self.data[4] * self.data[5]
     }
+
+    /// - given `self` is a path, `total_size` is the size of the whole ddr4
+    /// - it will move `self` to the next subarray
     pub fn forward_to_next_subarray(&mut self, total_size: &Self) {
         self.data[5] += 1;
 
@@ -59,7 +73,8 @@ impl Storage {
             self.data[0] = 0;
         }
     }
-
+    /// - given `self` is a path, `total_size` is the size of the whole ddr4
+    /// - it return the global subarray id
     pub fn get_flat_subarray_id(&self, total_size: &Self) -> usize {
         let mut id = 0;
         let mut base = 1;
@@ -78,7 +93,10 @@ impl PathStorage for Storage {
     }
 }
 
+/// the Matrix to Dram storage mapping for ddr4
+#[derive(Debug)]
 pub struct Mapping {
+    /// the detailed mapping for each row in matrix
     pub rows: Vec<super::GraphBRow<Storage>>,
 }
 
@@ -105,8 +123,13 @@ impl super::MatrixBMapping for Mapping {
             }
             // forward to next subarray
 
-            let graph_b_row = super::GraphBRow { path, size };
+            let graph_b_row = super::GraphBRow {
+                path,
+                size,
+                nnz: row.nnz(),
+            };
             rows.push(graph_b_row);
+            current_path.forward_to_next_subarray(total_size);
         }
         Mapping { rows }
     }
@@ -117,7 +140,7 @@ impl super::MatrixBMapping for Mapping {
 }
 
 impl LevelTrait for Level {
-    const LEVELS: usize = 7;
+    const LEVELS: usize = LEVELS;
 
     type Storage = Storage;
     type Mapping = Mapping;
@@ -152,12 +175,30 @@ impl LevelTrait for Level {
     fn first_level() -> Self {
         Self::Channel
     }
-
+    /// the last level to receive data
     fn last_level() -> Self {
-        Self::Bank
+        Self::SubArray
     }
 
     fn row() -> Self {
         Self::Row
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::pim::level::MatrixBMapping;
+
+    #[test]
+    fn test_mapping() {
+        let graph = sprs::io::read_matrix_market("mtx/test.mtx")
+            .unwrap()
+            .to_csr();
+        let total_size = super::Storage::new(1, 1, 8, 4, 4, 2, 2, 16);
+        let mapping = super::Mapping::get_mapping(&total_size, &graph);
+        println!("{:?}", mapping);
+    }
+
+    #[test]
+    fn test_storage() {}
 }

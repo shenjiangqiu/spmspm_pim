@@ -59,9 +59,11 @@ impl Config {
             activate_cycle: 2,
             subarrays: 16,
             row_size: 2,
-            graph_path: "data/roadNet-CA.mtx".to_string(),
+            graph_path: "mtx/test.mtx".to_string(),
         }
     }
+    #[allow(dead_code, unreachable_code)]
+
     pub fn from_hbm() -> Self {
         Self {
             dram_type: DramType::HBM,
@@ -82,6 +84,8 @@ impl Config {
             ..todo!()
         }
     }
+    #[allow(dead_code, unreachable_code)]
+
     pub fn from_hbm2() -> Self {
         Self {
             dram_type: DramType::HBM2,
@@ -114,9 +118,9 @@ mod tests {
     #[test]
     #[ignore]
     fn save_configs() {
-        Config::from_ddr4(2, 2, 10).save_to_file("ddr4.toml");
-        Config::from_hbm().save_to_file("hbm.toml");
-        Config::from_hbm2().save_to_file("hbm2.toml");
+        Config::from_ddr4(1, 2, 10).save_to_file("ddr4.toml");
+        // Config::from_hbm().save_to_file("hbm.toml");
+        // Config::from_hbm2().save_to_file("hbm2.toml");
     }
 
     #[test]

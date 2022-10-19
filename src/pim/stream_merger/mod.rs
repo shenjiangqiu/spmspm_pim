@@ -1,4 +1,4 @@
-pub mod bank_provider;
+pub mod provider;
 mod simple_stream_merger;
 pub use simple_stream_merger::SimpleStreamMerger;
 /// receive streamed input from lower layers and merge it and send it to upper layers. it will also send the tasks to the lower layers.
@@ -10,7 +10,9 @@ pub trait StreamMerger {
     /// fetch input and merge it and send it to upper layer
     fn process_input(&mut self, context: &mut Self::SimContext, current_cycle: usize);
 }
-
+pub trait EmptyComponent {
+    fn is_empty(&self) -> Result<(), String>;
+}
 /// can provide data from a single output port
 pub trait StreamProvider {
     /// the output data provided

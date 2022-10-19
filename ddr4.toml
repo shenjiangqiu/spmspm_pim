@@ -1,8 +1,16 @@
-channels = 2
+dram_type = 'DDR4'
+channels = 1
 ranks = 2
 chips = 8
 bank_groups = 4
 banks = 4
+bank_provider_size = 2
+bank_task_queue_size = 2
+precharge_cycle = 2
+activate_cycle = 2
+subarrays = 16
 rows = 32768
+row_size = 2
 columns = 256
 pe_num = 10
+graph_path = 'mtx/test.mtx'

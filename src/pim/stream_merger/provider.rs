@@ -1,29 +1,31 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fmt::Debug};
 
 use sprs::{num_kinds::Pattern, CsMat};
+use tracing::debug;
 
 use crate::pim::{
-    bank::BankState,
-    level::{LevelTrait, PathStorage},
+    level::LevelTrait,
+    row_buffer::BankState,
     task::{StreamMessage, Task, TaskData},
     Component, SimulationContext,
 };
 
-use super::{StreamProvider, TaskReceiver};
+use super::{EmptyComponent, StreamProvider, TaskReceiver};
 #[derive(Debug, Clone)]
 struct WorkingTask<Storage> {
     task: TaskData<Storage>,
     current_size: usize,
+    current_idx: usize,
 }
 #[derive(Debug, Clone)]
 pub struct Provider<'a, LevelType: LevelTrait> {
+    id: usize,
     level: LevelType,
     bank_status: BankState,
     task_queue: VecDeque<TaskData<LevelType::Storage>>,
     current_working_task: Option<WorkingTask<LevelType::Storage>>,
     ready_queue: VecDeque<StreamMessage>,
     max_task_queue_size: usize,
-    max_data_size: usize,
     max_provider_size: usize,
     /// the number of bytes in a row of a subarray!
     row_size: usize,
@@ -34,8 +36,17 @@ pub struct Provider<'a, LevelType: LevelTrait> {
     graph_b: &'a CsMat<Pattern>,
 }
 impl<'a, LevelType: LevelTrait> Provider<'a, LevelType> {
+    /// create a new provider
+    /// ## Arguments
+    /// - `id`: the id of the provider
+    /// - `max_provider_size`: max number of messages can be provided in a cycle
+    /// - `max_task_queue_size`: max number of tasks can be queued
+    /// - `row_size`: the number of bytes in a row of a subarray!
+    /// - `pre`: the number of cycles for precharge
+    /// - `act`: the number of cycles for activate
+    /// - `graph_b`: the graph stored in CSR format
     pub fn new(
-        max_data_size: usize,
+        id: usize,
         max_provider_size: usize,
         max_task_queue_size: usize,
         row_size: usize,
@@ -44,12 +55,12 @@ impl<'a, LevelType: LevelTrait> Provider<'a, LevelType> {
         graph: &'a CsMat<Pattern>,
     ) -> Self {
         Self {
+            id,
             level: LevelType::last_level(),
             bank_status: BankState::new(),
             task_queue: VecDeque::new(),
             ready_queue: VecDeque::new(),
             current_working_task: None,
-            max_data_size,
             max_provider_size,
             max_task_queue_size,
             current_opening_row: None,
@@ -68,8 +79,8 @@ impl<'a, LevelType: LevelTrait> StreamProvider for Provider<'a, LevelType> {
 
     fn get_data(
         &mut self,
-        context: &mut Self::SimContext,
-        current_cycle: u64,
+        _context: &mut Self::SimContext,
+        _current_cycle: u64,
     ) -> Vec<Self::OutputData> {
         let mut result = Vec::new();
         while result.len() < self.max_provider_size && !self.ready_queue.is_empty() {
@@ -79,7 +90,11 @@ impl<'a, LevelType: LevelTrait> StreamProvider for Provider<'a, LevelType> {
         result
     }
 
-    fn peek_data(&self, context: &Self::SimContext, current_cycle: u64) -> Vec<&Self::OutputData> {
+    fn peek_data(
+        &self,
+        _context: &Self::SimContext,
+        _current_cycle: u64,
+    ) -> Vec<&Self::OutputData> {
         self.ready_queue
             .iter()
             .take(self.max_provider_size)
@@ -87,7 +102,7 @@ impl<'a, LevelType: LevelTrait> StreamProvider for Provider<'a, LevelType> {
     }
 }
 
-impl<'a, LevelType: LevelTrait> TaskReceiver for Provider<'a, LevelType>
+impl<'a, LevelType: LevelTrait + Debug> TaskReceiver for Provider<'a, LevelType>
 where
     LevelType::Storage: Clone,
 {
@@ -98,16 +113,46 @@ where
     fn receive_task(
         &mut self,
         task: &Self::InputTask,
-        context: &mut Self::SimContext,
-        current_cycle: u64,
+        _context: &mut Self::SimContext,
+        _current_cycle: u64,
     ) -> Result<(), Self::LevelType> {
         if let Task::TaskData(data) = task {
             if self.task_queue.len() < self.max_task_queue_size {
+                debug!(
+                    ?self.level,
+                    self.id, "provider receive task at level:{:?} : {:?}", self.level, data
+                );
                 self.task_queue.push_back(data.clone());
                 return Ok(());
             } else {
                 return Err(self.level);
             }
+        }
+        // it's an end task, just ignore it
+        debug!(?self.level,self.id, "receive end task at level: {:?}", self.level);
+        Ok(())
+    }
+}
+
+impl<'a, LevelType: LevelTrait> EmptyComponent for Provider<'a, LevelType> {
+    fn is_empty(&self) -> Result<(), String> {
+        if !self.current_opening_row.is_none() {
+            return Err(format!(
+                "provider current_opening_row {} is not empty",
+                self.id
+            ));
+        }
+        if !self.current_working_task.is_none() {
+            return Err(format!(
+                "provider current_working_task {} is not empty",
+                self.id
+            ));
+        }
+        if !self.task_queue.is_empty() {
+            return Err(format!("provider task_queue {} is not empty", self.id));
+        }
+        if !self.ready_queue.is_empty() {
+            return Err(format!("provider ready_queue {} is not empty", self.id));
         }
         Ok(())
     }
@@ -128,22 +173,24 @@ impl<'a, LevelType: LevelTrait + Copy> Component for Provider<'a, LevelType> {
 
             if let Some(working_taks) = self.current_working_task.as_mut() {
                 // work
-
+                let from = working_taks.task.from;
+                let row_b_idx = working_taks.current_idx;
                 // have a new task get the row id:
                 let row_id = working_taks.task.target_id.get_row_id();
                 let row_id = row_id + working_taks.current_size / self.row_size;
                 // check if the row is ready:
                 if self.bank_status.is_row_ready(row_id) {
                     // if ready, push the task to ready queue:
-                    let message =
-                        context.generate_msg(working_taks.task.to, todo!(), current_cycle);
+                    let idx = self.graph_b.outer_view(from).unwrap().indices()[row_b_idx];
+                    let message = context.generate_msg(working_taks.task.to, idx, current_cycle);
                     self.ready_queue.push_back(message);
                     // update the current working task:
                     working_taks.current_size += 4;
+                    working_taks.current_idx += 1;
                     if working_taks.current_size >= working_taks.task.size {
                         // this task is done
-                        self.current_working_task = None;
                         let end_message = context.generate_end(working_taks.task.to);
+                        self.current_working_task = None;
                         self.ready_queue.push_back(end_message);
                     }
                 } else {
@@ -160,6 +207,7 @@ impl<'a, LevelType: LevelTrait + Copy> Component for Provider<'a, LevelType> {
                 self.current_working_task = Some(WorkingTask {
                     task: data,
                     current_size: 0,
+                    current_idx: 0,
                 });
             }
         }
@@ -168,8 +216,6 @@ impl<'a, LevelType: LevelTrait + Copy> Component for Provider<'a, LevelType> {
 
 #[cfg(test)]
 mod tests {
-
-    use sprs::{num_kinds::Pattern, CsMat};
 
     use crate::pim::{
         config::Config,
@@ -186,13 +232,19 @@ mod tests {
         let mut current_cycle = 0;
         let config = Config::from_ddr4(2, 2, 2);
         let mut context = SimulationContext::<ddr4::Level>::new(&config);
-        let graph_b = CsMat::new((2, 2), vec![0, 1, 2], vec![0, 1], vec![Pattern; 2]);
-        let mut provider = Provider::<ddr4::Level>::new(10, 10, 10, 10, 10, 10, &graph_b);
-        let mut task_builder = TaskBuilder::new();
+        let graph_b = sprs::io::read_matrix_market("mtx/test.mtx")
+            .unwrap()
+            .to_csr();
+        let mut provider = Provider::<ddr4::Level>::new(0, 10, 10, 10, 10, 10, &graph_b);
+        let mut task_builder = TaskBuilder::default();
         let path_storage = ddr4::Storage::new(0, 0, 0, 0, 0, 0, 0, 0);
         let task = task_builder.gen_task(PathId::new(path_storage), 0, 0, 1);
         provider
             .receive_task(&task, &mut context, current_cycle)
+            .unwrap();
+        let end_task = task_builder.gen_end_task(0);
+        provider
+            .receive_task(&end_task, &mut context, current_cycle)
             .unwrap();
         provider.cycle(&mut context, current_cycle);
         current_cycle += 1;
@@ -205,6 +257,48 @@ mod tests {
                 break data;
             }
         };
-        println!("{:?}", data);
+        println!("data1: {:?}", data);
+    }
+
+    #[test]
+    fn test_change_line() {
+        let current_cycle = 0;
+        let config = Config::from_ddr4(2, 2, 2);
+        let mut context = SimulationContext::<ddr4::Level>::new(&config);
+        let graph_b = sprs::io::read_matrix_market("mtx/test.mtx")
+            .unwrap()
+            .to_csr();
+        let mut provider = Provider::<ddr4::Level>::new(0, 10, 10, 10, 10, 10, &graph_b);
+        let mut task_builder = TaskBuilder::default();
+        let path_storage = ddr4::Storage::new(0, 0, 0, 0, 0, 0, 0, 0);
+        let task = task_builder.gen_task(PathId::new(path_storage), 0, 0, 1);
+        provider
+            .receive_task(&task, &mut context, current_cycle)
+            .unwrap();
+        let end_task = task_builder.gen_end_task(0);
+        provider
+            .receive_task(&end_task, &mut context, current_cycle)
+            .unwrap();
+        let path_storage = ddr4::Storage::new(0, 0, 0, 0, 0, 0, 1, 0);
+
+        let task = task_builder.gen_task(PathId::new(path_storage), 0, 1, 1);
+        provider
+            .receive_task(&task, &mut context, current_cycle)
+            .unwrap();
+        let end_task = task_builder.gen_end_task(1);
+
+        provider
+            .receive_task(&end_task, &mut context, current_cycle)
+            .unwrap();
+        provider.cycle(&mut context, current_cycle);
+        let mut result = vec![];
+        for i in 0..1000 {
+            provider.cycle(&mut context, i);
+            let data = provider.get_data(&mut context, 0);
+            result.extend(data);
+        }
+        for r in result {
+            println!("data: {:?}", r);
+        }
     }
 }

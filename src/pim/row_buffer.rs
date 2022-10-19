@@ -1,3 +1,5 @@
+//! the status of a rowbuffer
+
 /// a row in bank
 #[derive(Debug, Clone)]
 pub struct Row {

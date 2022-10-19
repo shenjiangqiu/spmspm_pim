@@ -4,11 +4,11 @@ use std::{
 };
 
 use sprs::{num_kinds::Pattern, CsMat};
+use tracing::debug;
 
 use super::{
-    config::{self, Config},
-    level::{self, ddr4, LevelTrait, MatrixBMapping},
-    stream_merger::{StreamProvider, TaskReceiver},
+    level::{self, LevelTrait, MatrixBMapping},
+    stream_merger::{EmptyComponent, StreamProvider, TaskReceiver},
     task::{PathId, StreamMessage, Task},
     Component, SimulationContext,
 };
@@ -17,12 +17,23 @@ use super::{
 /// - will init the final result
 /// - when finished one taks, will update the final result
 /// - when all tasks finished, will return the final result
+#[derive(Debug)]
 pub struct TaskManager<Child, Mapping> {
     child: Child,
     graph_a_tasks: GraphATasks,
     graph_b_mappings: Mapping,
     unfinished_tasks: BTreeSet<usize>,
 }
+
+impl<Child: EmptyComponent, Mapping> EmptyComponent for TaskManager<Child, Mapping> {
+    fn is_empty(&self) -> Result<(), String> {
+        if !self.unfinished_tasks.is_empty() {
+            return Err("unfinished tasks".to_string());
+        }
+        self.child.is_empty()
+    }
+}
+#[derive(Debug)]
 pub struct GraphATasks {
     current_working_target: usize,
 
@@ -88,7 +99,6 @@ where
                 let path_id = row_b_info.path.clone();
                 let path_id = PathId::new(path_id);
                 let task = context.gen_task(
-                    super::task::TaskType::Real,
                     path_id,
                     *row_b_id,
                     self.graph_a_tasks.current_working_target,
@@ -96,8 +106,13 @@ where
                 );
                 match self.child.receive_task(&task, context, current_cycle) {
                     Ok(_) => {
+                        debug!("task {:?} sent", task);
                         // success, remove the task from task queue
                         task_a.pop_front();
+                        debug!(
+                            "adding task to unfinished task list {}",
+                            self.graph_a_tasks.current_working_target
+                        );
                         self.unfinished_tasks
                             .insert(self.graph_a_tasks.current_working_target);
                     }
@@ -108,6 +123,10 @@ where
             } else {
                 // all tasks finished
                 // send the finish signal
+                debug!(
+                    "task for {} finished",
+                    self.graph_a_tasks.current_working_target
+                );
                 let end_task = context.gen_end_task(self.graph_a_tasks.current_working_target);
                 self.child
                     .receive_task(&end_task, context, current_cycle)
@@ -120,8 +139,16 @@ where
         let data = self.child.get_data(context, current_cycle);
         for d in data {
             let target = d.to;
-            let removed = self.unfinished_tasks.remove(&target);
-            assert!(removed);
+            match d.message_type {
+                crate::pim::task::StreamMessageType::Data(data) => {
+                    tracing::trace!("received data from {},msg: {:?}", target, data);
+                }
+                crate::pim::task::StreamMessageType::End => {
+                    debug!("removing from unfinished task: {}", target);
+                    let removed = self.unfinished_tasks.remove(&target);
+                    assert!(removed);
+                }
+            }
         }
         // decide if finished
         let is_finihsed = self.unfinished_tasks.is_empty()

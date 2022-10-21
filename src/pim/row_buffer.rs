@@ -4,7 +4,7 @@
 #[derive(Debug, Clone)]
 pub struct Row {
     pub row_id: usize,
-    pub data_accesed: usize,
+    pub data_accessed: usize,
 }
 /// a bank
 #[derive(Debug, Clone)]
@@ -33,7 +33,7 @@ impl BankState {
     pub fn open_row(&mut self, row_id: usize) {
         self.opened_row = Some(Row {
             row_id,
-            data_accesed: 0,
+            data_accessed: 0,
         });
     }
 }

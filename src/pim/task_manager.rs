@@ -202,18 +202,32 @@ where
             }
         }
         // decide if finished
-        let is_finihsed = self.unfinished_tasks.is_empty()
+        let is_finished = self.unfinished_tasks.is_empty()
             && self.graph_a_tasks.current_working_target == self.graph_a_tasks.tasks.len();
-        context.finished = is_finihsed;
+        context.finished = is_finished;
     }
 }
 
 
 #[cfg(test)]
 mod tests{
+    use crate::pim::level::ddr4;
+    use crate::pim::level::ddr4::Mapping;
+    use super::*;
+
     #[test]
     fn test_task_generation(){
-
+        let total_size=ddr4::Storage{ data: [1,1,1,1,1,2,100,4] };
+        let graph_a=sprs::io::read_matrix_market("mtx/test.mtx").unwrap().to_csr();
+        let graph_b = graph_a.transpose_view().to_csr();
+        let graph_b_mappings = Mapping::get_mapping(&total_size, &graph_b);
+        let mut task_builder = TaskBuilder::default();
+        let graph_a_tasks = TaskManager::<(),ddr4::Mapping>::generate_mappings_for_a(&graph_a, &graph_b_mappings,&mut task_builder);
+        for task in graph_a_tasks.tasks{
+            for task in task{
+                println!("{:?}",task);
+            }
+        }
 
     }
 }

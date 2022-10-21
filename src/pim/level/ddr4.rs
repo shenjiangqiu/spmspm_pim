@@ -83,7 +83,7 @@ impl Storage {
     pub fn get_flat_subarray_id(&self, total_size: &Self) -> usize {
         let mut id = 0;
         let mut base = 1;
-        for i in 5..=0 {
+        for i in (0..=5).rev() {
             id += self.data[i] * base;
             base *= total_size.data[i];
         }

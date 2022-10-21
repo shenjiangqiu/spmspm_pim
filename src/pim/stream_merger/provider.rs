@@ -12,8 +12,8 @@ use crate::pim::{
 
 use super::{EmptyComponent, StreamProvider, TaskReceiver};
 #[derive(Debug, Clone)]
-struct WorkingTask<Storage> {
-    task: TaskData<Storage>,
+struct WorkingTask<LevelType: LevelTrait> {
+    task: TaskData<LevelType>,
     current_size: usize,
     current_idx: usize,
 }
@@ -22,8 +22,8 @@ pub struct Provider<'a, LevelType: LevelTrait> {
     id: usize,
     level: LevelType,
     bank_status: BankState,
-    task_queue: VecDeque<TaskData<LevelType::Storage>>,
-    current_working_task: Option<WorkingTask<LevelType::Storage>>,
+    task_queue: VecDeque<TaskData<LevelType>>,
+    current_working_task: Option<WorkingTask<LevelType>>,
     ready_queue: VecDeque<StreamMessage>,
     max_task_queue_size: usize,
     max_provider_size: usize,
@@ -104,10 +104,10 @@ impl<'a, LevelType: LevelTrait> StreamProvider for Provider<'a, LevelType> {
 
 impl<'a, LevelType: LevelTrait + Debug> TaskReceiver for Provider<'a, LevelType>
 where
-    LevelType::Storage: Clone,
+    LevelType::Storage: Clone + Debug,
 {
     type LevelType = LevelType;
-    type InputTask = Task<LevelType::Storage>;
+    type InputTask = Task<LevelType>;
     type SimContext = SimulationContext<LevelType>;
 
     fn receive_task(

@@ -42,7 +42,7 @@ struct Statistics {
     cycle: u64,
 }
 
-impl<LevelType> SimulationContext<LevelType> {
+impl<LevelType: LevelTrait> SimulationContext<LevelType> {
     /// create a new simulation context
     pub fn new(_config: &Config) -> Self {
         Self {
@@ -59,13 +59,13 @@ impl<LevelType> SimulationContext<LevelType> {
         self.finished
     }
 
-    pub fn gen_task<Storage>(
+    pub fn gen_task(
         &mut self,
-        target_id: task::PathId<Storage>,
+        target_id: task::PathId<LevelType>,
         from: usize,
         to: TaskTo,
         size: usize,
-    ) -> task::Task<Storage> {
+    ) -> task::Task<LevelType> {
         self.task_builder.gen_task(target_id, from, to, size)
     }
 
@@ -82,7 +82,7 @@ impl<LevelType> SimulationContext<LevelType> {
         self.message_builder.generate_end_msg(to)
     }
 
-    pub fn gen_end_task<Storage>(&mut self, to: TaskTo) -> Task<Storage> {
+    pub fn gen_end_task(&mut self, to: TaskTo) -> Task<LevelType> {
         self.task_builder.gen_end_task(to)
     }
 }

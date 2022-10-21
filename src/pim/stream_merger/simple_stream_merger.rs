@@ -51,7 +51,7 @@ impl MergerStatus {
     /// return if finished
     /// - will try to merger the input,
     /// - will return true is all done
-    fn cycle<LevelType>(
+    fn cycle<LevelType: LevelTrait>(
         &mut self,
         context: &mut SimulationContext<LevelType>,
         current_cycle: u64,
@@ -346,11 +346,7 @@ impl<LevelType: LevelTrait + Debug, Child> SimpleStreamMerger<LevelType, Child> 
     /// should not be used by user,
     /// use `receive_task` instead
     /// ### **only use this after `can_self_receive_task` returns true**
-    fn self_receive_task(
-        &mut self,
-        task_data: &task::TaskData<LevelType::Storage>,
-        child_id: usize,
-    ) {
+    fn self_receive_task(&mut self, task_data: &task::TaskData<LevelType>, child_id: usize) {
         // yes we can receive this task
 
         let to = task_data.to;
@@ -376,13 +372,13 @@ impl<LevelType: LevelTrait + Debug, Child> SimpleStreamMerger<LevelType, Child> 
 impl<LevelType, Child> TaskReceiver for SimpleStreamMerger<LevelType, Child>
 where
     Child: TaskReceiver<
-        InputTask = Task<LevelType::Storage>,
+        InputTask = Task<LevelType>,
         SimContext = SimulationContext<LevelType>,
         LevelType = LevelType,
     >,
-    LevelType: LevelTrait + Debug,
+    LevelType: LevelTrait,
 {
-    type InputTask = Task<LevelType::Storage>;
+    type InputTask = Task<LevelType>;
     type SimContext = SimulationContext<LevelType>;
     type LevelType = LevelType;
     /// it can receive the task only when it's ready and it's child is ready
@@ -527,7 +523,7 @@ impl<LevelType: Debug, Child> StreamProvider for SimpleStreamMerger<LevelType, C
 
 impl<LevelType, Child> Component for SimpleStreamMerger<LevelType, Child>
 where
-    LevelType: LevelTrait + Debug,
+    LevelType: LevelTrait,
     Child: Component<SimContext = SimulationContext<LevelType>>
         + StreamProvider<OutputData = StreamMessage, SimContext = SimulationContext<LevelType>>,
 {

@@ -6,8 +6,8 @@ use clap::{Command, CommandFactory, Parser};
 use clap_complete::Generator;
 use cli::{Cli, CompArgs, RunArgs};
 pub use pim::Simulator;
-use tracing::metadata::LevelFilter;
 use tracing::info;
+use tracing::metadata::LevelFilter;
 
 use crate::pim::config::Config;
 pub mod cli;

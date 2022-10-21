@@ -1,37 +1,34 @@
 use std::fmt::Debug;
 
-use super::level::{LevelTrait, PathStorage};
+use super::level::LevelTrait;
 
 /// a trait that can represent a path to a Bank
 #[derive(Debug, Clone)]
-pub struct PathId<Storage> {
-    level_path: Storage,
+pub struct PathId<LevelType: LevelTrait> {
+    level_path: LevelType::Storage,
 }
 
-impl<Storage> PathId<Storage>
-where
-    Storage: PathStorage,
-{
-    pub fn new(path: impl Into<Storage>) -> Self {
+impl<LevelType: LevelTrait> PathId<LevelType> {
+    pub fn new(path: impl Into<LevelType::Storage>) -> Self {
         Self {
             level_path: path.into(),
         }
     }
-    pub fn get_level_id(&self, level: &Storage::LevelType) -> usize {
-        self.level_path.get_level_id(level)
+    pub fn get_level_id(&self, level: &LevelType) -> usize {
+        level.get_level_id(&self.level_path)
     }
     pub fn get_row_id(&self) -> usize {
-        self.level_path.get_level_id(&Storage::LevelType::row())
+        LevelType::row().get_level_id(&self.level_path)
     }
 }
 
 /// the data structure that represents a task
 #[derive(Debug, Clone)]
-pub struct TaskData<Storage> {
+pub struct TaskData<LevelType: LevelTrait> {
     /// unique id for a task
     pub id: usize,
     /// the path to where the row_b is stored
-    pub target_id: PathId<Storage>,
+    pub target_id: PathId<LevelType>,
     /// the row id in the matrix B
     pub from: usize,
     /// the row id in the matrix A
@@ -58,9 +55,9 @@ pub struct TaskTo {
 
 /// the task send to bank
 #[derive(Debug, Clone, enum_as_inner::EnumAsInner)]
-pub enum Task<Storage> {
+pub enum Task<LevelType: LevelTrait> {
     /// a real task(an element in A, will find  a row in B)
-    TaskData(TaskData<Storage>),
+    TaskData(TaskData<LevelType>),
     /// a signal that the tasks from a row of A is ended
     End(TaskEndData),
 }
@@ -76,13 +73,13 @@ impl TaskBuilder {
     // }
 
     /// generate a task
-    pub fn gen_task<Storage>(
+    pub fn gen_task<LevelType: LevelTrait>(
         &mut self,
-        target_id: PathId<Storage>,
+        target_id: PathId<LevelType>,
         from: usize,
         to: TaskTo,
         size: usize,
-    ) -> Task<Storage> {
+    ) -> Task<LevelType> {
         let id = self.current_id;
         self.current_id += 1;
         Task::TaskData(TaskData {
@@ -94,7 +91,7 @@ impl TaskBuilder {
         })
     }
     /// generate an end signal
-    pub fn gen_end_task<Storage>(&mut self, to: TaskTo) -> Task<Storage> {
+    pub fn gen_end_task<LevelType: LevelTrait>(&mut self, to: TaskTo) -> Task<LevelType> {
         let id = self.current_id;
         self.current_id += 1;
         Task::End(TaskEndData { id, to })

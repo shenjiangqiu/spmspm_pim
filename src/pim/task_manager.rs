@@ -8,27 +8,26 @@ use sprs::{num_kinds::Pattern, CsMat};
 use tracing::debug;
 
 use super::{
-    level::{self, GraphBRow, LevelTrait, MatrixBMapping, PathStorage},
+    level::{GraphBRow, LevelTrait},
     stream_merger::{EmptyComponent, StreamProvider, TaskReceiver},
-    task::{PathId, StreamMessage, Task, TaskBuilder, TaskTo,TaskData,TaskEndData},
+    task::{PathId, StreamMessage, Task, TaskBuilder, TaskData, TaskEndData, TaskTo},
     Component, SimulationContext,
 };
-
 
 /// track the finish of tasks
 /// - will init the final result
 /// - when finished one taks, will update the final result
 /// - when all tasks finished, will return the final result
 #[derive(Debug)]
-pub struct TaskManager<Child, Mapping: MatrixBMapping> {
+pub struct TaskManager<Child, LevelType: LevelTrait> {
     child: Child,
-    graph_a_tasks: GraphATasks<Mapping::Storage>,
+    graph_a_tasks: GraphATasks<LevelType>,
     unfinished_tasks: BTreeSet<TaskTo>,
     recent_to: Option<TaskTo>,
 }
 
-impl<Child: EmptyComponent, Mapping: MatrixBMapping> EmptyComponent
-    for TaskManager<Child, Mapping>
+impl<Child: EmptyComponent, LevelType: LevelTrait> EmptyComponent
+    for TaskManager<Child, LevelType>
 {
     fn is_empty(&self) -> Vec<String> {
         let mut result = self.child.is_empty();
@@ -41,26 +40,25 @@ impl<Child: EmptyComponent, Mapping: MatrixBMapping> EmptyComponent
 }
 
 #[derive(Debug)]
-pub struct GraphATasks<Storage> {
+pub struct GraphATasks<LevelType: LevelTrait> {
     current_working_target: usize,
 
     /// for each target, the froms
-    tasks: VecDeque<VecDeque<Task<Storage>>>,
+    tasks: VecDeque<VecDeque<Task<LevelType>>>,
 }
 
-impl<Child, Mapping> TaskManager<Child, Mapping>
-where
-    Mapping: level::MatrixBMapping,
-    Mapping::Storage: Clone + Ord,
-{
+impl<Child, LevelType: LevelTrait> TaskManager<Child, LevelType> {
     pub fn new(
         child: Child,
         graph_a: &CsMat<Pattern>,
         graph_b: &CsMat<Pattern>,
-        total_size: &Mapping::Storage,
+        total_size: &LevelType::Storage,
         task_builder: &mut TaskBuilder,
-    ) -> Self {
-        let graph_b_mappings = Mapping::get_mapping(total_size, graph_b);
+    ) -> Self
+    where
+        LevelType::Storage: Ord,
+    {
+        let graph_b_mappings = LevelType::get_mapping(total_size, graph_b);
         let graph_a_tasks = Self::generate_mappings_for_a(graph_a, &graph_b_mappings, task_builder);
 
         Self {
@@ -74,17 +72,21 @@ where
     /// from graph a genrate a list of froms
     pub fn generate_mappings_for_a(
         graph_a: &CsMat<Pattern>,
-        graph_b_mappings: &Mapping,
+        graph_b_mappings: &LevelType::Mapping,
         task_builder: &mut TaskBuilder,
-    ) -> GraphATasks<Mapping::Storage> {
+    ) -> GraphATasks<LevelType>
+    where
+        LevelType::Storage: Ord,
+    {
         let mut tasks = VecDeque::new();
         for (to, row) in graph_a.outer_iterator().into_iter().enumerate() {
-            let patches: Vec<(usize, &GraphBRow<Mapping::Storage>)> = row
+            let patches: Vec<(usize, &GraphBRow<LevelType::Storage>)> = row
                 .indices()
                 .iter()
-                .map(|idx| {
-                    let graph_b_row_detail = graph_b_mappings.get_row_detail(*idx);
-                    (*idx, graph_b_row_detail)
+                .map(|row_b_idx| {
+                    let graph_b_row_detail =
+                        LevelType::get_row_detail(graph_b_mappings, *row_b_idx);
+                    (*row_b_idx, graph_b_row_detail)
                 })
                 .collect();
 
@@ -96,10 +98,9 @@ where
                 let mut uniq_set = BTreeSet::new();
                 let mut this_round_tasks = VecDeque::new();
                 for (from, row_detail) in current_round.drain(RangeFull) {
-                    if uniq_set.insert(PathStorage::get_sub_path_to_level(
-                        &row_detail.path,
-                        &LevelTrait::last_level(),
-                    )) {
+                    if uniq_set
+                        .insert(LevelType::last_level().get_sub_path_to_level(&row_detail.path))
+                    {
                         // yes , it's uniq
                         //generate the task
                         let task = task_builder.gen_task(
@@ -136,13 +137,13 @@ where
     }
 }
 
-impl<Child, LevelType: LevelTrait + Debug> Component for TaskManager<Child, LevelType::Mapping>
+impl<Child, LevelType: LevelTrait + Debug> Component for TaskManager<Child, LevelType>
 where
-    LevelType::Storage: Clone,
+    LevelType::Storage: Clone + Debug,
     Child: StreamProvider<SimContext = SimulationContext<LevelType>, OutputData = StreamMessage>
         + TaskReceiver<
             SimContext = SimulationContext<LevelType>,
-            InputTask = Task<LevelType::Storage>,
+            InputTask = Task<LevelType>,
             LevelType = LevelType,
         > + Component<SimContext = SimulationContext<LevelType>>,
 {
@@ -160,8 +161,8 @@ where
                         // success, remove the task from task queue
                         let task = task_a.pop_front().unwrap();
                         let task_to = match task {
-                            Task::TaskData(TaskData{to,..}) => to,
-                            Task::End(TaskEndData{to,..})=> to,
+                            Task::TaskData(TaskData { to, .. }) => to,
+                            Task::End(TaskEndData { to, .. }) => to,
                         };
                         self.recent_to = Some(task_to);
                         debug!(
@@ -181,7 +182,7 @@ where
                     "task for {} finished",
                     self.graph_a_tasks.current_working_target
                 );
-                
+
                 self.graph_a_tasks.current_working_target += 1;
                 context.current_sending_task = self.graph_a_tasks.current_working_target;
             }
@@ -209,26 +210,31 @@ where
     }
 }
 
-
 #[cfg(test)]
-mod tests{
-    use crate::pim::level::ddr4;
-    use crate::pim::level::ddr4::Mapping;
+mod tests {
     use super::*;
+    use crate::pim::level::ddr4;
 
     #[test]
-    fn test_task_generation(){
-        let total_size=ddr4::Storage{ data: [1,1,1,1,1,2,100,4] };
-        let graph_a=sprs::io::read_matrix_market("mtx/test.mtx").unwrap().to_csr();
+    fn test_task_generation() {
+        let total_size = ddr4::Storage {
+            data: [1, 1, 1, 1, 1, 2, 100, 4],
+        };
+        let graph_a = sprs::io::read_matrix_market("mtx/test.mtx")
+            .unwrap()
+            .to_csr();
         let graph_b = graph_a.transpose_view().to_csr();
-        let graph_b_mappings = Mapping::get_mapping(&total_size, &graph_b);
+        let graph_b_mappings = ddr4::Level::get_mapping(&total_size, &graph_b);
         let mut task_builder = TaskBuilder::default();
-        let graph_a_tasks = TaskManager::<(),ddr4::Mapping>::generate_mappings_for_a(&graph_a, &graph_b_mappings,&mut task_builder);
-        for task in graph_a_tasks.tasks{
-            for task in task{
-                println!("{:?}",task);
+        let graph_a_tasks = TaskManager::<(), ddr4::Level>::generate_mappings_for_a(
+            &graph_a,
+            &graph_b_mappings,
+            &mut task_builder,
+        );
+        for task in graph_a_tasks.tasks {
+            for task in task {
+                println!("{:?}", task);
             }
         }
-
     }
 }

@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -12,28 +12,33 @@ pub enum DramType {
     HBM2,
 }
 
+#[derive(Deserialize, Serialize, Debug, Default)]
+pub struct LevelConfig {
+    pub num: usize,
+    pub merger_num: usize,
+    pub max_msg_in: usize,
+    pub max_msg_out: usize,
+    pub max_msg_generated: usize,
+}
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Config {
     // memory config
     pub dram_type: DramType,
-    pub channels: usize,
-    pub ranks: usize,
-    pub chips: usize,
-    pub bank_groups: usize,
-    pub banks: usize,
-    pub bank_provider_size: usize,
-    pub bank_task_queue_size: usize,
+    pub subarray_provider_size: usize,
+    pub subarray_task_queue_size: usize,
+    pub subarrays: usize,
     pub precharge_cycle: u64,
     pub activate_cycle: u64,
-    pub subarrays: usize,
     pub rows: usize,
     pub row_size: usize,
     pub columns: usize,
-
-    // pe configuration
-    pub pe_num: usize,
-
     pub graph_path: String,
+    pub output_path: PathBuf,
+    pub channels: LevelConfig,
+    pub ranks: LevelConfig,
+    pub chips: LevelConfig,
+    pub bank_groups: LevelConfig,
+    pub banks: LevelConfig,
 }
 impl Config {
     pub fn new(path: impl AsRef<Path>) -> Self {
@@ -42,67 +47,55 @@ impl Config {
 }
 
 impl Config {
-    pub fn from_ddr4(channels: usize, ranks: usize, pe_num: usize) -> Self {
+    pub fn from_ddr4(channels: LevelConfig, ranks: LevelConfig) -> Self {
         Self {
             dram_type: DramType::DDR4,
             channels,
             ranks,
-            chips: 8,
-            bank_groups: 4,
-            banks: 4,
             rows: 32768,
             columns: 256,
-            pe_num,
-            bank_provider_size: 2,
-            bank_task_queue_size: 2,
             precharge_cycle: 2,
             activate_cycle: 2,
             subarrays: 16,
             row_size: 2,
             graph_path: "mtx/test.mtx".to_string(),
+            output_path: PathBuf::from("output/ddr4.json"),
+            chips: LevelConfig {
+                num: 8,
+                merger_num: 8,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+            bank_groups: LevelConfig {
+                num: 8,
+                merger_num: 8,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+            banks: LevelConfig {
+                num: 8,
+                merger_num: 8,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+            subarray_provider_size: 2,
+            subarray_task_queue_size: 2,
         }
     }
     #[allow(dead_code, unreachable_code)]
 
     pub fn from_hbm() -> Self {
-        Self {
-            dram_type: DramType::HBM,
-            channels: 16,
-            ranks: 1,
-            chips: 1,
-            bank_groups: 1,
-            banks: 1,
-            rows: 32768,
-            columns: 256,
-            pe_num: 1,
-            bank_provider_size: todo!(),
-            bank_task_queue_size: todo!(),
-            precharge_cycle: todo!(),
-            activate_cycle: todo!(),
-            subarrays: 16,
-            row_size: todo!(),
-            ..todo!()
-        }
+        Self { ..todo!() }
     }
     #[allow(dead_code, unreachable_code)]
 
     pub fn from_hbm2() -> Self {
         Self {
             dram_type: DramType::HBM2,
-            channels: 16,
-            ranks: 1,
-            chips: 1,
-            bank_groups: 1,
-            banks: 1,
-            rows: 32768,
-            columns: 256,
-            pe_num: 1,
-            bank_provider_size: todo!(),
-            bank_task_queue_size: todo!(),
-            precharge_cycle: todo!(),
-            activate_cycle: todo!(),
-            subarrays: 16,
-            row_size: todo!(),
+
             ..todo!()
         }
     }
@@ -118,7 +111,23 @@ mod tests {
     #[test]
     #[ignore]
     fn save_configs() {
-        Config::from_ddr4(1, 2, 10).save_to_file("ddr4.toml");
+        Config::from_ddr4(
+            LevelConfig {
+                num: 1,
+                merger_num: 16,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+            LevelConfig {
+                num: 2,
+                merger_num: 12,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+        )
+        .save_to_file("ddr4.toml");
         // Config::from_hbm().save_to_file("hbm.toml");
         // Config::from_hbm2().save_to_file("hbm2.toml");
     }

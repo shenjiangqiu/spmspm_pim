@@ -1,5 +1,6 @@
 //! a implementation of spec DDR4
 use sprs::{num_kinds::Pattern, CsMat};
+use tracing::debug;
 
 use super::{LevelTrait, PathStorage};
 
@@ -20,7 +21,8 @@ pub enum Level {
 }
 
 /// the storage to store the path
-#[derive(Debug, Clone)]
+/// - 0: channel - 1: rank - 2: chip - 3: bank group - 4: bank - 5: sub array - 6: row - 7: column
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Storage {
     /// 0: channel - 1: rank - 2: chip - 3: bank group - 4: bank - 5: sub array - 6: row - 7: column
     pub data: [usize; LEVELS],
@@ -61,7 +63,8 @@ impl Storage {
     pub fn forward_to_next_subarray(&mut self, total_size: &Self) {
         self.data[5] += 1;
 
-        for i in 5..=1 {
+        // forward from subarray to rank
+        for i in (1..=5).rev() {
             if self.data[i] < total_size.data[i] {
                 break;
             } else {
@@ -69,6 +72,8 @@ impl Storage {
                 self.data[i - 1] += 1;
             }
         }
+
+        // round up the channel number
         if self.data[0] >= total_size.data[0] {
             self.data[0] = 0;
         }
@@ -91,6 +96,14 @@ impl PathStorage for Storage {
     fn get_level_id(&self, level: &Self::LevelType) -> usize {
         return self.data[level.to_usize()];
     }
+
+    fn get_sub_path_to_level(&self, level: &Self::LevelType) -> Self {
+        let mut data = [0; LEVELS];
+        for i in 0..=level.to_usize() {
+            data[i] = self.data[i];
+        }
+        Self { data }
+    }
 }
 
 /// the Matrix to Dram storage mapping for ddr4
@@ -104,6 +117,10 @@ impl super::MatrixBMapping for Mapping {
     type Storage = Storage;
 
     fn get_mapping(total_size: &Self::Storage, graph: &CsMat<Pattern>) -> Self {
+        debug!(
+            "start to build mapping for ddr4,total size: {:?}",
+            total_size
+        );
         let mut current_path = Storage::new(0, 0, 0, 0, 0, 0, 0, 0);
         let mut row_start = vec![(0, 0); total_size.get_total_subarrays()];
         let mut rows = vec![];
@@ -112,6 +129,7 @@ impl super::MatrixBMapping for Mapping {
             let current_subarray = current_path.get_flat_subarray_id(total_size);
             let current_start = &mut row_start[current_subarray];
             let mut path = current_path.clone();
+            debug_assert!(path.data[5] != total_size.data[5]);
             path.data[6] = current_start.0;
             path.data[7] = current_start.1;
 

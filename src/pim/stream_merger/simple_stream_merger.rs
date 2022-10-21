@@ -9,7 +9,7 @@ use tracing::debug;
 use crate::pim::{
     config::Config,
     level::LevelTrait,
-    task::{self, StreamMessage, StreamMessageData, Task},
+    task::{self, StreamMessage, StreamMessageData, Task, TaskTo},
     Component, SimulationContext,
 };
 
@@ -39,7 +39,7 @@ pub struct MergerStatus {
     max_stored_generated_message: usize,
     /// the data that finished processing
     generated_message: VecDeque<StreamMessage>,
-    pub current_target: usize,
+    pub current_target: TaskTo,
     /// when receiving a task, will increase the counter
     /// it means how many data needed to be received from each child
     pub waiting_data_childs: BTreeSet<usize>,
@@ -145,7 +145,7 @@ impl MergerStatus {
             id,
             status: Waiting::Idle,
             max_buffered_message,
-            current_target: 0,
+            current_target: TaskTo { to: 0, round: 0 },
             waiting_data_childs: BTreeSet::new(),
             buffered_message: vec![VecDeque::with_capacity(max_buffered_message); num_child],
             max_generated_message,
@@ -156,15 +156,15 @@ impl MergerStatus {
 }
 
 impl MergerStatus {
-    pub fn receive_task(&mut self, to: usize, child_id: usize, _num_children: usize) {
+    pub fn receive_task(&mut self, to: &TaskTo, child_id: usize, _num_children: usize) {
         match self.status {
             Waiting::Idle => {
                 self.status = Waiting::WaitingForTask;
-                self.current_target = to;
+                self.current_target = to.clone();
                 self.waiting_data_childs.insert(child_id);
             }
             Waiting::WaitingForTask => {
-                if self.current_target != to {
+                if &self.current_target != to {
                     panic!("received task to different target");
                 }
                 self.waiting_data_childs.insert(child_id);
@@ -198,9 +198,9 @@ pub struct SimpleStreamMerger<LevelType, Child> {
     /// the status of each merger
     mergers: Vec<MergerStatus>,
     /// current receiving targets, target_id to pe_id
-    current_receiving_targets: BTreeMap<usize, usize>,
+    current_receiving_targets: BTreeMap<TaskTo, usize>,
     /// current working targets, target_id to pe_id
-    current_working_targets: BTreeMap<usize, usize>,
+    current_working_targets: BTreeMap<TaskTo, usize>,
     /// free pes
     free_pes: BTreeSet<usize>,
 }
@@ -209,40 +209,41 @@ where
     Child: EmptyComponent,
 {
     /// a test util
-    fn is_empty(&self) -> Result<(), String> {
+    fn is_empty(&self) -> Vec<String> {
+        let mut result = vec![];
         if !self.current_receiving_targets.is_empty() {
-            return Err(format!(
+            result.push(format!(
                 "current_receiving_targets is not empty: {:?}",
                 self.current_receiving_targets
             ));
         }
         if !self.current_working_targets.is_empty() {
-            return Err(format!(
+            result.push(format!(
                 "level: {:?}, id: {:?}, current_working_targets is not empty: {:?}",
                 self.current_level, self.id, self.current_working_targets
             ));
         }
         if !self.free_pes.len() == self.mergers.len() {
-            return Err(format!("free_pes is not full: {:?}", self.free_pes));
+            result.push(format!("free_pes is not full: {:?}", self.free_pes));
         }
         for merger in self.mergers.iter() {
             if !merger.status.is_idle() {
-                return Err(format!("merger {} is not idle", merger.id));
+                result.push(format!("merger {} is not idle", merger.id));
             }
             if !merger.waiting_data_childs.is_empty() {
-                return Err(format!(
+                result.push(format!(
                     "merger {} waiting_data_childs is not empty",
                     merger.id
                 ));
             }
             if !merger.buffered_message.iter().all(|v| v.is_empty()) {
-                return Err(format!(
+                result.push(format!(
                     "merger {} buffered_message is not empty",
                     merger.id
                 ));
             }
             if !merger.generated_message.is_empty() {
-                return Err(format!(
+                result.push(format!(
                     "merger {} generated_message is not empty",
                     merger.id
                 ));
@@ -250,13 +251,13 @@ where
         }
 
         for child in self.children.iter() {
-            child.is_empty()?;
+            result.extend(child.is_empty());
         }
-        Ok(())
+        result
     }
 }
 
-impl<LevelType: LevelTrait, Child> SimpleStreamMerger<LevelType, Child> {
+impl<LevelType: LevelTrait + Debug, Child> SimpleStreamMerger<LevelType, Child> {
     /// create a new simple stream merger
     pub fn new(
         id: usize,
@@ -294,7 +295,8 @@ impl<LevelType: LevelTrait, Child> SimpleStreamMerger<LevelType, Child> {
         merger_status: &[MergerStatus],
         child_id: usize,
         data: &[&StreamMessage],
-        current_working_map: &BTreeMap<usize, usize>,
+        current_working_map: &BTreeMap<TaskTo, usize>,
+        current_receiving_map: &BTreeMap<TaskTo, usize>,
     ) -> bool {
         for i in data {
             let to = i.to;
@@ -306,6 +308,8 @@ impl<LevelType: LevelTrait, Child> SimpleStreamMerger<LevelType, Child> {
                 }
             } else {
                 // the task is not ready, cannot receive data
+                // the task should be receiving the task set
+                assert!(current_receiving_map.contains_key(&to));
                 return false;
             }
         }
@@ -316,7 +320,7 @@ impl<LevelType: LevelTrait, Child> SimpleStreamMerger<LevelType, Child> {
         merger_status: &mut [MergerStatus],
         data: impl IntoIterator<Item = StreamMessage>,
         child_id: usize,
-        current_working_map: &mut BTreeMap<usize, usize>,
+        current_working_map: &mut BTreeMap<TaskTo, usize>,
     ) {
         for message in data {
             let to = message.to;
@@ -336,11 +340,8 @@ impl<LevelType: LevelTrait, Child> SimpleStreamMerger<LevelType, Child> {
 
     /// should not be used by user,
     /// use `receive_task` instead
-    fn can_self_receive_task(&self, target_id: usize) -> bool {
-        if self.current_receiving_targets.contains_key(&target_id) {
-            return true;
-        }
-        return self.current_receiving_targets.len() < self.mergers.len();
+    fn can_self_receive_task(&self, target_id: &TaskTo) -> bool {
+        self.current_receiving_targets.contains_key(target_id) || !self.free_pes.is_empty()
     }
     /// should not be used by user,
     /// use `receive_task` instead
@@ -354,20 +355,20 @@ impl<LevelType: LevelTrait, Child> SimpleStreamMerger<LevelType, Child> {
 
         let to = task_data.to;
         let entry = self.current_receiving_targets.entry(to).or_insert_with(|| {
-            let pe_id = self.free_pes.iter().next().unwrap().clone();
+            let &pe_id = self.free_pes.iter().next().unwrap();
             self.free_pes.remove(&pe_id);
             pe_id
         });
         let pe = &mut self.mergers[*entry];
-        pe.receive_task(to, child_id, self.children.len());
+        pe.receive_task(&to, child_id, self.children.len());
     }
 
     /// receive a end task
-    fn self_receive_end(&mut self, to: usize) {
-        if let Some(pe_id) = self.current_receiving_targets.remove(&to) {
+    fn self_receive_end(&mut self, to: &TaskTo) {
+        if let Some(pe_id) = self.current_receiving_targets.remove(to) {
             let pe = &mut self.mergers[pe_id];
             pe.receive_end();
-            self.current_working_targets.insert(to, pe_id);
+            self.current_working_targets.insert(to.clone(), pe_id);
         }
     }
 }
@@ -407,7 +408,7 @@ where
         // check if self can accept the task
         match task {
             Task::TaskData(task_data) => {
-                if !self.can_self_receive_task(task_data.to) {
+                if !self.can_self_receive_task(&task_data.to) {
                     debug!(?self.current_level,
                         self.id,
                         "merger can not receive task,level: {:?}", self.current_level
@@ -427,6 +428,10 @@ where
 
         match task {
             Task::TaskData(task_data) => {
+                debug!(?self.current_level,
+                    self.id,
+                    "receive task,path: {:?}",task_data.target_id,
+                );
                 let child_id = task_data.target_id.get_level_id(&child_level);
                 // first test if self can receive this task
                 debug!(?self.current_level,self.id, "test child:{:?}-{}", child_level, child_id,);
@@ -453,7 +458,7 @@ where
                     }
                 }
 
-                self.self_receive_end(end_data.to);
+                self.self_receive_end(&end_data.to);
                 Ok(())
             }
         }
@@ -482,7 +487,7 @@ impl<LevelType: Debug, Child> StreamProvider for SimpleStreamMerger<LevelType, C
             while data.len() < pe.max_generated_message && !pe.generated_message.is_empty() {
                 let message = pe.generated_message.pop_front().unwrap();
                 debug!(?self.current_level,self.id,
-                    "StreamProvider(StringMerger) pop data from pe {}, to: {} in level: {:?},msg: {:?}",
+                    "StreamProvider(StringMerger) pop data from pe {}, to: {:?} in level: {:?},msg: {:?}",
                     pe_id, _to, self.current_level, message
                 );
                 data.push(message);
@@ -522,7 +527,7 @@ impl<LevelType: Debug, Child> StreamProvider for SimpleStreamMerger<LevelType, C
 
 impl<LevelType, Child> Component for SimpleStreamMerger<LevelType, Child>
 where
-    LevelType: LevelTrait,
+    LevelType: LevelTrait + Debug,
     Child: Component<SimContext = SimulationContext<LevelType>>
         + StreamProvider<OutputData = StreamMessage, SimContext = SimulationContext<LevelType>>,
 {
@@ -541,6 +546,7 @@ where
                 child_id,
                 &data,
                 &self.current_working_targets,
+                &self.current_receiving_targets,
             ) {
                 // accept the data
                 let data = child.get_data(context, current_cycle);
@@ -550,6 +556,8 @@ where
                     child_id,
                     &mut self.current_working_targets,
                 );
+            } else {
+                // cannot receive the data! the data must be in the current_receiving_targets
             }
         }
 
@@ -571,7 +579,7 @@ mod tests {
 
     use crate::{
         init_logger_debug,
-        pim::{level::ddr4, stream_merger::provider::Provider, task::PathId},
+        pim::{config::LevelConfig, level::ddr4, stream_merger::provider::Provider, task::PathId},
     };
 
     use super::*;
@@ -580,7 +588,22 @@ mod tests {
     fn test_simple_stream_merger() {
         init_logger_debug();
         debug!("test_simple_stream_merger");
-        let config = Config::from_ddr4(2, 2, 2);
+        let config = Config::from_ddr4(
+            LevelConfig {
+                num: 1,
+                merger_num: 10,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+            LevelConfig {
+                num: 2,
+                merger_num: 10,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+        );
         let graph_b = sprs::io::read_matrix_market("mtx/test.mtx")
             .unwrap()
             .to_csr();
@@ -593,12 +616,12 @@ mod tests {
         let mut merger =
             SimpleStreamMerger::new(0, &config, children, ddr4::Level::Bank, 2, 4, 4, 4);
         let path = PathId::new(ddr4::Storage::new(0, 0, 0, 0, 0, 0, 0, 0));
-        let task = context.gen_task(path, 0, 0, 4);
+        let task = context.gen_task(path, 0, TaskTo { to: 0, round: 0 }, 4);
         let current_cycle = 0;
         merger
             .receive_task(&task, &mut context, current_cycle)
             .unwrap();
-        let end_task = context.gen_end_task(0);
+        let end_task = context.gen_end_task(TaskTo { to: 0, round: 0 });
         merger
             .receive_task(&end_task, &mut context, current_cycle)
             .unwrap();
@@ -618,7 +641,22 @@ mod tests {
     fn test_2_merger_2_provider() {
         init_logger_debug();
         debug!("test_simple_stream_merger");
-        let config = Config::from_ddr4(2, 2, 2);
+        let config = Config::from_ddr4(
+            LevelConfig {
+                num: 1,
+                merger_num: 10,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+            LevelConfig {
+                num: 2,
+                merger_num: 10,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+        );
         let graph_b = sprs::io::read_matrix_market("mtx/test.mtx")
             .unwrap()
             .to_csr();
@@ -646,12 +684,12 @@ mod tests {
         let mut context = SimulationContext::new(&config);
 
         let path = PathId::new(ddr4::Storage::new(0, 0, 0, 0, 0, 0, 0, 0));
-        let task = context.gen_task(path, 0, 0, 4);
+        let task = context.gen_task(path, 0, TaskTo { to: 0, round: 0 }, 4);
         let current_cycle = 0;
         bg_merger
             .receive_task(&task, &mut context, current_cycle)
             .unwrap();
-        let end_task = context.gen_end_task(0);
+        let end_task = context.gen_end_task(TaskTo { to: 0, round: 0 });
         bg_merger
             .receive_task(&end_task, &mut context, current_cycle)
             .unwrap();
@@ -664,8 +702,9 @@ mod tests {
         for i in data {
             println!("{:?}", i);
         }
-        if let Err(msg) = bg_merger.is_empty() {
-            tracing::error!("{}", msg);
+        let result = bg_merger.is_empty();
+        if !result.is_empty() {
+            tracing::error!("{:?}", result);
         }
     }
 
@@ -674,7 +713,22 @@ mod tests {
     fn test_2_merger_2_provider_multitask() {
         init_logger_debug();
         debug!("test_simple_stream_merger");
-        let config = Config::from_ddr4(2, 2, 2);
+        let config = Config::from_ddr4(
+            LevelConfig {
+                num: 1,
+                merger_num: 10,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+            LevelConfig {
+                num: 2,
+                merger_num: 10,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+        );
         let graph_b = sprs::io::read_matrix_market("mtx/test.mtx")
             .unwrap()
             .to_csr();
@@ -705,10 +759,10 @@ mod tests {
         let path2 = PathId::new(ddr4::Storage::new(0, 0, 0, 0, 0, 1, 0, 0));
         let path3 = PathId::new(ddr4::Storage::new(0, 0, 0, 0, 1, 0, 0, 0));
         let path4 = PathId::new(ddr4::Storage::new(0, 0, 0, 0, 1, 1, 0, 0));
-        let task1 = context.gen_task(path1, 0, 0, 4);
-        let task2 = context.gen_task(path2, 0, 0, 4);
-        let task3 = context.gen_task(path3, 0, 1, 4);
-        let task4 = context.gen_task(path4, 0, 1, 4);
+        let task1 = context.gen_task(path1, 0, TaskTo { to: 0, round: 0 }, 4);
+        let task2 = context.gen_task(path2, 0, TaskTo { to: 0, round: 0 }, 4);
+        let task3 = context.gen_task(path3, 0, TaskTo { to: 1, round: 0 }, 4);
+        let task4 = context.gen_task(path4, 0, TaskTo { to: 1, round: 0 }, 4);
 
         let current_cycle = 0;
         bg_merger
@@ -723,8 +777,8 @@ mod tests {
         bg_merger
             .receive_task(&task4, &mut context, current_cycle)
             .unwrap();
-        let end_task1 = context.gen_end_task(0);
-        let end_task2 = context.gen_end_task(1);
+        let end_task1 = context.gen_end_task(TaskTo { to: 0, round: 0 });
+        let end_task2 = context.gen_end_task(TaskTo { to: 1, round: 0 });
         bg_merger
             .receive_task(&end_task1, &mut context, current_cycle)
             .unwrap();
@@ -740,8 +794,9 @@ mod tests {
         for i in data {
             println!("{:?}", i);
         }
-        if let Err(msg) = bg_merger.is_empty() {
-            tracing::error!("{}", msg);
+        let result = bg_merger.is_empty();
+        if !result.is_empty() {
+            tracing::error!("{:?}", result);
             panic!();
         }
     }

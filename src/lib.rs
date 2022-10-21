@@ -1,7 +1,7 @@
 //! a library for creating pim simulator
 #![deny(unsafe_code)]
 
-mod pim;
+pub mod pim;
 use clap::{Command, CommandFactory, Parser};
 use clap_complete::Generator;
 use cli::{Cli, CompArgs, RunArgs};
@@ -61,7 +61,9 @@ mod tests {
 
     #[test]
     fn it_works() {
-        assert_eq!(2 + 2, 4);
+        for i in (1..=5).rev() {
+            println!("{}", i);
+        }
     }
 
     fn pim_test_impl(mut simulator: Simulator, config: &Config) {

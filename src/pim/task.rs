@@ -35,7 +35,7 @@ pub struct TaskData<Storage> {
     /// the row id in the matrix B
     pub from: usize,
     /// the row id in the matrix A
-    pub to: usize,
+    pub to: TaskTo,
     /// the size of the row of b in bytes
     pub size: usize,
 }
@@ -47,11 +47,17 @@ pub struct TaskEndData {
     /// the id of the task
     pub id: usize,
     /// the row of A
+    pub to: TaskTo,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct TaskTo {
     pub to: usize,
+    pub round: usize,
 }
 
 /// the task send to bank
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, enum_as_inner::EnumAsInner)]
 pub enum Task<Storage> {
     /// a real task(an element in A, will find  a row in B)
     TaskData(TaskData<Storage>),
@@ -74,7 +80,7 @@ impl TaskBuilder {
         &mut self,
         target_id: PathId<Storage>,
         from: usize,
-        to: usize,
+        to: TaskTo,
         size: usize,
     ) -> Task<Storage> {
         let id = self.current_id;
@@ -88,7 +94,7 @@ impl TaskBuilder {
         })
     }
     /// generate an end signal
-    pub fn gen_end_task<Storage>(&mut self, to: usize) -> Task<Storage> {
+    pub fn gen_end_task<Storage>(&mut self, to: TaskTo) -> Task<Storage> {
         let id = self.current_id;
         self.current_id += 1;
         Task::End(TaskEndData { id, to })
@@ -120,7 +126,7 @@ pub struct StreamMessage {
     /// the id of msg
     pub id: usize,
     /// the row_id of A
-    pub to: usize,
+    pub to: TaskTo,
     /// the msg type
     pub message_type: StreamMessageType,
 }
@@ -131,7 +137,7 @@ pub struct StreamMessageBuilder {
 
 impl StreamMessageBuilder {
     /// generate a real msg
-    pub fn generate_msg(&mut self, to: usize, idx: usize, generated_cycle: u64) -> StreamMessage {
+    pub fn generate_msg(&mut self, to: TaskTo, idx: usize, generated_cycle: u64) -> StreamMessage {
         let id = self.current_id;
         self.current_id += 1;
         StreamMessage {
@@ -145,7 +151,7 @@ impl StreamMessageBuilder {
         }
     }
     /// generate an end signal
-    pub fn generate_end_msg(&mut self, to: usize) -> StreamMessage {
+    pub fn generate_end_msg(&mut self, to: TaskTo) -> StreamMessage {
         let id = self.current_id;
         self.current_id += 1;
         StreamMessage {

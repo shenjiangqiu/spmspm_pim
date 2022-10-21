@@ -12,6 +12,8 @@ pub trait PathStorage: Debug {
     type LevelType: LevelTrait;
     /// get the specific id of a level
     fn get_level_id(&self, level: &Self::LevelType) -> usize;
+    /// get sub path to a level
+    fn get_sub_path_to_level(&self, level: &Self::LevelType) -> Self;
 }
 
 /// a trait that can represent a level in a dram

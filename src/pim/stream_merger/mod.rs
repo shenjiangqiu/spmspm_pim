@@ -11,7 +11,7 @@ pub trait StreamMerger {
     fn process_input(&mut self, context: &mut Self::SimContext, current_cycle: usize);
 }
 pub trait EmptyComponent {
-    fn is_empty(&self) -> Result<(), String>;
+    fn is_empty(&self) -> Vec<String>;
 }
 /// can provide data from a single output port
 pub trait StreamProvider {

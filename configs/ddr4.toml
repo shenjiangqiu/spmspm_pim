@@ -1,7 +1,7 @@
 activate_cycle = 2
 columns = 256
 dram_type = 'DDR4'
-graph_path = 'mtx/test.mtx'
+graph_path = 'mtx/outerspace/amazon0312/amazon0312.mtx'
 output_path = 'output/ddr4.json'
 precharge_cycle = 2
 row_size = 2

@@ -135,26 +135,27 @@ where
 }
 
 impl<'a, LevelType: LevelTrait> EmptyComponent for Provider<'a, LevelType> {
-    fn is_empty(&self) -> Result<(), String> {
+    fn is_empty(&self) -> Vec<String> {
+        let mut result = Vec::new();
         if !self.current_opening_row.is_none() {
-            return Err(format!(
-                "provider current_opening_row {} is not empty",
-                self.id
+            result.push(format!(
+                "provider {} is opening row {:?}",
+                self.id, self.current_opening_row
             ));
         }
         if !self.current_working_task.is_none() {
-            return Err(format!(
+            result.push(format!(
                 "provider current_working_task {} is not empty",
                 self.id
             ));
         }
         if !self.task_queue.is_empty() {
-            return Err(format!("provider task_queue {} is not empty", self.id));
+            result.push(format!("provider task_queue {} is not empty", self.id));
         }
         if !self.ready_queue.is_empty() {
-            return Err(format!("provider ready_queue {} is not empty", self.id));
+            result.push(format!("provider ready_queue {} is not empty", self.id));
         }
-        Ok(())
+        result
     }
 }
 
@@ -218,10 +219,10 @@ impl<'a, LevelType: LevelTrait + Copy> Component for Provider<'a, LevelType> {
 mod tests {
 
     use crate::pim::{
-        config::Config,
+        config::{Config, LevelConfig},
         level::ddr4,
         stream_merger::{StreamProvider, TaskReceiver},
-        task::{PathId, TaskBuilder},
+        task::{PathId, TaskBuilder, TaskTo},
         Component, SimulationContext,
     };
 
@@ -230,7 +231,22 @@ mod tests {
     #[test]
     fn test_bank_provider() {
         let mut current_cycle = 0;
-        let config = Config::from_ddr4(2, 2, 2);
+        let config = Config::from_ddr4(
+            LevelConfig {
+                num: 1,
+                merger_num: 10,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+            LevelConfig {
+                num: 2,
+                merger_num: 10,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+        );
         let mut context = SimulationContext::<ddr4::Level>::new(&config);
         let graph_b = sprs::io::read_matrix_market("mtx/test.mtx")
             .unwrap()
@@ -238,11 +254,12 @@ mod tests {
         let mut provider = Provider::<ddr4::Level>::new(0, 10, 10, 10, 10, 10, &graph_b);
         let mut task_builder = TaskBuilder::default();
         let path_storage = ddr4::Storage::new(0, 0, 0, 0, 0, 0, 0, 0);
-        let task = task_builder.gen_task(PathId::new(path_storage), 0, 0, 1);
+        let task =
+            task_builder.gen_task(PathId::new(path_storage), 0, TaskTo { to: 0, round: 0 }, 1);
         provider
             .receive_task(&task, &mut context, current_cycle)
             .unwrap();
-        let end_task = task_builder.gen_end_task(0);
+        let end_task = task_builder.gen_end_task(TaskTo { to: 1, round: 0 });
         provider
             .receive_task(&end_task, &mut context, current_cycle)
             .unwrap();
@@ -263,7 +280,22 @@ mod tests {
     #[test]
     fn test_change_line() {
         let current_cycle = 0;
-        let config = Config::from_ddr4(2, 2, 2);
+        let config = Config::from_ddr4(
+            LevelConfig {
+                num: 1,
+                merger_num: 10,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+            LevelConfig {
+                num: 2,
+                merger_num: 10,
+                max_msg_in: 2,
+                max_msg_out: 2,
+                max_msg_generated: 2,
+            },
+        );
         let mut context = SimulationContext::<ddr4::Level>::new(&config);
         let graph_b = sprs::io::read_matrix_market("mtx/test.mtx")
             .unwrap()
@@ -271,21 +303,23 @@ mod tests {
         let mut provider = Provider::<ddr4::Level>::new(0, 10, 10, 10, 10, 10, &graph_b);
         let mut task_builder = TaskBuilder::default();
         let path_storage = ddr4::Storage::new(0, 0, 0, 0, 0, 0, 0, 0);
-        let task = task_builder.gen_task(PathId::new(path_storage), 0, 0, 1);
+        let task =
+            task_builder.gen_task(PathId::new(path_storage), 0, TaskTo { to: 0, round: 0 }, 1);
         provider
             .receive_task(&task, &mut context, current_cycle)
             .unwrap();
-        let end_task = task_builder.gen_end_task(0);
+        let end_task = task_builder.gen_end_task(TaskTo { to: 0, round: 0 });
         provider
             .receive_task(&end_task, &mut context, current_cycle)
             .unwrap();
         let path_storage = ddr4::Storage::new(0, 0, 0, 0, 0, 0, 1, 0);
 
-        let task = task_builder.gen_task(PathId::new(path_storage), 0, 1, 1);
+        let task =
+            task_builder.gen_task(PathId::new(path_storage), 0, TaskTo { to: 1, round: 0 }, 1);
         provider
             .receive_task(&task, &mut context, current_cycle)
             .unwrap();
-        let end_task = task_builder.gen_end_task(1);
+        let end_task = task_builder.gen_end_task(TaskTo { to: 1, round: 0 });
 
         provider
             .receive_task(&end_task, &mut context, current_cycle)

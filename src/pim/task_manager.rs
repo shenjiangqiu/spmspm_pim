@@ -78,7 +78,7 @@ where
     ) -> GraphATasks<Mapping::Storage> {
         let mut tasks = VecDeque::new();
         for (to, row) in graph_a.outer_iterator().into_iter().enumerate() {
-            let pathes: Vec<(usize, &GraphBRow<Mapping::Storage>)> = row
+            let patches: Vec<(usize, &GraphBRow<Mapping::Storage>)> = row
                 .indices()
                 .iter()
                 .map(|idx| {
@@ -87,7 +87,7 @@ where
                 })
                 .collect();
 
-            let mut current_round = pathes;
+            let mut current_round = patches;
             let mut next_round = Vec::new();
             let mut current_round_num = 0;
             let mut this_target_tasks = VecDeque::new();
@@ -205,5 +205,15 @@ where
         let is_finihsed = self.unfinished_tasks.is_empty()
             && self.graph_a_tasks.current_working_target == self.graph_a_tasks.tasks.len();
         context.finished = is_finihsed;
+    }
+}
+
+
+#[cfg(test)]
+mod tests{
+    #[test]
+    fn test_task_generation(){
+
+
     }
 }

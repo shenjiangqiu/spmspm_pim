@@ -7,6 +7,7 @@ use clap_complete::Generator;
 use cli::{Cli, CompArgs, RunArgs};
 pub use pim::Simulator;
 use tracing::metadata::LevelFilter;
+use tracing::info;
 
 use crate::pim::config::Config;
 pub mod cli;
@@ -45,7 +46,10 @@ pub fn main_inner() {
             println!("run with config: {:?}", config);
             init_logger_info();
             let config = Config::new(config);
+            info!("building simulator");
             let mut simulator = Simulator::new(&config);
+            info!("start running simulator");
+
             simulator.run(&config);
         }
         cli::Operation::Completion(CompArgs { shell }) => {

@@ -10,9 +10,10 @@ use tracing::debug;
 use super::{
     level::{self, GraphBRow, LevelTrait, MatrixBMapping, PathStorage},
     stream_merger::{EmptyComponent, StreamProvider, TaskReceiver},
-    task::{PathId, StreamMessage, Task, TaskBuilder, TaskTo},
+    task::{PathId, StreamMessage, Task, TaskBuilder, TaskTo,TaskData,TaskEndData},
     Component, SimulationContext,
 };
+
 
 /// track the finish of tasks
 /// - will init the final result
@@ -158,7 +159,10 @@ where
                         debug!("task {:?} sent", task);
                         // success, remove the task from task queue
                         let task = task_a.pop_front().unwrap();
-                        let task_to = task.into_task_data().unwrap().to;
+                        let task_to = match task {
+                            Task::TaskData(TaskData{to,..}) => to,
+                            Task::End(TaskEndData{to,..})=> to,
+                        };
                         self.recent_to = Some(task_to);
                         debug!(
                             "adding task to unfinished task list {}",
@@ -177,10 +181,7 @@ where
                     "task for {} finished",
                     self.graph_a_tasks.current_working_target
                 );
-                let end_task = context.gen_end_task(self.recent_to.take().unwrap());
-                self.child
-                    .receive_task(&end_task, context, current_cycle)
-                    .unwrap();
+                
                 self.graph_a_tasks.current_working_target += 1;
                 context.current_sending_task = self.graph_a_tasks.current_working_target;
             }

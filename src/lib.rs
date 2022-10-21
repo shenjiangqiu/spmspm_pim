@@ -21,11 +21,11 @@ pub(crate) fn init_logger_debug() {
 }
 
 #[allow(dead_code)]
-pub(crate) fn init_logger(filerter: LevelFilter) {
+pub(crate) fn init_logger(filter: LevelFilter) {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::builder()
-                .with_default_directive(filerter.into())
+                .with_default_directive(filter.into())
                 .from_env_lossy(),
         )
         .try_init()

@@ -479,7 +479,7 @@ impl<LevelType: Debug, Child> StreamProvider for SimpleStreamMerger<LevelType, C
             .next();
         if let Some((_to, pe_id)) = next_valid {
             let pe = &mut self.mergers[*pe_id];
-            let mut data = Vec::with_capacity(pe.max_generated_message);
+            let mut data = Vec::new();
             while data.len() < pe.max_generated_message && !pe.generated_message.is_empty() {
                 let message = pe.generated_message.pop_front().unwrap();
                 debug!(?self.current_level,self.id,
@@ -516,7 +516,7 @@ impl<LevelType: Debug, Child> StreamProvider for SimpleStreamMerger<LevelType, C
         if let Some(next_valic) = next_valid {
             next_valic
         } else {
-            vec![]
+            Default::default()
         }
     }
 }

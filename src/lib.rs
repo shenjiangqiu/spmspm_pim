@@ -1,7 +1,9 @@
 //! a library for creating pim simulator
 #![deny(unsafe_code)]
 
+pub mod analysis;
 pub mod pim;
+
 use clap::{Command, CommandFactory, Parser};
 use clap_complete::Generator;
 use cli::{Cli, CompArgs, RunArgs};

@@ -10,7 +10,7 @@ use tracing::debug;
 use super::{
     level::{GraphBRow, LevelTrait},
     stream_merger::{EmptyComponent, StreamProvider, TaskReceiver},
-    task::{PathId, StreamMessage, Task, TaskBuilder, TaskData, TaskEndData, TaskTo},
+    task::{PathId, StreamMessage, Task, TaskTo},
     Component, SimulationContext,
 };
 
@@ -39,33 +39,111 @@ impl<Child: EmptyComponent, LevelType: LevelTrait> EmptyComponent
     }
 }
 
+/// the tasks of a round
 #[derive(Debug)]
-pub struct GraphATasks<LevelType: LevelTrait> {
-    current_working_target: usize,
-
-    /// for each target, the froms
-    tasks: VecDeque<VecDeque<Task<LevelType>>>,
+pub struct RoundTasks<LevelType: LevelTrait> {
+    pub round_id: usize,
+    pub tasks: VecDeque<Task<LevelType>>,
 }
 
-impl<Child, LevelType: LevelTrait> TaskManager<Child, LevelType> {
-    pub fn new(
-        child: Child,
-        graph_a: &CsMat<Pattern>,
-        graph_b: &CsMat<Pattern>,
-        total_size: &LevelType::Storage,
-        task_builder: &mut TaskBuilder,
-    ) -> Self
-    where
-        LevelType::Storage: Ord,
-    {
-        let graph_b_mappings = LevelType::get_mapping(total_size, graph_b);
-        let graph_a_tasks = Self::generate_mappings_for_a(graph_a, &graph_b_mappings, task_builder);
+/// the tasks for graph a row
+#[derive(Debug)]
+pub struct GraphARowTasks<LevelType: LevelTrait> {
+    pub row_id: usize,
+    pub tasks: VecDeque<RoundTasks<LevelType>>,
+}
 
-        Self {
-            child,
-            graph_a_tasks,
-            unfinished_tasks: BTreeSet::new(),
-            recent_to: None,
+/// all tests for a graph_a
+#[derive(Debug)]
+pub struct GraphATasks<LevelType: LevelTrait> {
+    pub current_working_target: usize,
+
+    /// for each target, the froms
+    pub tasks: VecDeque<GraphARowTasks<LevelType>>,
+}
+
+pub struct Iter<'a, LevelType: LevelTrait> {
+    tasks: &'a GraphATasks<LevelType>,
+    current_row: usize,
+    current_round: usize,
+    current_task: usize,
+}
+impl<'a, LevelType: LevelTrait> Iterator for Iter<'a, LevelType> {
+    type Item = &'a Task<LevelType>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_row >= self.tasks.tasks.len() {
+            return None;
+        }
+        let row = &self.tasks.tasks[self.current_row];
+        if self.current_round >= row.tasks.len() {
+            self.current_row += 1;
+            self.current_round = 0;
+            self.current_task = 0;
+            return self.next();
+        }
+        let round = &row.tasks[self.current_round];
+        if self.current_task >= round.tasks.len() {
+            self.current_round += 1;
+            self.current_task = 0;
+            return self.next();
+        }
+        let task = &round.tasks[self.current_task];
+        self.current_task += 1;
+        Some(task)
+    }
+}
+
+pub struct IntoIter<LevelType: LevelTrait> {
+    tasks: GraphATasks<LevelType>,
+}
+
+impl<LevelType: LevelTrait> Iterator for IntoIter<LevelType> {
+    type Item = Task<LevelType>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(row) = self.tasks.tasks.front_mut() {
+            if let Some(round) = row.tasks.front_mut() {
+                if let Some(task) = round.tasks.pop_front() {
+                    return Some(task);
+                } else {
+                    row.tasks.pop_front();
+                    return self.next();
+                }
+            } else {
+                self.tasks.tasks.pop_front();
+                return self.next();
+            }
+        } else {
+            return None;
+        }
+    }
+}
+
+impl<LevelType: LevelTrait> IntoIterator for GraphATasks<LevelType> {
+    type Item = Task<LevelType>;
+    type IntoIter = IntoIter<LevelType>;
+    fn into_iter(self) -> Self::IntoIter {
+        todo!()
+    }
+}
+impl<'a, LevelType: LevelTrait> IntoIterator for &'a GraphATasks<LevelType> {
+    type Item = &'a Task<LevelType>;
+
+    type IntoIter = Iter<'a, LevelType>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<LevelType: LevelTrait> GraphATasks<LevelType> {
+    pub fn iter(&self) -> Iter<'_, LevelType> {
+        Iter {
+            tasks: self,
+            current_row: 0,
+            current_round: 0,
+            current_task: 0,
         }
     }
 
@@ -73,12 +151,12 @@ impl<Child, LevelType: LevelTrait> TaskManager<Child, LevelType> {
     pub fn generate_mappings_for_a(
         graph_a: &CsMat<Pattern>,
         graph_b_mappings: &LevelType::Mapping,
-        task_builder: &mut TaskBuilder,
+        context: &mut SimulationContext<LevelType>,
     ) -> GraphATasks<LevelType>
     where
         LevelType::Storage: Ord,
     {
-        let mut tasks = VecDeque::new();
+        let mut tasks: VecDeque<GraphARowTasks<LevelType>> = VecDeque::new();
         for (to, row) in graph_a.outer_iterator().into_iter().enumerate() {
             let patches: Vec<(usize, &GraphBRow<LevelType::Storage>)> = row
                 .indices()
@@ -93,17 +171,23 @@ impl<Child, LevelType: LevelTrait> TaskManager<Child, LevelType> {
             let mut current_round = patches;
             let mut next_round = Vec::new();
             let mut current_round_num = 0;
-            let mut this_target_tasks = VecDeque::new();
+            let mut this_target_tasks = GraphARowTasks {
+                row_id: to,
+                tasks: VecDeque::new(),
+            };
             while !current_round.is_empty() {
                 let mut uniq_set = BTreeSet::new();
-                let mut this_round_tasks = VecDeque::new();
+                let mut this_round_tasks = RoundTasks {
+                    round_id: current_round_num,
+                    tasks: VecDeque::new(),
+                };
                 for (from, row_detail) in current_round.drain(RangeFull) {
                     if uniq_set
                         .insert(LevelType::last_level().get_sub_path_to_level(&row_detail.path))
                     {
                         // yes , it's uniq
                         //generate the task
-                        let task = task_builder.gen_task(
+                        let task = context.gen_task(
                             PathId::new(row_detail.path.clone()),
                             from,
                             TaskTo {
@@ -112,27 +196,51 @@ impl<Child, LevelType: LevelTrait> TaskManager<Child, LevelType> {
                             },
                             row_detail.size,
                         );
-                        this_round_tasks.push_back(task);
+                        this_round_tasks.tasks.push_back(task);
                     } else {
                         // no, it's not uniq,
                         next_round.push((from, row_detail));
                     }
                 }
-                let end_task = task_builder.gen_end_task(TaskTo {
+                let end_task = context.gen_end_task(TaskTo {
                     to,
                     round: current_round_num,
                 });
-                this_round_tasks.push_back(end_task);
-                this_target_tasks.push_back(this_round_tasks);
+                this_round_tasks.tasks.push_back(end_task);
+                this_target_tasks.tasks.push_back(this_round_tasks);
                 current_round = next_round.drain(RangeFull).collect();
                 current_round_num += 1;
             }
-            tasks.extend(this_target_tasks);
+            tasks.push_back(this_target_tasks);
         }
-
+        context.total_tasks = tasks.len();
         GraphATasks {
             current_working_target: 0,
             tasks,
+        }
+    }
+}
+
+impl<Child, LevelType: LevelTrait> TaskManager<Child, LevelType> {
+    pub fn new(
+        child: Child,
+        graph_a: &CsMat<Pattern>,
+        graph_b: &CsMat<Pattern>,
+        total_size: &LevelType::Storage,
+        context: &mut SimulationContext<LevelType>,
+    ) -> Self
+    where
+        LevelType::Storage: Ord,
+    {
+        let graph_b_mappings = LevelType::get_mapping(total_size, graph_b);
+        let graph_a_tasks =
+            GraphATasks::generate_mappings_for_a(graph_a, &graph_b_mappings, context);
+
+        Self {
+            child,
+            graph_a_tasks,
+            unfinished_tasks: BTreeSet::new(),
+            recent_to: None,
         }
     }
 }
@@ -153,31 +261,37 @@ where
         self.child.cycle(context, current_cycle);
         // send task to child
         if self.graph_a_tasks.current_working_target < self.graph_a_tasks.tasks.len() {
-            let task_a = &mut self.graph_a_tasks.tasks[self.graph_a_tasks.current_working_target];
-            if let Some(task) = task_a.front() {
-                match self.child.receive_task(task, context, current_cycle) {
-                    Ok(_) => {
-                        debug!("task {:?} sent", task);
-                        // success, remove the task from task queue
-                        let task = task_a.pop_front().unwrap();
-                        let task_to = match task {
-                            Task::TaskData(TaskData { to, .. }) => to,
-                            Task::End(TaskEndData { to, .. }) => to,
-                        };
-                        self.recent_to = Some(task_to);
-                        debug!(
-                            "adding task to unfinished task list {}",
-                            self.graph_a_tasks.current_working_target
-                        );
-                        self.unfinished_tasks.insert(task_to);
+            let row_task = &mut self.graph_a_tasks.tasks[self.graph_a_tasks.current_working_target];
+            if let Some(round_task) = row_task.tasks.front_mut() {
+                if let Some(task) = round_task.tasks.front() {
+                    match self.child.receive_task(task, context, current_cycle) {
+                        Ok(_) => {
+                            debug!("task {:?} sent", task);
+                            // success, remove the task from task queue
+                            round_task.tasks.pop_front().unwrap();
+                            let task_to = TaskTo {
+                                to: row_task.row_id,
+                                round: round_task.round_id,
+                            };
+                            self.recent_to = Some(task_to);
+                            debug!(
+                                "adding task to unfinished task list {}",
+                                self.graph_a_tasks.current_working_target
+                            );
+                            self.unfinished_tasks.insert(task_to);
+                        }
+                        Err(_err_level) => {
+                            // some level cannot handle the task,
+                        }
                     }
-                    Err(_err_level) => {
-                        // some level cannot handle the task,
-                    }
+                } else {
+                    // next round
+                    row_task.tasks.pop_front();
                 }
             } else {
-                // all tasks finished
+                // all tasks of this row finished
                 // send the finish signal
+                // next row
                 debug!(
                     "task for {} finished",
                     self.graph_a_tasks.current_working_target
@@ -213,7 +327,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pim::level::ddr4;
+    use crate::pim::{
+        config::{Config, LevelConfig},
+        level::ddr4,
+    };
 
     #[test]
     fn test_task_generation() {
@@ -225,16 +342,22 @@ mod tests {
             .to_csr();
         let graph_b = graph_a.transpose_view().to_csr();
         let graph_b_mappings = ddr4::Level::get_mapping(&total_size, &graph_b);
-        let mut task_builder = TaskBuilder::default();
-        let graph_a_tasks = TaskManager::<(), ddr4::Level>::generate_mappings_for_a(
-            &graph_a,
-            &graph_b_mappings,
-            &mut task_builder,
-        );
+        let mut context = SimulationContext::new(&Config::from_ddr4(
+            LevelConfig::default(),
+            LevelConfig::default(),
+        ));
+        let graph_a_tasks: GraphATasks<ddr4::Level> =
+            GraphATasks::generate_mappings_for_a(&graph_a, &graph_b_mappings, &mut context);
         for task in graph_a_tasks.tasks {
-            for task in task {
+            for task in task.tasks {
                 println!("{:?}", task);
             }
         }
+    }
+
+    fn test_iter() {
+        let a = vec![1, 2, 3];
+        let mut iter = a.iter();
+        let mut iter3 = (&a).into_iter();
     }
 }

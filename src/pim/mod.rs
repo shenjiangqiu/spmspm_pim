@@ -1,6 +1,6 @@
 //! the pim module
 
-use std::{fmt::Debug, fs, marker::PhantomData};
+use std::{fmt::Debug, fs, marker::PhantomData, process::exit};
 
 use serde::Serialize;
 use sprs::{num_kinds::Pattern, CsMat};
@@ -36,6 +36,7 @@ pub struct SimulationContext<LevelType> {
     finished: bool,
     stats: Statistics,
     current_sending_task: usize,
+    total_tasks: usize,
 }
 #[derive(Serialize, Debug, Default)]
 struct Statistics {
@@ -52,6 +53,7 @@ impl<LevelType: LevelTrait> SimulationContext<LevelType> {
             finished: false,
             current_sending_task: 0,
             stats: Default::default(),
+            total_tasks: 0,
         }
     }
     /// return if the simulation is finished
@@ -128,12 +130,51 @@ impl Simulator {
         mut merger: impl Component<SimContext = SimulationContext<LevelType>> + EmptyComponent + Debug,
     ) {
         info!("start simulation");
+        let start_time = std::time::Instant::now();
+        let mut last_record_time = std::time::Instant::now();
+        let mut last_target = 0;
+
         while !context.finished() {
             merger.cycle(context, self.cycle);
             self.cycle += 1;
             if self.cycle % 100000 == 0 {
-                info!("cycle: {}", self.cycle);
+                info!("-------------------");
+
+                let total_time = start_time.elapsed();
+                let last_time = last_record_time.elapsed();
+                last_record_time = std::time::Instant::now();
+                let cycles_per_second = 100000.0 / last_time.as_secs_f64();
+                let cycles_per_second_total = self.cycle as f64 / total_time.as_secs_f64();
+                info!(
+                    "cycle: {}, this_round_cycle_per_sec: {}, total_cycle_per_sec: {}",
+                    self.cycle, cycles_per_second, cycles_per_second_total
+                );
+                let current_target = context.current_sending_task;
+                let tasks_this_round = current_target - last_target;
+                last_target = current_target;
+
+                let this_round_task_per_sec = tasks_this_round as f64 / last_time.as_secs_f64();
+                let total_task_per_sec = current_target as f64 / total_time.as_secs_f64();
+                info!(
+                    "tasks: {}/{} this_round_task_per_sec: {}, total_task_per_sec: {}",
+                    current_target,
+                    context.total_tasks,
+                    this_round_task_per_sec,
+                    total_task_per_sec
+                );
+                let guessed_finished_time = total_time
+                    .mul_f64((context.total_tasks as f64) / (current_target as f64))
+                    - total_time;
+                info!(
+                    "guessed finished time: {}",
+                    humantime::format_duration(guessed_finished_time)
+                );
+
                 println!("current runing status: {:?}", context);
+
+                if self.cycle == 2000000 {
+                    exit(1);
+                }
             }
         }
         info!("simulation finished");
@@ -255,13 +296,7 @@ impl Simulator {
             config.rows,
             config.row_size,
         );
-        TaskManager::new(
-            channel_merger,
-            graph_a,
-            graph_b,
-            &total_size,
-            &mut sim_context.task_builder,
-        )
+        TaskManager::new(channel_merger, graph_a, graph_b, &total_size, sim_context)
     }
 }
 

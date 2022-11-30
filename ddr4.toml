@@ -1,46 +1,47 @@
-activate_cycle = 2
-columns = 256
 dram_type = 'DDR4'
-graph_path = 'mtx/test.mtx'
-output_path = 'output/ddr4.json'
-precharge_cycle = 2
-row_size = 2
-rows = 32768
 subarray_provider_size = 2
 subarray_task_queue_size = 2
 subarrays = 16
+precharge_cycle = 2
+activate_cycle = 2
+rows = 32768
+row_size = 2
+window_size = 0
+columns = 256
+graph_path = ['mtx/test.mtx']
+output_path = 'output/ddr4.json'
 
 [channels]
-max_msg_generated = 2
+num = 1
+merger_num = 16
 max_msg_in = 2
 max_msg_out = 2
-merger_num = 16
-num = 1
+max_msg_generated = 2
 
 [ranks]
-max_msg_generated = 2
+num = 2
+merger_num = 12
 max_msg_in = 2
 max_msg_out = 2
-merger_num = 12
-num = 2
+max_msg_generated = 2
 
 [chips]
-max_msg_generated = 2
+num = 8
+merger_num = 8
 max_msg_in = 2
 max_msg_out = 2
-merger_num = 8
-num = 8
+max_msg_generated = 2
 
 [bank_groups]
-max_msg_generated = 2
+num = 8
+merger_num = 8
 max_msg_in = 2
 max_msg_out = 2
-merger_num = 8
-num = 8
+max_msg_generated = 2
 
 [banks]
-max_msg_generated = 2
+num = 8
+merger_num = 8
 max_msg_in = 2
 max_msg_out = 2
-merger_num = 8
-num = 8
+max_msg_generated = 2

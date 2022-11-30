@@ -6,7 +6,7 @@ pub mod pim;
 
 use clap::{Command, CommandFactory, Parser};
 use clap_complete::Generator;
-use cli::{Cli, CompArgs, RunArgs};
+use cli::{AnalyzeArgs, Cli, CompArgs, RunArgs};
 pub use pim::Simulator;
 use tracing::info;
 use tracing::metadata::LevelFilter;
@@ -43,10 +43,11 @@ fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
 
 pub fn main_inner() {
     let cli = Cli::parse();
+    init_logger_info();
+
     match cli.subcmd {
         cli::Operation::Run(RunArgs { config }) => {
             println!("run with config: {:?}", config);
-            init_logger_info();
             let config = Config::new(config);
             info!("building simulator");
             let mut simulator = Simulator::new(&config);
@@ -58,6 +59,22 @@ pub fn main_inner() {
             let mut cmd = Cli::command();
             print_completions(shell, &mut cmd);
         }
+        cli::Operation::Analyze(AnalyzeArgs { analyze, config }) => match analyze {
+            cli::AnalyzeType::All => {
+                println!("analyze with config: {:?}", config);
+                let config = Config::new(config);
+                analysis::print_all_stats(&config);
+            }
+            cli::AnalyzeType::Overlap => todo!(),
+            cli::AnalyzeType::Sequential => todo!(),
+            cli::AnalyzeType::Window => todo!(),
+            cli::AnalyzeType::SplitSpmm => {
+                println!("analyze with config: {:?}", config);
+                let config = Config::new(config);
+                let split_result = analysis::analyze_split_spmm::analyze_split_spmm(&config);
+                println!("split spmm result: {:?}", split_result);
+            }
+        },
     }
 }
 

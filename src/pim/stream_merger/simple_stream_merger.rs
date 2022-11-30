@@ -346,10 +346,9 @@ impl<LevelType: LevelTrait + Debug, Child> SimpleStreamMerger<LevelType, Child> 
     /// should not be used by user,
     /// use `receive_task` instead
     /// ### **only use this after `can_self_receive_task` returns true**
-    fn self_receive_task(&mut self, task_data: &task::TaskData<LevelType>, child_id: usize) {
+    fn self_receive_task(&mut self, to: TaskTo, child_id: usize) {
         // yes we can receive this task
 
-        let to = task_data.to;
         let entry = self.current_receiving_targets.entry(to).or_insert_with(|| {
             let &pe_id = self.free_pes.iter().next().unwrap();
             self.free_pes.remove(&pe_id);
@@ -394,25 +393,25 @@ where
     /// - when it's child return ok, it will change it's status, and all it's children have already changed it's status, correct!
     fn receive_task(
         &mut self,
-        task: &Self::InputTask,
+        task: Self::InputTask,
         context: &mut Self::SimContext,
         current_cycle: u64,
-    ) -> Result<(), Self::LevelType> {
+    ) -> Result<(), (Self::LevelType, Self::InputTask)> {
         // recursively receive task
         //
 
         // check if self can accept the task
         match task {
-            Task::TaskData(task_data) => {
+            Task::TaskData(ref task_data) => {
                 if !self.can_self_receive_task(&task_data.to) {
                     debug!(?self.current_level,
                         self.id,
                         "merger can not receive task,level: {:?}", self.current_level
                     );
-                    return Err(self.current_level.clone());
+                    return Err((self.current_level.clone(), task));
                 }
             }
-            Task::End(_end_task) => {
+            Task::End(ref _end_task) => {
                 // yes we can
             }
         }
@@ -423,7 +422,7 @@ where
             .expect("no child level");
 
         match task {
-            Task::TaskData(task_data) => {
+            Task::TaskData(ref task_data) => {
                 debug!(?self.current_level,
                     self.id,
                     "receive task,path: {:?}",task_data.target_id,
@@ -431,30 +430,31 @@ where
                 let child_id = task_data.target_id.get_level_id(&child_level);
                 // first test if self can receive this task
                 debug!(?self.current_level,self.id, "test child:{:?}-{}", child_level, child_id,);
+                let to = task_data.to.clone();
                 self.children[child_id].receive_task(task, context, current_cycle)?;
                 // record this task
                 debug!(?self.current_level,
                     self.id,
                     "merger receive task,level: {:?},target: {:?}",
                     self.current_level,
-                    task_data.to
+                    to
                 );
-                self.self_receive_task(task_data, child_id);
+                self.self_receive_task(to, child_id);
                 Ok(())
             }
-            Task::End(end_data) => {
+            Task::End(ref end_data) => {
                 // broadcast to all child
                 let to = end_data.to;
                 if let Some(working_pe_id) = self.current_receiving_targets.get(&to) {
                     let working_pe = &mut self.mergers[*working_pe_id];
                     for child in working_pe.waiting_data_childs.iter() {
                         self.children[*child]
-                            .receive_task(task, context, current_cycle)
+                            .receive_task(task.clone(), context, current_cycle)
                             .unwrap();
                     }
                 }
 
-                self.self_receive_end(&end_data.to);
+                self.self_receive_end(&to);
                 Ok(())
             }
         }
@@ -615,11 +615,11 @@ mod tests {
         let task = context.gen_task(path, 0, TaskTo { to: 0, round: 0 }, 4);
         let current_cycle = 0;
         merger
-            .receive_task(&task, &mut context, current_cycle)
+            .receive_task(Task::TaskData(task), &mut context, current_cycle)
             .unwrap();
         let end_task = context.gen_end_task(TaskTo { to: 0, round: 0 });
         merger
-            .receive_task(&end_task, &mut context, current_cycle)
+            .receive_task(Task::End(end_task), &mut context, current_cycle)
             .unwrap();
         let mut data = vec![];
         for i in 0..100 {
@@ -683,11 +683,11 @@ mod tests {
         let task = context.gen_task(path, 0, TaskTo { to: 0, round: 0 }, 4);
         let current_cycle = 0;
         bg_merger
-            .receive_task(&task, &mut context, current_cycle)
+            .receive_task(Task::TaskData(task), &mut context, current_cycle)
             .unwrap();
         let end_task = context.gen_end_task(TaskTo { to: 0, round: 0 });
         bg_merger
-            .receive_task(&end_task, &mut context, current_cycle)
+            .receive_task(Task::End(end_task), &mut context, current_cycle)
             .unwrap();
         let mut data = vec![];
         for i in 0..100 {
@@ -762,24 +762,24 @@ mod tests {
 
         let current_cycle = 0;
         bg_merger
-            .receive_task(&task1, &mut context, current_cycle)
+            .receive_task(Task::TaskData(task1), &mut context, current_cycle)
             .unwrap();
         bg_merger
-            .receive_task(&task2, &mut context, current_cycle)
+            .receive_task(Task::TaskData(task2), &mut context, current_cycle)
             .unwrap();
         bg_merger
-            .receive_task(&task3, &mut context, current_cycle)
+            .receive_task(Task::TaskData(task3), &mut context, current_cycle)
             .unwrap();
         bg_merger
-            .receive_task(&task4, &mut context, current_cycle)
+            .receive_task(Task::TaskData(task4), &mut context, current_cycle)
             .unwrap();
         let end_task1 = context.gen_end_task(TaskTo { to: 0, round: 0 });
         let end_task2 = context.gen_end_task(TaskTo { to: 1, round: 0 });
         bg_merger
-            .receive_task(&end_task1, &mut context, current_cycle)
+            .receive_task(Task::End(end_task1), &mut context, current_cycle)
             .unwrap();
         bg_merger
-            .receive_task(&end_task2, &mut context, current_cycle)
+            .receive_task(Task::End(end_task2), &mut context, current_cycle)
             .unwrap();
         let mut data = vec![];
         for i in 0..100 {

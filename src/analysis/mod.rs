@@ -4,12 +4,26 @@
 
 use crate::pim::config::Config;
 
+pub mod analyze_split_spmm;
+pub mod compute_merger_cycle;
+pub mod event;
+pub mod mergered_stream;
 pub mod overlap;
+pub mod partition;
+pub mod schedule_window;
 pub mod sequential_event_sim;
-
+pub mod split;
 pub fn print_all_stats(config: &Config) {
     let single_task_overlap_stat = overlap::compute_single_task_overlap_stat(config);
-    single_task_overlap_stat.print();
+    for stat in single_task_overlap_stat {
+        println!("graph: {}", stat.graph);
+        stat.print();
+    }
+    let lock_task_overlap_stat = sequential_event_sim::compute_lock_task_overlap_stat(config);
+    for stat in lock_task_overlap_stat {
+        println!("graph: {}", stat.graph);
+        stat.print();
+    }
 }
 
 #[cfg(test)]

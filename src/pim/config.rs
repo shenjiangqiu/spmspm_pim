@@ -2,9 +2,10 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Default)]
 pub enum DramType {
     DDR3,
+    #[default]
     DDR4,
     LPDDR3,
     LPDDR4,
@@ -20,7 +21,7 @@ pub struct LevelConfig {
     pub max_msg_out: usize,
     pub max_msg_generated: usize,
 }
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Default)]
 pub struct Config {
     // memory config
     pub dram_type: DramType,
@@ -31,8 +32,9 @@ pub struct Config {
     pub activate_cycle: u64,
     pub rows: usize,
     pub row_size: usize,
+    pub window_size: usize,
     pub columns: usize,
-    pub graph_path: String,
+    pub graph_path: Vec<String>,
     pub output_path: PathBuf,
     pub channels: LevelConfig,
     pub ranks: LevelConfig,
@@ -58,7 +60,7 @@ impl Config {
             activate_cycle: 2,
             subarrays: 16,
             row_size: 2,
-            graph_path: "mtx/test.mtx".to_string(),
+            graph_path: vec!["mtx/test.mtx".to_string()],
             output_path: PathBuf::from("output/ddr4.json"),
             chips: LevelConfig {
                 num: 8,
@@ -83,6 +85,7 @@ impl Config {
             },
             subarray_provider_size: 2,
             subarray_task_queue_size: 2,
+            ..Default::default()
         }
     }
     #[allow(dead_code, unreachable_code)]

@@ -10,7 +10,7 @@ use tracing::debug;
 use super::{
     level::{GraphBRow, LevelTrait},
     stream_merger::{EmptyComponent, StreamProvider, TaskReceiver},
-    task::{PathId, StreamMessage, Task, TaskTo},
+    task::{PathId, StreamMessage, Task, TaskData, TaskTo},
     Component, SimulationContext,
 };
 
@@ -43,7 +43,7 @@ impl<Child: EmptyComponent, LevelType: LevelTrait> EmptyComponent
 #[derive(Debug)]
 pub struct RoundTasks<LevelType: LevelTrait> {
     pub round_id: usize,
-    pub tasks: VecDeque<Task<LevelType>>,
+    pub tasks: VecDeque<TaskData<LevelType>>,
 }
 
 /// the tasks for graph a row
@@ -69,7 +69,7 @@ pub struct Iter<'a, LevelType: LevelTrait> {
     current_task: usize,
 }
 impl<'a, LevelType: LevelTrait> Iterator for Iter<'a, LevelType> {
-    type Item = &'a Task<LevelType>;
+    type Item = &'a TaskData<LevelType>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_row >= self.tasks.tasks.len() {
@@ -98,8 +98,34 @@ pub struct IntoIter<LevelType: LevelTrait> {
     tasks: GraphATasks<LevelType>,
 }
 
+pub struct IntoIterRound<LevelType: LevelTrait> {
+    tasks: GraphATasks<LevelType>,
+}
+
+impl<LevelType: LevelTrait> Iterator for IntoIterRound<LevelType> {
+    type Item = RoundTasks<LevelType>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // skip the empty rows
+        while !self.tasks.tasks.is_empty() && self.tasks.tasks[0].tasks.is_empty() {
+            self.tasks.tasks.pop_front();
+        }
+
+        if let Some(row) = self.tasks.tasks.front_mut() {
+            if let Some(round) = row.tasks.pop_front() {
+                return Some(round);
+            } else {
+                self.tasks.tasks.pop_front();
+                return self.next();
+            }
+        } else {
+            return None;
+        }
+    }
+}
+
 impl<LevelType: LevelTrait> Iterator for IntoIter<LevelType> {
-    type Item = Task<LevelType>;
+    type Item = TaskData<LevelType>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(row) = self.tasks.tasks.front_mut() {
@@ -121,14 +147,14 @@ impl<LevelType: LevelTrait> Iterator for IntoIter<LevelType> {
 }
 
 impl<LevelType: LevelTrait> IntoIterator for GraphATasks<LevelType> {
-    type Item = Task<LevelType>;
+    type Item = TaskData<LevelType>;
     type IntoIter = IntoIter<LevelType>;
     fn into_iter(self) -> Self::IntoIter {
         todo!()
     }
 }
 impl<'a, LevelType: LevelTrait> IntoIterator for &'a GraphATasks<LevelType> {
-    type Item = &'a Task<LevelType>;
+    type Item = &'a TaskData<LevelType>;
 
     type IntoIter = Iter<'a, LevelType>;
 
@@ -145,6 +171,9 @@ impl<LevelType: LevelTrait> GraphATasks<LevelType> {
             current_round: 0,
             current_task: 0,
         }
+    }
+    pub fn into_round_iter(self) -> IntoIterRound<LevelType> {
+        IntoIterRound { tasks: self }
     }
 
     /// from graph a genrate a list of froms
@@ -202,11 +231,11 @@ impl<LevelType: LevelTrait> GraphATasks<LevelType> {
                         next_round.push((from, row_detail));
                     }
                 }
-                let end_task = context.gen_end_task(TaskTo {
-                    to,
-                    round: current_round_num,
-                });
-                this_round_tasks.tasks.push_back(end_task);
+                // let end_task = context.gen_end_task(TaskTo {
+                //     to,
+                //     round: current_round_num,
+                // });
+                // this_round_tasks.tasks.push_back(end_task);
                 this_target_tasks.tasks.push_back(this_round_tasks);
                 current_round = next_round.drain(RangeFull).collect();
                 current_round_num += 1;
@@ -263,10 +292,13 @@ where
         if self.graph_a_tasks.current_working_target < self.graph_a_tasks.tasks.len() {
             let row_task = &mut self.graph_a_tasks.tasks[self.graph_a_tasks.current_working_target];
             if let Some(round_task) = row_task.tasks.front_mut() {
-                if let Some(task) = round_task.tasks.front() {
-                    match self.child.receive_task(task, context, current_cycle) {
+                if let Some(task) = round_task.tasks.pop_front() {
+                    match self
+                        .child
+                        .receive_task(Task::TaskData(task), context, current_cycle)
+                    {
                         Ok(_) => {
-                            debug!("task {:?} sent", task);
+                            // debug!("task {:?} sent", task);
                             // success, remove the task from task queue
                             round_task.tasks.pop_front().unwrap();
                             let task_to = TaskTo {
@@ -280,11 +312,22 @@ where
                             );
                             self.unfinished_tasks.insert(task_to);
                         }
-                        Err(_err_level) => {
+                        Err((_err_level, task)) => {
                             // some level cannot handle the task,
+                            // put it back to the queue
+                            round_task.tasks.push_front(task.into_task_data().unwrap());
                         }
                     }
                 } else {
+                    // push end task
+                    let task_to = TaskTo {
+                        to: row_task.row_id,
+                        round: round_task.round_id,
+                    };
+                    let end_task = context.gen_end_task(task_to);
+                    self.child
+                        .receive_task(Task::End(end_task), context, current_cycle)
+                        .unwrap();
                     // next round
                     row_task.tasks.pop_front();
                 }
@@ -354,10 +397,10 @@ mod tests {
             }
         }
     }
-
+    #[test]
     fn test_iter() {
-        let a = vec![1, 2, 3];
-        let mut iter = a.iter();
-        let mut iter3 = (&a).into_iter();
+        // let a = vec![1, 2, 3];
+        // let mut iter = a.iter();
+        // let mut iter3 = (&a).into_iter();
     }
 }

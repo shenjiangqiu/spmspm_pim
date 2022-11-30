@@ -5,7 +5,7 @@ use super::level::LevelTrait;
 /// a trait that can represent a path to a Bank
 #[derive(Debug, Clone)]
 pub struct PathId<LevelType: LevelTrait> {
-    level_path: LevelType::Storage,
+    pub level_path: LevelType::Storage,
 }
 
 impl<LevelType: LevelTrait> PathId<LevelType> {
@@ -79,22 +79,22 @@ impl TaskBuilder {
         from: usize,
         to: TaskTo,
         size: usize,
-    ) -> Task<LevelType> {
+    ) -> TaskData<LevelType> {
         let id = self.current_id;
         self.current_id += 1;
-        Task::TaskData(TaskData {
+        TaskData {
             id,
             target_id,
             from,
             to,
             size,
-        })
+        }
     }
     /// generate an end signal
-    pub fn gen_end_task<LevelType: LevelTrait>(&mut self, to: TaskTo) -> Task<LevelType> {
+    pub fn gen_end_task(&mut self, to: TaskTo) -> TaskEndData {
         let id = self.current_id;
         self.current_id += 1;
-        Task::End(TaskEndData { id, to })
+        TaskEndData { id, to }
     }
 }
 

@@ -43,8 +43,8 @@ pub trait TaskReceiver {
     /// - return the level where  the queue is full
     fn receive_task(
         &mut self,
-        task: &Self::InputTask,
+        task: Self::InputTask,
         context: &mut Self::SimContext,
         current_cycle: u64,
-    ) -> Result<(), Self::LevelType>;
+    ) -> Result<(), (Self::LevelType, Self::InputTask)>;
 }

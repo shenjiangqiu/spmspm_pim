@@ -10,7 +10,7 @@ use self::{
     config::Config,
     level::{ddr4, LevelTrait},
     stream_merger::{provider::Provider, EmptyComponent, SimpleStreamMerger},
-    task::{StreamMessage, Task, TaskTo},
+    task::{StreamMessage, TaskEndData, TaskTo},
     task_manager::TaskManager,
 };
 
@@ -67,7 +67,7 @@ impl<LevelType: LevelTrait> SimulationContext<LevelType> {
         from: usize,
         to: TaskTo,
         size: usize,
-    ) -> task::Task<LevelType> {
+    ) -> task::TaskData<LevelType> {
         self.task_builder.gen_task(target_id, from, to, size)
     }
 
@@ -84,7 +84,7 @@ impl<LevelType: LevelTrait> SimulationContext<LevelType> {
         self.message_builder.generate_end_msg(to)
     }
 
-    pub fn gen_end_task(&mut self, to: TaskTo) -> Task<LevelType> {
+    pub fn gen_end_task(&mut self, to: TaskTo) -> TaskEndData {
         self.task_builder.gen_end_task(to)
     }
 }
@@ -101,26 +101,26 @@ impl Simulator {
 
     /// run the simulator and print the statistics
     pub fn run(&mut self, config: &Config) {
-        info!("run config: {:?}", config);
-        let mut context = SimulationContext::<ddr4::Level>::new(config);
-        info!("generating graph A: {:?}", config.graph_path);
-        let graph_a = sprs::io::read_matrix_market(&config.graph_path)
-            .unwrap()
-            .to_csr();
-        info!("generating graph B: {:?}", config.graph_path);
+        for graph in &config.graph_path {
+            info!("run config: {:?}", config);
+            let mut context = SimulationContext::<ddr4::Level>::new(config);
+            info!("generating graph A: {:?}", config.graph_path);
+            let graph_a = sprs::io::read_matrix_market(graph).unwrap().to_csr();
+            info!("generating graph B: {:?}", config.graph_path);
 
-        let graph_b = graph_a.transpose_view().to_csr();
-        match config.dram_type {
-            config::DramType::DDR3 => todo!(),
-            config::DramType::DDR4 => {
-                info!("using DDR4");
-                let merger = Self::build_merger_ddr4(config, &graph_a, &graph_b, &mut context);
-                self.run_inner(config, &mut context, merger);
+            let graph_b = graph_a.transpose_view().to_csr();
+            match config.dram_type {
+                config::DramType::DDR3 => todo!(),
+                config::DramType::DDR4 => {
+                    info!("using DDR4");
+                    let merger = Self::build_merger_ddr4(config, &graph_a, &graph_b, &mut context);
+                    self.run_inner(config, &mut context, merger);
+                }
+                config::DramType::LPDDR3 => todo!(),
+                config::DramType::LPDDR4 => todo!(),
+                config::DramType::HBM => todo!(),
+                config::DramType::HBM2 => todo!(),
             }
-            config::DramType::LPDDR3 => todo!(),
-            config::DramType::LPDDR4 => todo!(),
-            config::DramType::HBM => todo!(),
-            config::DramType::HBM2 => todo!(),
         }
     }
     fn run_inner<LevelType: LevelTrait + Debug>(

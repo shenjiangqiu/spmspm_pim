@@ -9,12 +9,14 @@ use crate::pim::{
 
 #[derive(Debug)]
 pub struct SingleTaskOverlapStat {
-    overlap_histogram: Vec<usize>,
+    pub graph: String,
+    pub overlap_histogram: Vec<usize>,
 }
 
 impl SingleTaskOverlapStat {
-    pub fn new(max: usize) -> Self {
+    pub fn new(graph: String, max: usize) -> Self {
         Self {
+            graph,
             overlap_histogram: vec![0; max + 1],
         }
     }
@@ -38,7 +40,7 @@ impl SingleTaskOverlapStat {
     }
 }
 
-pub fn compute_single_task_overlap_stat(config: &Config) -> SingleTaskOverlapStat {
+pub fn compute_single_task_overlap_stat(config: &Config) -> Vec<SingleTaskOverlapStat> {
     match config.dram_type {
         crate::pim::config::DramType::DDR3 => todo!(),
         crate::pim::config::DramType::DDR4 => {
@@ -64,26 +66,35 @@ pub fn compute_single_task_overlap_stat(config: &Config) -> SingleTaskOverlapSta
 fn compute_single_task_overlap_stat_inner<LevelType: LevelTrait>(
     config: &Config,
     total_size: &LevelType::Storage,
-) -> SingleTaskOverlapStat
+) -> Vec<SingleTaskOverlapStat>
 where
     LevelType::Storage: Ord,
 {
-    let mut stat = SingleTaskOverlapStat::new(1024);
-    let graph_path = &config.graph_path;
-    let graph_a = sprs::io::read_matrix_market(graph_path).unwrap().to_csr();
-    let graph_b = graph_a.transpose_view().to_csr();
-    let graph_b_mapping = LevelType::get_mapping(total_size, &graph_b);
+    let mut total_stat = vec![];
 
-    let mut context = SimulationContext::new(config);
-    let graph_a_tasks: GraphATasks<LevelType> =
-        GraphATasks::generate_mappings_for_a(&graph_a, &graph_b_mapping, &mut context);
+    for graph in &config.graph_path {
+        let mut stat = SingleTaskOverlapStat::new(graph.clone(), 1024);
+        let graph_a = sprs::io::read_matrix_market(graph)
+            .unwrap_or_else(|err| {
+                panic!("failed to read graph {}: {}", graph, err);
+            })
+            .to_csr();
+        let graph_b = graph_a.transpose_view().to_csr();
+        let graph_b_mapping = LevelType::get_mapping(total_size, &graph_b);
 
-    println!("graph_a_tasks: {:?}", graph_a_tasks.tasks.len());
-    for target_task in graph_a_tasks.tasks.iter() {
-        let num_rounds = target_task.tasks.len();
-        stat.add(num_rounds);
+        let mut context = SimulationContext::new(config);
+        let graph_a_tasks: GraphATasks<LevelType> =
+            GraphATasks::generate_mappings_for_a(&graph_a, &graph_b_mapping, &mut context);
+
+        println!("graph_a_tasks: {:?}", graph_a_tasks.tasks.len());
+        for target_task in graph_a_tasks.tasks.iter() {
+            let num_rounds = target_task.tasks.len();
+
+            stat.add(num_rounds);
+        }
+        total_stat.push(stat);
     }
-    stat
+    total_stat
 }
 
 #[cfg(test)]

@@ -112,10 +112,10 @@ where
 
     fn receive_task(
         &mut self,
-        task: &Self::InputTask,
+        task: Self::InputTask,
         _context: &mut Self::SimContext,
         _current_cycle: u64,
-    ) -> Result<(), Self::LevelType> {
+    ) -> Result<(), (Self::LevelType, Self::InputTask)> {
         if let Task::TaskData(data) = task {
             if self.task_queue.len() < self.max_task_queue_size {
                 debug!(
@@ -125,7 +125,7 @@ where
                 self.task_queue.push_back(data.clone());
                 return Ok(());
             } else {
-                return Err(self.level);
+                return Err((self.level, Task::TaskData(data)));
             }
         }
         // it's an end task, just ignore it
@@ -222,7 +222,7 @@ mod tests {
         config::{Config, LevelConfig},
         level::ddr4,
         stream_merger::{StreamProvider, TaskReceiver},
-        task::{PathId, TaskBuilder, TaskTo},
+        task::{PathId, Task, TaskBuilder, TaskTo},
         Component, SimulationContext,
     };
 
@@ -257,11 +257,11 @@ mod tests {
         let task =
             task_builder.gen_task(PathId::new(path_storage), 0, TaskTo { to: 0, round: 0 }, 1);
         provider
-            .receive_task(&task, &mut context, current_cycle)
+            .receive_task(Task::TaskData(task), &mut context, current_cycle)
             .unwrap();
         let end_task = task_builder.gen_end_task(TaskTo { to: 1, round: 0 });
         provider
-            .receive_task(&end_task, &mut context, current_cycle)
+            .receive_task(Task::End(end_task), &mut context, current_cycle)
             .unwrap();
         provider.cycle(&mut context, current_cycle);
         current_cycle += 1;
@@ -306,23 +306,23 @@ mod tests {
         let task =
             task_builder.gen_task(PathId::new(path_storage), 0, TaskTo { to: 0, round: 0 }, 1);
         provider
-            .receive_task(&task, &mut context, current_cycle)
+            .receive_task(Task::TaskData(task), &mut context, current_cycle)
             .unwrap();
         let end_task = task_builder.gen_end_task(TaskTo { to: 0, round: 0 });
         provider
-            .receive_task(&end_task, &mut context, current_cycle)
+            .receive_task(Task::End(end_task), &mut context, current_cycle)
             .unwrap();
         let path_storage = ddr4::Storage::new(0, 0, 0, 0, 0, 0, 1, 0);
 
         let task =
             task_builder.gen_task(PathId::new(path_storage), 0, TaskTo { to: 1, round: 0 }, 1);
         provider
-            .receive_task(&task, &mut context, current_cycle)
+            .receive_task(Task::TaskData(task), &mut context, current_cycle)
             .unwrap();
         let end_task = task_builder.gen_end_task(TaskTo { to: 1, round: 0 });
 
         provider
-            .receive_task(&end_task, &mut context, current_cycle)
+            .receive_task(Task::End(end_task), &mut context, current_cycle)
             .unwrap();
         provider.cycle(&mut context, current_cycle);
         let mut result = vec![];

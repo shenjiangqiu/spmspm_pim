@@ -1,0 +1,247 @@
+analyze with config: "configs/ddr4.toml"
+graph_a_tasks: 36692
+graph_a_tasks: 62586
+graph_a_tasks: 13514
+graph_a_tasks: 101492
+graph_a_tasks: 106437
+graph_a_tasks: 1971281
+graph_a_tasks: 400727
+graph_a_tasks: 5
+graph_a_tasks: 23133
+graph_a_tasks: 106437
+graph_a_tasks: 170998
+graph_a_tasks: 106437
+graph_a_tasks: 1000005
+graph_a_tasks: 130228
+graph_a_tasks: 200200
+graph_a_tasks: 916428
+graph_a_tasks: 3774768
+graph_a_tasks: 389874
+graph_a_tasks: 8297
+graph_a_tasks: 121192
+graph: mtx/outerspace/email-Enron/email-Enron.mtx
+overlap 1 : 36545
+overlap 2 : 147
+graph: mtx/outerspace/p2p-Gnutella31/p2p-Gnutella31.mtx
+overlap 0 : 46199
+overlap 1 : 16371
+overlap 2 : 16
+graph: mtx/outerspace/poisson3Da/poisson3Da.mtx
+overlap 1 : 13514
+graph: mtx/outerspace/2cubes_sphere/2cubes_sphere.mtx
+overlap 1 : 101409
+overlap 2 : 83
+graph: mtx/outerspace/filter3D/filter3D_B.mtx
+overlap 0 : 99382
+overlap 1 : 7055
+graph: mtx/outerspace/roadNet-CA/roadNet-CA.mtx
+overlap 0 : 6075
+overlap 1 : 1965176
+overlap 2 : 30
+graph: mtx/outerspace/amazon0312/amazon0312.mtx
+overlap 0 : 12353
+overlap 1 : 387811
+overlap 2 : 563
+graph: mtx/outerspace/filter3D/filter3D_C.mtx
+overlap 1 : 5
+graph: mtx/outerspace/ca-CondMat/ca-CondMat.mtx
+overlap 1 : 23071
+overlap 2 : 62
+graph: mtx/outerspace/filter3D/filter3D_E.mtx
+overlap 1 : 106437
+graph: mtx/outerspace/scircuit/scircuit.mtx
+overlap 1 : 170909
+overlap 2 : 89
+graph: mtx/outerspace/filter3D/filter3D.mtx
+overlap 1 : 106437
+graph: mtx/outerspace/webbase-1M/webbase-1M.mtx
+overlap 1 : 999491
+overlap 2 : 466
+overlap 3 : 47
+overlap 4 : 1
+graph: mtx/outerspace/cage12/cage12.mtx
+overlap 1 : 129908
+overlap 2 : 320
+graph: mtx/outerspace/m133-b3/m133-b3.mtx
+overlap 1 : 200161
+overlap 2 : 39
+graph: mtx/outerspace/web-Google/web-Google.mtx
+overlap 0 : 176974
+overlap 1 : 737731
+overlap 2 : 1721
+overlap 3 : 2
+graph: mtx/outerspace/cit-Patents/cit-Patents.mtx
+overlap 0 : 1685423
+overlap 1 : 2081517
+overlap 2 : 7818
+overlap 3 : 10
+graph: mtx/outerspace/mario002/mario002.mtx
+overlap 1 : 389614
+overlap 2 : 260
+graph: mtx/outerspace/wiki-Vote/wiki-Vote.mtx
+overlap 0 : 2187
+overlap 1 : 6110
+graph: mtx/outerspace/cop20k_A/cop20k_A.mtx
+overlap 0 : 21349
+overlap 1 : 98918
+overlap 2 : 925
+graph: mtx/outerspace/email-Enron/email-Enron.mtx
+parsing the graph
+graph_a_tasks: 36692
+start simulation
+graph: mtx/outerspace/p2p-Gnutella31/p2p-Gnutella31.mtx
+parsing the graph
+graph_a_tasks: 62586
+start simulation
+graph: mtx/outerspace/poisson3Da/poisson3Da.mtx
+parsing the graph
+graph_a_tasks: 13514
+start simulation
+graph: mtx/outerspace/2cubes_sphere/2cubes_sphere.mtx
+parsing the graph
+graph_a_tasks: 101492
+start simulation
+graph: mtx/outerspace/filter3D/filter3D_B.mtx
+parsing the graph
+graph_a_tasks: 106437
+start simulation
+graph: mtx/outerspace/roadNet-CA/roadNet-CA.mtx
+parsing the graph
+graph_a_tasks: 1971281
+start simulation
+graph: mtx/outerspace/amazon0312/amazon0312.mtx
+parsing the graph
+graph_a_tasks: 400727
+start simulation
+graph: mtx/outerspace/filter3D/filter3D_C.mtx
+parsing the graph
+graph_a_tasks: 5
+start simulation
+graph: mtx/outerspace/ca-CondMat/ca-CondMat.mtx
+parsing the graph
+graph_a_tasks: 23133
+start simulation
+graph: mtx/outerspace/filter3D/filter3D_E.mtx
+parsing the graph
+graph_a_tasks: 106437
+start simulation
+graph: mtx/outerspace/scircuit/scircuit.mtx
+parsing the graph
+graph_a_tasks: 170998
+start simulation
+graph: mtx/outerspace/filter3D/filter3D.mtx
+parsing the graph
+graph_a_tasks: 106437
+start simulation
+graph: mtx/outerspace/webbase-1M/webbase-1M.mtx
+parsing the graph
+graph_a_tasks: 1000005
+start simulation
+graph: mtx/outerspace/cage12/cage12.mtx
+parsing the graph
+graph_a_tasks: 130228
+start simulation
+graph: mtx/outerspace/m133-b3/m133-b3.mtx
+parsing the graph
+graph_a_tasks: 200200
+start simulation
+graph: mtx/outerspace/web-Google/web-Google.mtx
+parsing the graph
+graph_a_tasks: 916428
+start simulation
+graph: mtx/outerspace/cit-Patents/cit-Patents.mtx
+parsing the graph
+graph_a_tasks: 3774768
+start simulation
+graph: mtx/outerspace/mario002/mario002.mtx
+parsing the graph
+graph_a_tasks: 389874
+start simulation
+graph: mtx/outerspace/wiki-Vote/wiki-Vote.mtx
+parsing the graph
+graph_a_tasks: 8297
+start simulation
+graph: mtx/outerspace/cop20k_A/cop20k_A.mtx
+parsing the graph
+graph_a_tasks: 121192
+start simulation
+graph: mtx/outerspace/email-Enron/email-Enron.mtx
+finished time: 2952777
+total subarray idle %: 0.993405796914074
+total subarray busy %: 0.006594203085926012
+graph: mtx/outerspace/p2p-Gnutella31/p2p-Gnutella31.mtx
+finished time: 116
+total subarray idle %: 0.9910065333751336
+total subarray busy %: 0.008993466624866423
+graph: mtx/outerspace/poisson3Da/poisson3Da.mtx
+finished time: 276674
+total subarray idle %: 0.9891753817030785
+total subarray busy %: 0.01082461829692155
+graph: mtx/outerspace/2cubes_sphere/2cubes_sphere.mtx
+finished time: 1107607
+total subarray idle %: 0.9965119147431801
+total subarray busy %: 0.00348808525681992
+graph: mtx/outerspace/filter3D/filter3D_B.mtx
+finished time: 49773025
+total subarray idle %: 0.99993896484375
+total subarray busy %: 0.00006103515625
+graph: mtx/outerspace/roadNet-CA/roadNet-CA.mtx
+finished time: 6226
+total subarray idle %: 0.9947533320827752
+total subarray busy %: 0.005246667917224786
+graph: mtx/outerspace/amazon0312/amazon0312.mtx
+finished time: 317348
+total subarray idle %: 0.9941504374649781
+total subarray busy %: 0.005849562535021932
+graph: mtx/outerspace/filter3D/filter3D_C.mtx
+finished time: 1
+total subarray idle %: 0.99969482421875
+total subarray busy %: 0.00030517578125
+graph: mtx/outerspace/ca-CondMat/ca-CondMat.mtx
+finished time: 61
+total subarray idle %: 0.9932944518479491
+total subarray busy %: 0.0067055481520508905
+graph: mtx/outerspace/filter3D/filter3D_E.mtx
+finished time: 1842839
+total subarray idle %: 0.9929323561207474
+total subarray busy %: 0.00706764387925259
+graph: mtx/outerspace/scircuit/scircuit.mtx
+finished time: 140329
+total subarray idle %: 0.9851413173393699
+total subarray busy %: 0.014858682660630044
+graph: mtx/outerspace/filter3D/filter3D.mtx
+finished time: 1842894
+total subarray idle %: 0.9929340381365436
+total subarray busy %: 0.007065961863456396
+graph: mtx/outerspace/webbase-1M/webbase-1M.mtx
+finished time: 546656712
+total subarray idle %: 0.9962015307041169
+total subarray busy %: 0.0037984692958830998
+graph: mtx/outerspace/cage12/cage12.mtx
+finished time: 4657724
+total subarray idle %: 0.9967330784792535
+total subarray busy %: 0.003266921520746434
+graph: mtx/outerspace/m133-b3/m133-b3.mtx
+finished time: 963888
+total subarray idle %: 0.9997278793635462
+total subarray busy %: 0.00027212063645377466
+graph: mtx/outerspace/web-Google/web-Google.mtx
+finished time: 37823
+total subarray idle %: 0.9921515751559676
+total subarray busy %: 0.007848424844032408
+graph: mtx/outerspace/cit-Patents/cit-Patents.mtx
+finished time: 257923
+total subarray idle %: 0.9924661493277366
+total subarray busy %: 0.007533850672263455
+graph: mtx/outerspace/mario002/mario002.mtx
+finished time: 940280
+total subarray idle %: 0.9938330147301725
+total subarray busy %: 0.0061669852698275395
+graph: mtx/outerspace/wiki-Vote/wiki-Vote.mtx
+finished time: 310477
+total subarray idle %: 0.9953296815936032
+total subarray busy %: 0.004670318406396802
+graph: mtx/outerspace/cop20k_A/cop20k_A.mtx
+finished time: 3658832
+total subarray idle %: 0.9936166698452484
+total subarray busy %: 0.006383330154751526

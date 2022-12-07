@@ -1,3 +1,5 @@
+//! this module is used to split the matrix into multiple partitions
+
 use std::{
     fmt::{Debug, Display, Write},
     iter,

@@ -30,7 +30,8 @@ pub trait LevelTrait: Sized + Clone + Copy + Debug {
     fn last_level() -> Self;
     ///
     fn row() -> Self;
-
+    /// bank
+    fn bank() -> Self;
     /// get the specific id of a level
     fn get_level_id(&self, path: &Self::Storage) -> usize;
     /// get sub path to a level
@@ -42,6 +43,8 @@ pub trait LevelTrait: Sized + Clone + Copy + Debug {
 
     fn get_mapping(total_size: &Self::Storage, graph: &CsMat<Pattern>) -> Self::Mapping;
     fn get_row_detail(mapping: &Self::Mapping, row: usize) -> &GraphBRow<Self::Storage>;
+    /// set the size of storage to 1 until the level(keep the level and later the same)
+    fn set_one_to_level(storage: &Self::Storage, level: &Self) -> Self::Storage;
 }
 
 /// the infomation of a row in matrix

@@ -1,9 +1,13 @@
 //! this module is used to analyze the split spmm
 
-use std::fmt::Debug;
+use std::{
+    collections::BTreeMap,
+    fmt::{Debug, Display},
+};
 
 use itertools::Itertools;
-use sprs::{num_kinds::Pattern, CsMat};
+use sprs::{num_kinds::Pattern, CsMat, CsVec, CsVecView};
+use tracing::{info, trace};
 
 use crate::{
     analysis::split::split_matrix,
@@ -23,6 +27,11 @@ pub struct SplitAnalyzeResult {
     pub results: Vec<SingleResult>,
 }
 impl Debug for SplitAnalyzeResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self, f)
+    }
+}
+impl Display for SplitAnalyzeResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for result in &self.results {
             writeln!(f, "name: {}", result.name)?;
@@ -57,8 +66,12 @@ pub fn analyze_split_spmm(config: &Config) -> SplitAnalyzeResult {
 
 pub fn analyze_split_spmm_inner<LevelType: LevelTrait>(
     config: &Config,
-    _total_size: &LevelType::Storage,
-) -> SplitAnalyzeResult {
+    total_size: &LevelType::Storage,
+) -> SplitAnalyzeResult
+where
+    LevelType::Storage: Debug,
+    LevelType::Mapping: Debug,
+{
     let results = config
         .graph_path
         .iter()
@@ -100,6 +113,17 @@ pub fn analyze_split_spmm_inner<LevelType: LevelTrait>(
             // println!("split matrix {}", s_matrix);
             // average and mean man max nnz for sub matrix
             // println!("sub matrix nnz stats:{:?}", s_matrix.nnz_stats());
+            for (bank_id, single_matrix) in s_matrix.matrix.iter().enumerate() {
+                let bank_result = compute_bank_cycle_seq::<LevelType>(
+                    config,
+                    path.to_string(),
+                    single_matrix,
+                    &matrix_a,
+                    bank_id,
+                    total_size,
+                );
+                info!(?bank_result);
+            }
             SingleResult {
                 name: path.to_string(),
                 nnz_stats: s_matrix.nnz_stats(),
@@ -109,15 +133,162 @@ pub fn analyze_split_spmm_inner<LevelType: LevelTrait>(
     SplitAnalyzeResult { results }
 }
 
+/// the stat result of the seq spmm
+#[derive(Debug)]
+pub struct SeqResult {
+    /// the cycles
+    pub cycle: u64,
+    /// the graph name
+    pub name: String,
+}
+/// add two vector and return a new vector(sparse)
+fn sparse_add(v1: CsVecView<Pattern>, v2: CsVecView<Pattern>) -> CsVec<Pattern> {
+    assert!(v1.dim() == v2.dim());
+    let mut v1_iter = v1.iter();
+    let mut v2_iter = v2.iter();
+    let mut v1_next = v1_iter.next();
+    let mut v2_next = v2_iter.next();
+    let mut result = CsVec::empty(v1.dim());
+    while v1_next.is_some() || v2_next.is_some() {
+        match (v1_next, v2_next) {
+            (Some((i1, _)), Some((i2, _))) => {
+                if i1 == i2 {
+                    result.append(i1, Pattern);
+                    v1_next = v1_iter.next();
+                    v2_next = v2_iter.next();
+                } else if i1 < i2 {
+                    result.append(i1, Pattern);
+                    v1_next = v1_iter.next();
+                } else {
+                    result.append(i2, Pattern);
+                    v2_next = v2_iter.next();
+                }
+            }
+            (Some((i1, _)), None) => {
+                result.append(i1, Pattern);
+                v1_next = v1_iter.next();
+            }
+            (None, Some((i2, _))) => {
+                result.append(i2, Pattern);
+                v2_next = v2_iter.next();
+            }
+            (None, None) => unreachable!(),
+        }
+    }
+    result
+}
+
+#[derive(Default)]
+struct BankStatus {
+    opened_row: Option<usize>,
+    last_read_col: usize,
+}
+
+/// compute the run cycles for each bank in sequence
+///
+/// in sequence means that tasks are executed in the order of the input,
+/// the bank will read the tasks one by one and read the row of the output and input, and then
+///  accumulate the input into the result.
+///
+/// # Arguments
+/// - `config`: the config
+/// - `single_matrix`: the matrix b belongs to the bank
+/// - `input_matrix`: the input matrix
+/// - `bank_id`: the bank id
+///
+/// # Returns
+/// - [`SeqResult`]: the stats
+///  
+pub fn compute_bank_cycle_seq<LevelType: LevelTrait>(
+    config: &Config,
+    path: String,
+    single_matrix: &CsMat<Pattern>,
+    input_matrix: &CsMat<Pattern>,
+    bank_id: usize,
+    total_size: &LevelType::Storage,
+) -> SeqResult
+where
+    LevelType::Storage: Debug,
+    LevelType::Mapping: Debug,
+{
+    let mut cycle: u64 = 0;
+    // first we need to map the matrix to the bank
+    // reset to 1 until subarray
+    let mappings = LevelType::get_mapping(
+        &LevelType::set_one_to_level(total_size, &LevelType::last_level()),
+        input_matrix,
+    );
+    // assume we have the two sub arrays to store the partial result(it's not affecting the cycle accuracy)
+    let mut final_result_bank = BankStatus::default();
+    let mut final_result_bank = BankStatus::default();
+    let mut open_row_status: hashbrown::HashMap<usize, BankStatus> = Default::default();
+    trace!(?mappings);
+    for task in input_matrix.outer_iterator() {
+        let mut current_result: CsVec<Pattern> =
+            CsVec::new(single_matrix.inner_dims(), vec![], vec![]);
+        for (input_row_id, _) in task.iter() {
+            let input_row = single_matrix.outer_view(input_row_id).unwrap();
+            current_result = sparse_add(current_result.view(), input_row);
+            // calculate the cycle:
+            // the cycle to calculate the nnz
+            cycle += current_result.nnz() as u64;
+            // the cycle to open the row of the input matrix
+            let open_row_detail = LevelType::get_row_detail(mapping, input_row_id);
+            let sub_array_id = LevelType::sub_array().get_level_id(&open_row_detail.path);
+            let row_id = LevelType::row().get_level_id(&open_row_detail.path);
+            match open_row_status.entry(row_id) {
+                hashbrown::hash_map::Entry::Occupied(entry) => {
+                    let status = entry.get_mut();
+                    let open_status = &mut status.opened_row;
+                    match open_status {
+                        Some(opened_row) => {
+                            if opened_row != &open_row_detail.row {
+                                // the row is not opened, we need to open it
+                                cycle += config.open_row_cycle;
+                                *opened_row = open_row_detail.row;
+                            }
+                        }
+                        None => {}
+                    }
+                }
+                hashbrown::hash_map::Entry::Vacant(_) => todo!(),
+            }
+        }
+    }
+    SeqResult { cycle, name: path }
+}
+
+/// compute the run cycles for each bank in parallel
+///
+/// # Arguments
+/// - `config`: the config
+/// - `single_matrix`: the matrix b belongs to the bank
+/// - `input_matrix`: the input matrix
+/// - `bank_id`: the bank id
+pub fn compute_bank_cycle_parallel<LevelType: LevelTrait>(
+    config: &Config,
+    single_matrix: CsMat<Pattern>,
+    input_matrix: &CsMat<Pattern>,
+    bank_id: &LevelType::Storage,
+) -> u64 {
+    todo!()
+}
+
 #[cfg(test)]
 mod tests {
 
-    use crate::pim::config::{Config, LevelConfig};
+    use tracing::info;
+
+    use crate::{
+        init_logger_debug,
+        pim::config::{Config, LevelConfig},
+    };
 
     use super::analyze_split_spmm;
 
     #[test]
     fn test_split_spmm() {
+        init_logger_debug();
         let config = Config {
             channels: LevelConfig {
                 num: 1,
@@ -139,9 +310,19 @@ mod tests {
                 num: 4,
                 ..Default::default()
             },
-            graph_path: vec!["mtx/test_large.mtx".to_string()],
-            ..Default::default()
+            graph_path: vec!["mtx/bcspwr06.mtx".to_string()],
+            ..Config::from_ddr4(
+                LevelConfig {
+                    num: 1,
+                    ..Default::default()
+                },
+                LevelConfig {
+                    num: 1,
+                    ..Default::default()
+                },
+            )
         };
-        analyze_split_spmm(&config);
+        let result = analyze_split_spmm(&config);
+        info!(?result);
     }
 }

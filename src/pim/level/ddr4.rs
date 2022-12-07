@@ -1,5 +1,5 @@
 //! a implementation of spec DDR4
-use sprs::{num_kinds::Pattern, CsMat};
+use sprs::{num_kinds::Pattern, CompressedStorage::CSR, CsMat};
 use tracing::debug;
 
 use super::LevelTrait;
@@ -143,6 +143,9 @@ impl LevelTrait for Level {
     fn row() -> Self {
         Self::Row
     }
+    fn bank() -> Self {
+        Self::Bank
+    }
 
     fn get_level_id(&self, storage: &Storage) -> usize {
         return storage.data[self.to_usize()];
@@ -155,8 +158,9 @@ impl LevelTrait for Level {
         }
         Storage { data }
     }
-
+    /// TODO: Description
     fn get_mapping(total_size: &Self::Storage, graph: &CsMat<Pattern>) -> Self::Mapping {
+        assert!(graph.storage() == CSR);
         debug!(
             "start to build mapping for ddr4,total size: {:?}",
             total_size
@@ -202,6 +206,14 @@ impl LevelTrait for Level {
 
     fn get_flat_level_id(&self, total_size: &Self::Storage, id: &Self::Storage) -> usize {
         id.get_flat_level_id(total_size, self)
+    }
+
+    fn set_one_to_level(storage: &Self::Storage, level: &Self) -> Self::Storage {
+        let mut storage = storage.clone();
+        for i in 0..(level.to_usize()) {
+            storage.data[i] = 1;
+        }
+        storage
     }
 }
 

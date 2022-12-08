@@ -215,6 +215,14 @@ impl LevelTrait for Level {
         }
         storage
     }
+
+    fn subarray() -> Self {
+        Self::SubArray
+    }
+
+    fn col() -> Self {
+        Self::Column
+    }
 }
 
 #[cfg(test)]

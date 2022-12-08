@@ -28,10 +28,15 @@ pub trait LevelTrait: Sized + Clone + Copy + Debug {
     fn first_level() -> Self;
     /// the last level to receive task
     fn last_level() -> Self;
-    ///
+    /// subarray
+    fn subarray() -> Self;
+    /// row
     fn row() -> Self;
     /// bank
     fn bank() -> Self;
+    /// col
+    fn col() -> Self;
+
     /// get the specific id of a level
     fn get_level_id(&self, path: &Self::Storage) -> usize;
     /// get sub path to a level

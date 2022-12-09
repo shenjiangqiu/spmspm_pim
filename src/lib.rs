@@ -1,6 +1,6 @@
 //! a library for creating pim simulator
 #![deny(unsafe_code)]
-
+#![warn(missing_docs)]
 pub mod analysis;
 pub mod pim;
 
@@ -40,7 +40,7 @@ pub(crate) fn init_logger(filter: LevelFilter) {
 fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
     clap_complete::generate(gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());
 }
-
+/// the main function of the simulator
 pub fn main_inner() {
     let cli = Cli::parse();
     init_logger_info();
@@ -90,7 +90,7 @@ mod tests {
     }
 
     fn pim_test_impl(mut simulator: Simulator, config: &Config) {
-        simulator.run(&config);
+        simulator.run(config);
     }
 
     #[test]

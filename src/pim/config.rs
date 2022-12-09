@@ -21,6 +21,7 @@ pub struct LevelConfig {
     pub max_msg_out: usize,
     pub max_msg_generated: usize,
 }
+#[allow(missing_docs)]
 #[derive(Deserialize, Serialize, Debug, Default)]
 pub struct Config {
     // memory config
@@ -31,7 +32,6 @@ pub struct Config {
     pub precharge_cycle: u64,
     pub activate_cycle: u64,
     pub rows: usize,
-    pub row_size: usize,
     pub window_size: usize,
     pub columns: usize,
     pub graph_path: Vec<String>,
@@ -43,12 +43,14 @@ pub struct Config {
     pub banks: LevelConfig,
 }
 impl Config {
+    /// create a config from path
     pub fn new(path: impl AsRef<Path>) -> Self {
         toml::from_str(std::fs::read_to_string(path).unwrap().as_str()).unwrap()
     }
 }
 
 impl Config {
+    /// the default ddr4 config
     pub fn from_ddr4(channels: LevelConfig, ranks: LevelConfig) -> Self {
         Self {
             dram_type: DramType::DDR4,
@@ -56,10 +58,9 @@ impl Config {
             ranks,
             rows: 32768,
             columns: 256,
-            precharge_cycle: 2,
-            activate_cycle: 2,
+            precharge_cycle: 12,
+            activate_cycle: 12,
             subarrays: 16,
-            row_size: 2,
             graph_path: vec!["mtx/test.mtx".to_string()],
             output_path: PathBuf::from("output/ddr4.json"),
             chips: LevelConfig {

@@ -294,7 +294,7 @@ impl Simulator {
             config.banks.num,
             config.subarrays,
             config.rows,
-            config.row_size,
+            config.columns,
         );
         TaskManager::new(channel_merger, graph_a, graph_b, &total_size, sim_context)
     }

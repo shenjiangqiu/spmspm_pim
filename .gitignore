@@ -18,3 +18,4 @@ Cargo.lock
 perf.data
 perf.data.old
 result.txt
+out.txt

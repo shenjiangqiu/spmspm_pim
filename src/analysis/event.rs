@@ -1,7 +1,10 @@
-use crate::pim::level::LevelTrait;
+//! the event module
 
+/// An event which have a type and a finished time.
 pub struct Event<EventType> {
+    /// the finished time of the event
     pub finished_time: u64,
+    /// the type of the event
     pub event: EventType,
 }
 

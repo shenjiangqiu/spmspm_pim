@@ -72,7 +72,7 @@ pub fn main_inner() {
                 println!("analyze with config: {:?}", config);
                 let config = Config::new(config);
                 let split_result = analysis::analyze_split_spmm::analyze_split_spmm(&config);
-                println!("split spmm result: {:?}", split_result);
+                split_result.show_results();
             }
         },
     }

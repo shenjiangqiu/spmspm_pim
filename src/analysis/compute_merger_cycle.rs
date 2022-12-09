@@ -1,17 +1,18 @@
 //! helper functions for computing the merger cycle
 
 use crate::pim::{level::LevelTrait, task_manager::RoundTasks};
-
+/// TODO!
 pub fn compute_finished_time_for_single_task<LevelType: LevelTrait>(
-    task: &RoundTasks<LevelType>,
-    total_size: &LevelType,
+    _task: &RoundTasks<LevelType>,
+    _total_size: &LevelType,
 ) -> u64 {
     todo!()
 }
 
+/// TODO!
 pub fn compute_finished_time_for_tasks<LevelType: LevelTrait>(
-    tasks: &[RoundTasks<LevelType>],
-    total_size: &LevelType,
+    _tasks: &[RoundTasks<LevelType>],
+    _total_size: &LevelType,
 ) -> Vec<u64> {
     todo!()
 }

@@ -6,6 +6,7 @@ use std::{
 };
 
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use sprs::{num_kinds::Pattern, CsMat, CsMatView};
 use tracing::debug;
 fn write_matrix(f: &mut impl Write, matrix: CsMatView<Pattern>) -> std::fmt::Result {
@@ -25,7 +26,7 @@ pub struct SplitMatrix {
     pub matrix: Vec<CsMat<Pattern>>,
     pub start_points: Vec<usize>,
 }
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NnzStats {
     pub mean: f64,
     pub max: usize,
@@ -92,7 +93,7 @@ impl Debug for SplitMatrix {
 /// ```
 ///
 /// - the result matrix and input result should be csr format
-pub fn split_matrix(input_matrix: CsMat<Pattern>, start_points: Vec<usize>) -> SplitMatrix {
+pub fn split_matrix_by_col(input_matrix: CsMat<Pattern>, start_points: Vec<usize>) -> SplitMatrix {
     // make sure it's csc
     let input_matrix = match input_matrix.storage() {
         sprs::CompressedStorage::CSR => input_matrix.to_csc(),
@@ -105,6 +106,52 @@ pub fn split_matrix(input_matrix: CsMat<Pattern>, start_points: Vec<usize>) -> S
         // println!("{} {}", a, b);
         let csc_slice = input_matrix.slice_outer(*a..*b);
         let csr_slice = csc_slice.to_csr();
+        result_matrix.push(csr_slice.to_owned());
+    }
+    SplitMatrix {
+        matrix: result_matrix,
+        start_points,
+    }
+}
+
+/// split a matrix into multiple matrices by the given indices
+/// this will spilt by columns
+/// # Example
+/// original matrix:
+///
+/// ```text
+/// x x 1 x x x
+/// 1 x x 1 x x
+/// x 1 x x 1 x
+/// 1 x 1 x 1 x
+/// x x x x x x
+/// ```
+/// start points: `[0, 2, 4]`
+///
+/// result matrix:
+/// ```text
+/// x x 1 x x x
+/// 1 x x 1 x x
+/// - - - - - -
+/// x 1 x x 1 x
+/// 1 x 1 x 1 x
+/// - - - - - -
+/// x x x x x x
+/// ```
+///
+/// - the result matrix and input result should be csr format
+pub fn split_matrix_by_row(input_matrix: CsMat<Pattern>, start_points: Vec<usize>) -> SplitMatrix {
+    // make sure it's csc
+    let input_matrix = match input_matrix.storage() {
+        sprs::CompressedStorage::CSR => input_matrix,
+        sprs::CompressedStorage::CSC => input_matrix.to_csr(),
+    };
+    let rows = input_matrix.rows();
+    let ranges = start_points.iter().chain(iter::once(&rows)).tuple_windows();
+    let mut result_matrix = Vec::new();
+    for (a, b) in ranges {
+        // println!("{} {}", a, b);
+        let csr_slice = input_matrix.slice_outer(*a..*b);
         result_matrix.push(csr_slice.to_owned());
     }
     SplitMatrix {
@@ -144,7 +191,7 @@ mod tests {
         let SplitMatrix {
             matrix,
             start_points: _,
-        } = split_matrix(matrix, start_points);
+        } = split_matrix_by_col(matrix, start_points);
         for (i, matrix) in matrix.iter().enumerate() {
             println!("matrix {}", i);
             print_matrix(matrix.view());

@@ -1,6 +1,13 @@
-activate_cycle = 2
-columns = 256
 dram_type = 'DDR4'
+subarray_provider_size = 2
+subarray_task_queue_size = 2
+subarrays = 16
+precharge_cycle = 22
+activate_cycle = 22
+cas = 22
+rows = 32768
+window_size = 0
+columns = 256
 graph_path = [
   "mtx/outerspace/2cubes_sphere/2cubes_sphere.mtx",
   "mtx/outerspace/filter3D/filter3D_B.mtx",
@@ -23,45 +30,38 @@ graph_path = [
   "mtx/outerspace/offshore/offshore.mtx",
 ]
 output_path = 'output/ddr4.json'
-precharge_cycle = 2
-row_size = 2
-rows = 32768
-subarray_provider_size = 2
-subarray_task_queue_size = 2
-subarrays = 16
-window_size = 0
 
 [channels]
-max_msg_generated = 2
+num = 1
+merger_num = 16
 max_msg_in = 2
 max_msg_out = 2
-merger_num = 16
-num = 1
+max_msg_generated = 2
 
 [ranks]
-max_msg_generated = 2
+num = 2
+merger_num = 12
 max_msg_in = 2
 max_msg_out = 2
-merger_num = 12
-num = 2
+max_msg_generated = 2
 
 [chips]
-max_msg_generated = 2
+num = 8
+merger_num = 8
 max_msg_in = 2
 max_msg_out = 2
-merger_num = 8
-num = 8
+max_msg_generated = 2
 
 [bank_groups]
-max_msg_generated = 2
+num = 8
+merger_num = 8
 max_msg_in = 2
 max_msg_out = 2
-merger_num = 8
-num = 8
+max_msg_generated = 2
 
 [banks]
-max_msg_generated = 2
+num = 8
+merger_num = 8
 max_msg_in = 2
 max_msg_out = 2
-merger_num = 8
-num = 8
+max_msg_generated = 2

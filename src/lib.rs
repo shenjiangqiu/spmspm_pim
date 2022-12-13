@@ -1,17 +1,18 @@
 //! a library for creating pim simulator
-#![deny(unsafe_code)]
-#![warn(missing_docs)]
+// #![deny(unsafe_code)]
+// #![warn(missing_docs)]
 pub mod analysis;
 pub mod pim;
-
+use crate::pim::config::Config;
 use clap::{Command, CommandFactory, Parser};
 use clap_complete::Generator;
 use cli::{AnalyzeArgs, Cli, CompArgs, RunArgs};
+use eyre::Result;
 pub use pim::Simulator;
+use std::fs::File;
+use std::io::Write;
 use tracing::info;
 use tracing::metadata::LevelFilter;
-
-use crate::pim::config::Config;
 pub mod cli;
 #[allow(dead_code)]
 pub(crate) fn init_logger_info() {
@@ -41,7 +42,7 @@ fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
     clap_complete::generate(gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());
 }
 /// the main function of the simulator
-pub fn main_inner() {
+pub fn main_inner() -> Result<()> {
     let cli = Cli::parse();
     init_logger_info();
 
@@ -73,9 +74,20 @@ pub fn main_inner() {
                 let config = Config::new(config);
                 let split_result = analysis::analyze_split_spmm::analyze_split_spmm(&config);
                 split_result.show_results();
+                let json = serde_json::to_string_pretty(&split_result)?;
+                File::create("split_spmm.json")?.write_all(json.as_bytes())?;
+            }
+            cli::AnalyzeType::Gearbox => {
+                info!("analyze with config: {:?}", config);
+                let config = Config::new(config);
+                let gearbox_result = analysis::analyze_gearbox::analyze_gearbox(&config);
+                gearbox_result.show_results();
+                let json = serde_json::to_string_pretty(&gearbox_result)?;
+                File::create("gearbox.json")?.write_all(json.as_bytes())?;
             }
         },
-    }
+    };
+    Ok(())
 }
 
 #[cfg(test)]

@@ -99,7 +99,7 @@ impl MergerStatus {
                 //  decide if all data is drained
                 if self.generated_message.is_empty() {
                     self.status = Waiting::Idle;
-                    return true;
+                    true
                 } else {
                     return false;
                 }
@@ -126,9 +126,9 @@ impl MergerStatus {
                 }
             });
 
-            return Some(min_idx);
+            Some(min_idx)
         } else {
-            return None;
+            None
         }
     }
 }
@@ -584,7 +584,7 @@ mod tests {
     fn test_simple_stream_merger() {
         init_logger_debug();
         debug!("test_simple_stream_merger");
-        let config = Config::from_ddr4(
+        let config = Config::from_ddr4_3200(
             LevelConfig {
                 num: 1,
                 merger_num: 10,
@@ -637,7 +637,7 @@ mod tests {
     fn test_2_merger_2_provider() {
         init_logger_debug();
         debug!("test_simple_stream_merger");
-        let config = Config::from_ddr4(
+        let config = Config::from_ddr4_3200(
             LevelConfig {
                 num: 1,
                 merger_num: 10,
@@ -709,7 +709,7 @@ mod tests {
     fn test_2_merger_2_provider_multitask() {
         init_logger_debug();
         debug!("test_simple_stream_merger");
-        let config = Config::from_ddr4(
+        let config = Config::from_ddr4_3200(
             LevelConfig {
                 num: 1,
                 merger_num: 10,

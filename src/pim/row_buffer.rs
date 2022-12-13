@@ -7,14 +7,15 @@ pub struct Row {
     pub data_accessed: usize,
 }
 /// a bank
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct BankState {
     opened_row: Option<Row>,
 }
 
 impl BankState {
+    /// create a new bank
     pub fn new() -> Self {
-        Self { opened_row: None }
+        Default::default()
     }
 
     /// is row opened with `row_id`

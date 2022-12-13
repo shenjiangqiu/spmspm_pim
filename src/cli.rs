@@ -61,4 +61,6 @@ pub enum AnalyzeType {
     Window,
     /// run split spmm test
     SplitSpmm,
+    /// run gearbox test
+    Gearbox,
 }

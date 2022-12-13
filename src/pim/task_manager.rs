@@ -113,13 +113,13 @@ impl<LevelType: LevelTrait> Iterator for IntoIterRound<LevelType> {
 
         if let Some(row) = self.tasks.tasks.front_mut() {
             if let Some(round) = row.tasks.pop_front() {
-                return Some(round);
+                Some(round)
             } else {
                 self.tasks.tasks.pop_front();
-                return self.next();
+                self.next()
             }
         } else {
-            return None;
+            None
         }
     }
 }
@@ -131,17 +131,17 @@ impl<LevelType: LevelTrait> Iterator for IntoIter<LevelType> {
         if let Some(row) = self.tasks.tasks.front_mut() {
             if let Some(round) = row.tasks.front_mut() {
                 if let Some(task) = round.tasks.pop_front() {
-                    return Some(task);
+                    Some(task)
                 } else {
                     row.tasks.pop_front();
-                    return self.next();
+                    self.next()
                 }
             } else {
                 self.tasks.tasks.pop_front();
-                return self.next();
+                self.next()
             }
         } else {
-            return None;
+            None
         }
     }
 }
@@ -385,7 +385,7 @@ mod tests {
             .to_csr();
         let graph_b = graph_a.transpose_view().to_csr();
         let graph_b_mappings = ddr4::Level::get_mapping(&total_size, &graph_b);
-        let mut context = SimulationContext::new(&Config::from_ddr4(
+        let mut context = SimulationContext::new(&Config::from_ddr4_3200(
             LevelConfig::default(),
             LevelConfig::default(),
         ));

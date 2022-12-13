@@ -31,6 +31,7 @@ pub struct Config {
     pub subarrays: usize,
     pub precharge_cycle: u64,
     pub activate_cycle: u64,
+    pub cas: u64,
     pub rows: usize,
     pub window_size: usize,
     pub columns: usize,
@@ -51,15 +52,16 @@ impl Config {
 
 impl Config {
     /// the default ddr4 config
-    pub fn from_ddr4(channels: LevelConfig, ranks: LevelConfig) -> Self {
+    pub fn from_ddr4_3200(channels: LevelConfig, ranks: LevelConfig) -> Self {
         Self {
             dram_type: DramType::DDR4,
             channels,
             ranks,
             rows: 32768,
             columns: 256,
-            precharge_cycle: 12,
-            activate_cycle: 12,
+            precharge_cycle: 22,
+            activate_cycle: 22,
+            cas: 22,
             subarrays: 16,
             graph_path: vec!["mtx/test.mtx".to_string()],
             output_path: PathBuf::from("output/ddr4.json"),
@@ -115,7 +117,7 @@ mod tests {
     #[test]
     #[ignore]
     fn save_configs() {
-        Config::from_ddr4(
+        Config::from_ddr4_3200(
             LevelConfig {
                 num: 1,
                 merger_num: 16,

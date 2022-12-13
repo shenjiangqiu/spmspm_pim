@@ -153,7 +153,7 @@ fn schedule_new_tasks<LevelType: LevelTrait>(
     }
     assert!(current_waiting_task.is_none());
     // try to find the next task
-    while let Some(task) = graph_a_iter.next() {
+    for task in graph_a_iter.by_ref() {
         // try to allocate the resource
         match resource_constraint.allocate(task, current_time) {
             Ok(event) => {

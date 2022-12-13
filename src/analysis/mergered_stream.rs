@@ -2,6 +2,7 @@
 //! - inside the window, when they have conflicts, they will try to share the stream
 //! - outside the window, they will try to use the duplicated stream
 //! - otherwise, they will try to run partial merger
+#![allow(unused)]
 use std::{
     cmp::Reverse,
     collections::{BTreeSet, BinaryHeap},

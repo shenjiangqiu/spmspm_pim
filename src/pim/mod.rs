@@ -222,7 +222,7 @@ impl Simulator {
             .map(|id| {
                 SimpleStreamMerger::new(
                     id,
-                    &config,
+                    config,
                     subarray_provider.clone(),
                     ddr4::Level::Bank,
                     config.banks.merger_num,
@@ -236,7 +236,7 @@ impl Simulator {
             .map(|id| {
                 SimpleStreamMerger::new(
                     id,
-                    &config,
+                    config,
                     bank_merger.clone(),
                     ddr4::Level::BankGroup,
                     config.bank_groups.merger_num,
@@ -251,7 +251,7 @@ impl Simulator {
             .map(|id| {
                 SimpleStreamMerger::new(
                     id,
-                    &config,
+                    config,
                     bg_merger.clone(),
                     ddr4::Level::Chip,
                     config.chips.merger_num,
@@ -265,7 +265,7 @@ impl Simulator {
             .map(|id| {
                 SimpleStreamMerger::new(
                     id,
-                    &config,
+                    config,
                     chip_merger.clone(),
                     ddr4::Level::Rank,
                     config.ranks.merger_num,
@@ -277,7 +277,7 @@ impl Simulator {
             .collect();
         let channel_merger = SimpleStreamMerger::new(
             0,
-            &config,
+            config,
             rank_merger,
             ddr4::Level::Channel,
             config.channels.merger_num,
@@ -311,7 +311,7 @@ mod tests {
     fn test_real_graph() {
         init_logger_debug();
         debug!("test real graph");
-        let config = Config::from_ddr4(
+        let config = Config::from_ddr4_3200(
             LevelConfig {
                 num: 1,
                 merger_num: 10,

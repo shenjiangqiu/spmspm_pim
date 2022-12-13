@@ -122,7 +122,7 @@ where
                     ?self.level,
                     self.id, "provider receive task at level:{:?} : {:?}", self.level, data
                 );
-                self.task_queue.push_back(data.clone());
+                self.task_queue.push_back(data);
                 return Ok(());
             } else {
                 return Err((self.level, Task::TaskData(data)));
@@ -137,13 +137,13 @@ where
 impl<'a, LevelType: LevelTrait> EmptyComponent for Provider<'a, LevelType> {
     fn is_empty(&self) -> Vec<String> {
         let mut result = Vec::new();
-        if !self.current_opening_row.is_none() {
+        if self.current_opening_row.is_some() {
             result.push(format!(
                 "provider {} is opening row {:?}",
                 self.id, self.current_opening_row
             ));
         }
-        if !self.current_working_task.is_none() {
+        if self.current_working_task.is_some() {
             result.push(format!(
                 "provider current_working_task {} is not empty",
                 self.id
@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn test_bank_provider() {
         let mut current_cycle = 0;
-        let config = Config::from_ddr4(
+        let config = Config::from_ddr4_3200(
             LevelConfig {
                 num: 1,
                 merger_num: 10,
@@ -267,7 +267,7 @@ mod tests {
         current_cycle += 1;
         let data = loop {
             let data = provider.get_data(&mut context, 0);
-            if data.len() == 0 {
+            if data.is_empty() {
                 provider.cycle(&mut context, current_cycle);
                 current_cycle += 1;
             } else {
@@ -280,7 +280,7 @@ mod tests {
     #[test]
     fn test_change_line() {
         let current_cycle = 0;
-        let config = Config::from_ddr4(
+        let config = Config::from_ddr4_3200(
             LevelConfig {
                 num: 1,
                 merger_num: 10,

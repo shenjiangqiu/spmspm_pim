@@ -70,12 +70,14 @@ pub fn main_inner() -> Result<()> {
             cli::AnalyzeType::Sequential => todo!(),
             cli::AnalyzeType::Window => todo!(),
             cli::AnalyzeType::SplitSpmm => {
+                let current_time = std::time::Instant::now();
                 println!("analyze with config: {:?}", config);
                 let config = Config::new(config);
                 let split_result = analysis::analyze_split_spmm::analyze_split_spmm(&config);
                 split_result.show_results();
                 let json = serde_json::to_string_pretty(&split_result)?;
                 File::create("split_spmm.json")?.write_all(json.as_bytes())?;
+                info!("time elapsed: {:?}", current_time.elapsed());
             }
             cli::AnalyzeType::Gearbox => {
                 info!("analyze with config: {:?}", config);

@@ -19,5 +19,6 @@ perf.data
 perf.data.old
 result.txt
 out.txt
-split_spmm.json
-split_analysis.txt
+split_spmm*.json
+split_analysis*.txt
+nnz.json

@@ -63,4 +63,6 @@ pub enum AnalyzeType {
     SplitSpmm,
     /// run gearbox test
     Gearbox,
+    /// nnz
+    Nnz,
 }

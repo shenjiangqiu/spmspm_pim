@@ -14,6 +14,7 @@ struct Report {
 
     mean_comp: f64,
     mean_open: f64,
+    mean_open_no_overlap: f64,
     mean_temp_read: f64,
     mean_temp_write: f64,
     mean_input_read: f64,
@@ -34,12 +35,13 @@ impl Display for Report {
             self.min_cycle, self.max_cycle, self.mean_cycle
         )?;
         writeln!(f,
-            "mean_comp: {:.2}-{:.2}%, mean_open: {:.2}-{:.2}%, mean_temp_read: {:.2}-{:.2}%, mean_temp_write: {:.2}-{:.2}%, mean_input_read: {:.2}-{:.2}%",
+            "mean_comp: {:.2}-{:.2}%, mean_open: {:.2}-{:.2}%, mean_open_no_overlap: {:.2}, mean_temp_read: {:.2}-{:.2}%, mean_temp_write: {:.2}-{:.2}%, mean_input_read: {:.2}-{:.2}%",
             self.mean_comp,self.mean_comp/self.mean_cycle*100.,
-             self.mean_open,self.mean_open/self.mean_cycle*100.,
-              self.mean_temp_read,self.mean_temp_read/self.mean_open*100., 
-              self.mean_temp_write,self.mean_temp_write/self.mean_open*100.,
-               self.mean_input_read,self.mean_input_read/self.mean_open*100.
+            self.mean_open,self.mean_open/self.mean_cycle*100.,
+            self.mean_open_no_overlap,
+            self.mean_temp_read,self.mean_temp_read/self.mean_open_no_overlap*100., 
+            self.mean_temp_write,self.mean_temp_write/self.mean_open_no_overlap*100.,
+            self.mean_input_read,self.mean_input_read/self.mean_open_no_overlap*100.
         )?;
         writeln!(
             f,
@@ -80,6 +82,12 @@ fn main() -> eyre::Result<()> {
             / num_patitions;
         let mean_open =
             graph.graph_result.iter().map(|s| s.row_open).sum::<u64>() as f64 / num_patitions;
+        let mean_open_no_overlap = graph
+            .graph_result
+            .iter()
+            .map(|s| s.row_open_no_overlap)
+            .sum::<u64>() as f64
+            / num_patitions;
         let mean_temp_read = graph
             .graph_result
             .iter()
@@ -130,6 +138,7 @@ fn main() -> eyre::Result<()> {
             mean_cycle: mean,
             mean_comp,
             mean_open,
+            mean_open_no_overlap,
             mean_temp_read,
             mean_temp_write,
             mean_input_read,

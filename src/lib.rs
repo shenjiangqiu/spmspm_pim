@@ -87,6 +87,16 @@ pub fn main_inner() -> Result<()> {
                 let json = serde_json::to_string_pretty(&gearbox_result)?;
                 File::create("gearbox.json")?.write_all(json.as_bytes())?;
             }
+            cli::AnalyzeType::Nnz => {
+                let current_time = std::time::Instant::now();
+                info!("analyze with config: {:?}", config);
+                let config = Config::new(config);
+                let nnz_result = analysis::analyze_nnz::analyze_nnz_spmm(&config);
+                nnz_result.show_results();
+                let json = serde_json::to_string_pretty(&nnz_result)?;
+                File::create("nnz.json")?.write_all(json.as_bytes())?;
+                info!("time elapsed: {:?}", current_time.elapsed());
+            }
         },
     };
     Ok(())

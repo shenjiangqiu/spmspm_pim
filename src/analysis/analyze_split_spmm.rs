@@ -55,11 +55,13 @@ impl SplitAnalyzeResult {
                 used_bytes,
                 input_read_bytes,
                 input_read_times,
+                row_open_no_overlap,
             } in &result.graph_result
             {
                 println!("cycle: {}", cycle);
                 println!("comp_cycle: {}", compute_cycle);
                 println!("row_open: {}", row_open);
+                println!("row_open_no_overlap: {}", row_open_no_overlap);
                 println!("temp_result_read: {}", temp_result_read);
                 println!("final_result_write: {}", final_result_write);
                 println!("matrix_b_read: {}", matrix_b_read);
@@ -205,6 +207,8 @@ pub struct SeqResult {
     pub compute_cycle: u64,
     /// the time spent on row_open:
     pub row_open: u64,
+    /// row open no overlap
+    pub row_open_no_overlap: u64,
     /// the time spent on temp_result_read
     pub temp_result_read: u64,
     /// the time spent on final_result_write
@@ -374,7 +378,7 @@ where
 
     let mut input_read_bytes: usize = 0;
     let mut input_read_times: usize = 0;
-
+    let mut row_open: u64 = 0;
     // first we need to map the matrix to the bank
     // reset to 1 until subarray
     debug!(?matrix_a);
@@ -472,9 +476,13 @@ where
             matrix_b_read += input_cycle1 as u64 + input_cycle2 as u64;
             debug!(?input_cycle1, ?input_cycle2);
             // the first row open can be parallel, so we only count the max cycle
-            cycle += temp_result1.max(final_result1).max(input_cycle1) as u64;
+            let first = temp_result1.max(final_result1).max(input_cycle1) as u64;
+            cycle += first;
+            row_open += first;
             // other row switch should be sequential
-            cycle += (temp_result2 + final_result2 + input_cycle2) as u64;
+            let others = (temp_result2 + final_result2 + input_cycle2) as u64;
+            cycle += others;
+            row_open += others;
         }
     }
 
@@ -485,7 +493,8 @@ where
         temp_result_read,
         final_result_write,
         matrix_b_read,
-        row_open: temp_result_read + final_result_write + matrix_b_read,
+        row_open,
+        row_open_no_overlap: temp_result_read + final_result_write + matrix_b_read,
         row_open_bytes,
         used_bytes,
         input_read_bytes,

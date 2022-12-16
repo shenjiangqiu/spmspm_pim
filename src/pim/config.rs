@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::analysis::analyze_gearbox::GearboxConfig;
+
 #[derive(Deserialize, Serialize, Debug, Default)]
 pub enum DramType {
     DDR3,
@@ -42,6 +44,7 @@ pub struct Config {
     pub chips: LevelConfig,
     pub bank_groups: LevelConfig,
     pub banks: LevelConfig,
+    pub gearbox_config: GearboxConfig,
 }
 impl Config {
     /// create a config from path

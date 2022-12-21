@@ -97,6 +97,16 @@ pub fn main_inner() -> Result<()> {
                 File::create("nnz.json")?.write_all(json.as_bytes())?;
                 info!("time elapsed: {:?}", current_time.elapsed());
             }
+            cli::AnalyzeType::NnzNative => {
+                let current_time = std::time::Instant::now();
+                info!("analyze with config: {:?}", config);
+                let config = Config::new(config);
+                let nnz_result = analysis::analyze_nnz_native::analyze_nnz_spmm(&config);
+                nnz_result.show_results();
+                let json = serde_json::to_string_pretty(&nnz_result)?;
+                File::create("nnz_native.json")?.write_all(json.as_bytes())?;
+                info!("time elapsed: {:?}", current_time.elapsed());
+            }
         },
     };
     Ok(())
@@ -104,6 +114,8 @@ pub fn main_inner() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use sprs::{num_kinds::Pattern, CsMat};
+
     use crate::{pim::config::Config, Simulator};
 
     #[test]
@@ -128,5 +140,23 @@ mod tests {
             crate::pim::config::DramType::HBM => todo!(),
             crate::pim::config::DramType::HBM2 => todo!(),
         }
+    }
+
+    #[test]
+    fn sprs_test() {
+        let matrix_a = CsMat::new(
+            (3, 3),
+            vec![0, 2, 4, 6],
+            vec![0, 1, 0, 1, 0, 2],
+            vec![Pattern; 6],
+        );
+        let matrix_b = CsMat::new(
+            (3, 3),
+            vec![0, 2, 4, 6],
+            vec![0, 1, 0, 1, 0, 2],
+            vec![Pattern; 6],
+        );
+        let matrix_c = &matrix_a * &matrix_b;
+        println!("{:?}", matrix_c);
     }
 }

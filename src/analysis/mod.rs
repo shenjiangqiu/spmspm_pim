@@ -6,6 +6,7 @@ use crate::pim::config::Config;
 
 pub(crate) mod analyze_gearbox;
 pub(crate) mod analyze_nnz;
+pub(crate) mod analyze_nnz_native;
 pub mod analyze_split_spmm;
 pub mod compute_merger_cycle;
 pub mod event;

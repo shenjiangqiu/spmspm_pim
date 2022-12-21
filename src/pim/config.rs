@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::analyze_gearbox::GearboxConfig;
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub enum DramType {
     DDR3,
     #[default]
@@ -15,7 +15,7 @@ pub enum DramType {
     HBM2,
 }
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct LevelConfig {
     pub num: usize,
     pub merger_num: usize,
@@ -24,7 +24,7 @@ pub struct LevelConfig {
     pub max_msg_generated: usize,
 }
 #[allow(missing_docs)]
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct Config {
     // memory config
     pub dram_type: DramType,

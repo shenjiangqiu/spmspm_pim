@@ -65,4 +65,5 @@ pub enum AnalyzeType {
     Gearbox,
     /// nnz
     Nnz,
+    NnzNative,
 }

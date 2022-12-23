@@ -4,103 +4,59 @@
 //! !!! this module is derived from analyze_split_spmm.rs and the code and ***doc*** might not be accurate
 use hashbrown::HashSet;
 use itertools::Itertools;
-use rayon::iter::IndexedParallelIterator;
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     fmt::{Debug, Display},
-    ops::Deref,
 };
-use tracing_subscriber::field::debug;
 
-use crate::{
-    analysis::split::{split_matrix_by_col, split_matrix_by_row, NnzStats},
-    pim::{
-        config::Config,
-        level::{ddr4, LevelTrait},
-    },
+use crate::pim::{
+    config::Config,
+    level::{ddr4, LevelTrait},
 };
 use rayon::iter::ParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
 use serde::{Deserialize, Serialize};
-use sprs::{num_kinds::Pattern, CsMat, CsVec, TriMat};
+use sprs::{num_kinds::Pattern, CsMat, TriMat};
 use tracing::{debug, info};
 
 /// the statistics of a single graph
 #[derive(Serialize)]
 pub struct SingleResult {
-    /// the name of the graph
     pub name: String,
-    /// the nnz statistics of the graph
-    pub nnz_stats_a: NnzStats,
-    pub nnz_stats_b: NnzStats,
-    /// the cycle and other stats for a graph
-    pub graph_result: Vec<SeqResult>,
+    pub subarray_result: Vec<SubArrayResult>,
+    pub ring_result: Vec<RingResult>,
+    pub tsv_result: Vec<TsvResult>,
 }
 #[derive(Serialize)]
 /// the statistics of all graphs
-pub struct SplitAnalyzeResult {
+pub struct GearboxReslt {
     /// the statistics of all graphs
     pub results: Vec<SingleResult>,
 }
 
-impl SplitAnalyzeResult {
+impl GearboxReslt {
     /// print out all the results
     pub fn show_results(&self) {
-        for result in &self.results {
-            println!("---------------------------");
-            println!("\n\nname -------: {}", result.name);
-            println!("nnz_stats_a: {:?}", result.nnz_stats_a);
-            println!("nnz_stats_b: {:?}", result.nnz_stats_b);
-            for SeqResult {
-                cycle,
-                name: _,
-                compute_cycle,
-                row_open,
-                temp_result_read,
-                final_result_write,
-                matrix_b_read,
-                row_open_bytes,
-                used_bytes,
-                input_read_bytes,
-                input_read_times,
-            } in &result.graph_result
-            {
-                println!("cycle: {}", cycle);
-                println!("comp_cycle: {}", compute_cycle);
-                println!("row_open: {}", row_open);
-                println!("temp_result_read: {}", temp_result_read);
-                println!("final_result_write: {}", final_result_write);
-                println!("matrix_b_read: {}", matrix_b_read);
-                println!("row_open_bytes: {}", row_open_bytes);
-                println!("used_bytes: {}\n", used_bytes);
-                println!("input_read_bytes: {}", input_read_bytes);
-                println!("input_read_times: {}\n", input_read_times);
-            }
-        }
+        unimplemented!()
     }
 }
 
-impl Debug for SplitAnalyzeResult {
+impl Debug for GearboxReslt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&self, f)
     }
 }
 
-impl Display for SplitAnalyzeResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for result in &self.results {
-            writeln!(f, "name: {}", result.name)?;
-            writeln!(f, "nnz_stats_a: {:?}", result.nnz_stats_a)?;
-            writeln!(f, "nnz_stats_b: {:?}", result.nnz_stats_b)?;
-        }
-        Ok(())
+impl Display for GearboxReslt {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        unimplemented!();
     }
 }
 
 /// analyze the split spmm
-pub(crate) fn analyze_gearbox(config: &Config) -> SplitAnalyzeResult {
+pub(crate) fn analyze_gearbox(config: &Config) -> GearboxReslt {
     match config.dram_type {
-        crate::pim::config::DramType::DDR3 => todo!(),
+        crate::pim::config::DramType::DDR3 => unimplemented!(),
         crate::pim::config::DramType::DDR4 => {
             let total_size = ddr4::Storage::new(
                 config.channels.num,
@@ -114,10 +70,10 @@ pub(crate) fn analyze_gearbox(config: &Config) -> SplitAnalyzeResult {
             );
             analyze_gearbox_inner::<ddr4::Level>(config, &total_size)
         }
-        crate::pim::config::DramType::LPDDR3 => todo!(),
-        crate::pim::config::DramType::LPDDR4 => todo!(),
-        crate::pim::config::DramType::HBM => todo!(),
-        crate::pim::config::DramType::HBM2 => todo!(),
+        crate::pim::config::DramType::LPDDR3 => unimplemented!(),
+        crate::pim::config::DramType::LPDDR4 => unimplemented!(),
+        crate::pim::config::DramType::HBM => unimplemented!(),
+        crate::pim::config::DramType::HBM2 => unimplemented!(),
     }
 }
 
@@ -129,21 +85,30 @@ pub struct GearboxConfig {
 }
 #[derive(Clone)]
 struct SubArray {
-    row_open: Option<usize>,
-    cycle: usize,
+    read_open: Option<usize>,
+    write_open: Option<usize>,
     local_read_rows: Vec<(PhysicRowId, usize)>,
     local_write_rows: Vec<(PhysicRowId, usize)>,
 }
-
+#[derive(Serialize)]
+pub struct SubArrayResult {
+    cycle: usize,
+    row_open_cycle: usize,
+    row_read_cycle: usize,
+    row_write_cycle: usize,
+    comp_cycle: usize,
+}
 impl SubArray {
+    /// create a new subarray
     fn new() -> Self {
         Self {
-            row_open: None,
-            cycle: 0,
+            read_open: None,
+            write_open: None,
             local_read_rows: Vec::new(),
             local_write_rows: Vec::new(),
         }
     }
+    /// a local read and write task(local accumulate)
     fn add_task(&mut self, local_read: PhysicRowId, local_write: PhysicRowId) {
         match self.local_read_rows.last() {
             Some((last_read, _)) if *last_read == local_read => {
@@ -162,61 +127,162 @@ impl SubArray {
             }
         }
     }
-}
 
-struct RingConfig {}
+    fn report(&self) -> SubArrayResult {
+        let mut row_open_cycle = 0;
+        let mut row_read_cycle = 0;
+        let mut row_write_cycle = 0;
+        let mut comp_cycle = 0;
+        let mut cycle = 0;
+        for (row_id, read_times) in self.local_read_rows.iter() {
+            match self.read_open {
+                Some(row) => {
+                    if row == row_id.0 {
+                    } else {
+                        cycle += 18;
+                        row_open_cycle += 18;
+                        row_read_cycle += 18;
+                    }
+                }
+                None => {
+                    cycle += 9;
+                    row_open_cycle += 9;
+                    row_read_cycle += 9;
+                }
+            }
+            cycle += read_times;
+            comp_cycle += read_times;
+        }
+        for (row_id, read_times) in self.local_write_rows.iter() {
+            match self.write_open {
+                Some(row) => {
+                    if row == row_id.0 {
+                    } else {
+                        cycle += 18;
+                        row_open_cycle += 18;
+                        row_write_cycle += 18;
+                    }
+                }
+                None => {
+                    cycle += 9;
+                    row_open_cycle += 9;
+                    row_write_cycle += 9;
+                }
+            }
+            cycle += read_times;
+        }
+        SubArrayResult {
+            cycle: cycle,
+            row_open_cycle,
+            row_read_cycle,
+            row_write_cycle,
+            comp_cycle,
+        }
+    }
+    /// after received the remote task, it will update the local dense result
+    fn add_remote_task(&mut self, local_write: PhysicRowId) {
+        match self.local_write_rows.last() {
+            Some((last_write, _)) if *last_write == local_write => {
+                self.local_write_rows.last_mut().unwrap().1 += 1;
+            }
+            _ => {
+                self.local_write_rows.push((local_write, 1));
+            }
+        }
+    }
+}
 
 #[derive(Clone)]
 struct Ring {
+    tasks: Vec<(RingPort, RingPort)>,
+    ports: u8,
+}
+
+#[derive(Serialize)]
+pub struct RingResult {
     cycle: usize,
     traffic: usize,
 }
+
 impl Ring {
-    fn new() -> Self {
+    fn new(ports: u8) -> Self {
         Self {
-            cycle: 0,
-            traffic: 0,
+            tasks: Vec::new(),
+            ports,
         }
     }
-    fn add_task(&mut self, source: BankId, target: BankId) {
-        self.traffic += 1;
-        todo!()
+    fn add_task(&mut self, source: RingPort, target: RingPort) {
+        self.tasks.push((source, target));
+    }
+
+    fn report(&self) -> RingResult {
+        // simulate the ring process
+        let mut pathes = vec![0; self.ports as usize];
+        for (source, target) in self.tasks.iter() {
+            let forward_len = (target.0 - source.0 + self.ports) % self.ports;
+            let backward_len = (source.0 - target.0 + self.ports) % self.ports;
+            let (from, to) = if forward_len < backward_len {
+                (source.0, target.0)
+            } else {
+                (target.0, source.0)
+            };
+            for i in from..to {
+                pathes[i as usize] += 1;
+            }
+        }
+
+        RingResult {
+            cycle: *pathes.iter().max().unwrap_or(&0),
+            traffic: self.tasks.len(),
+        }
     }
 }
 
-struct TsvConfig {}
 #[derive(Clone)]
 struct Tsv {
+    traffic: usize,
+}
+#[derive(Serialize)]
+pub struct TsvResult {
     cycle: usize,
     traffic: usize,
 }
 impl Tsv {
     fn new() -> Self {
-        Self {
-            cycle: 0,
-            traffic: 0,
+        Self { traffic: 0 }
+    }
+    fn add_task(&mut self) {
+        self.traffic += 1;
+    }
+
+    fn report(&self) -> TsvResult {
+        TsvResult {
+            cycle: self.traffic,
+            traffic: self.traffic,
         }
     }
 }
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 struct LogicRowId(usize);
+
+/// the col id in matrix(0..matrix_cols)
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 struct LogicColId(usize);
+
+/// the row id in a subarray(0..subarray_rows)
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 struct PhysicRowId(usize);
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 struct SubarrayId(usize);
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
-struct BankId(usize);
+
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 struct RingId(usize);
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 struct TsvId(usize);
+
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
-struct LayerId(usize);
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
-struct StackId(usize);
+struct RingPort(u8);
 
 struct Hardware {
     sub_array: Vec<SubArray>,
@@ -225,6 +291,11 @@ struct Hardware {
     config: Config,
     /// the dimension of dense matrix in one subarray
     dense_dim: usize,
+    /// for normal rows, distrubute them to different subarrays
+    row_per_partition: usize,
+    /// for target rows, distrubute the cols to different subarrays
+    /// and for the evil row, distrubute them by column
+    col_per_partition: usize,
 }
 
 impl Hardware {
@@ -234,15 +305,56 @@ impl Hardware {
         num_tsvs: usize,
         dense_dim: usize,
         config: Config,
+        row_per_partition: usize,
+        col_per_partition: usize,
     ) -> Self {
+        // each single layer should be a channel
+        assert!(
+            config.gearbox_config.stacks * config.gearbox_config.layers == config.channels.num,
+            "the number of stacks and layers should be equal to the number of channels"
+        );
         Self {
             sub_array: vec![SubArray::new(); num_subarray],
-            ring: vec![Ring::new(); num_rings],
+            ring: vec![Ring::new(config.banks.num as u8); num_rings],
             tsv: vec![Tsv::new(); num_tsvs],
             dense_dim,
             config,
+            row_per_partition,
+            col_per_partition,
         }
     }
+    #[allow(unused)]
+    fn subarrays(&self) -> usize {
+        self.sub_array.len()
+    }
+    #[allow(unused)]
+    fn banks(&self) -> usize {
+        self.config.channels.num
+            * self.config.ranks.num
+            * self.config.chips.num
+            * self.config.bank_groups.num
+            * self.config.banks.num
+    }
+    /// num of logic layers
+    #[allow(unused)]
+    fn layers(&self) -> usize {
+        self.config.gearbox_config.layers
+    }
+
+    /// num of stacks
+    #[allow(unused)]
+    fn stacks(&self) -> usize {
+        self.config.gearbox_config.stacks
+    }
+    #[allow(unused)]
+    fn rings(&self) -> usize {
+        self.ring.len()
+    }
+    #[allow(unused)]
+    fn tsvs(&self) -> usize {
+        self.tsv.len()
+    }
+
     fn distribute_evil_row(
         &mut self,
         target_row_id: LogicRowId,
@@ -304,11 +416,12 @@ impl Hardware {
         self.sub_array[partition_id.0].add_task(local_read, local_write);
     }
 
-    fn get_row_id_evil(&self, mat_b_row_id: LogicRowId, col_id: LogicColId) -> PhysicRowId {
+    fn get_row_id_evil(&self, mat_b_row_id: LogicRowId, _col_id: LogicColId) -> PhysicRowId {
         PhysicRowId(mat_b_row_id.0)
     }
     fn get_dispatcher_id(&self, sub_array_id: SubarrayId) -> SubarrayId {
-        todo!()
+        // the dispatcher is the first subarray of the same bank
+        SubarrayId(sub_array_id.0 - sub_array_id.0 % self.config.subarrays)
     }
     fn distribute_local(
         &mut self,
@@ -323,8 +436,17 @@ impl Hardware {
         self.sub_array[partition_id.0].add_task(local_read, local_write);
     }
 
-    fn bank_id_from_subarray_id(&self, subarray_id: SubarrayId) -> BankId {
-        todo!()
+    fn get_tsv_id_from_subarray(&self, sub_array_id: SubarrayId) -> TsvId {
+        TsvId(sub_array_id.0 / self.config.subarrays / self.config.banks.num)
+    }
+    #[allow(unused)]
+    fn get_tsv_id_from_ring(&self, ring_id: RingId) -> TsvId {
+        // the ring id is the same as the tsv id
+        TsvId(ring_id.0)
+    }
+
+    fn ring_port_from_subarray(&self, subarray_id: SubarrayId) -> RingPort {
+        RingPort(((subarray_id.0 / self.config.subarrays) % self.config.banks.num) as u8)
     }
     fn distribute_remote(
         &mut self,
@@ -333,49 +455,88 @@ impl Hardware {
         col_id: LogicColId,
     ) {
         // first write to the rings
-        let source_layer = self.ring_id(self.bank_id_from_subarray_id(dispatcher_id));
+        let source_layer = self.ring_id_from_subarray(dispatcher_id);
         let target_partition_id = self.get_partition_id_col(col_id);
-        let target_layer = self.ring_id(self.bank_id_from_subarray_id(target_partition_id));
+        let target_layer = self.ring_id_from_subarray(target_partition_id);
         if source_layer == target_layer {
             // no need to write to the csv
-            let source = self.bank_id_from_subarray_id(dispatcher_id);
+            let source = self.ring_port_from_subarray(dispatcher_id);
 
-            let target = self.bank_id_from_subarray_id(target_partition_id);
+            let target = self.ring_port_from_subarray(target_partition_id);
             self.ring[source_layer.0].add_task(source, target);
         } else {
             // write to source ring
-            let source_layer = self.ring_id(self.bank_id_from_subarray_id(dispatcher_id));
-            // let source_tsv_id = self.ts
-            todo!()
+            let source_bank = self.ring_port_from_subarray(dispatcher_id);
+            let target_bank = RingPort(0);
+            self.ring[source_layer.0].add_task(source_bank, target_bank);
+
+            // write to tsv from source ring to base ring
+            let tsv_id = self.get_tsv_id_from_subarray(dispatcher_id);
+            self.tsv[tsv_id.0].add_task();
+
+            // write to the base icnt
+            // ignored because it's not the bottleneck
+
+            // write to tsv from base ring to target ring
+            let tsv_id = self.get_tsv_id_from_subarray(target_partition_id);
+            self.tsv[tsv_id.0].add_task();
+
+            // write to target ring
+            let source_bank = RingPort(0);
+            let target_bank = self.ring_port_from_subarray(target_partition_id);
+            self.ring[target_layer.0].add_task(source_bank, target_bank);
+
+            // target subarray distribute local task
+            let remote_dense_row_write = self.get_row_id_dense(target_row_id, col_id);
+            self.sub_array[target_partition_id.0].add_remote_task(remote_dense_row_write);
         }
     }
     /// from bank id to ring id
-    fn ring_id(&self, partition_id: BankId) -> RingId {
-        todo!()
+    fn ring_id_from_subarray(&self, partition_id: SubarrayId) -> RingId {
+        let bank_id = partition_id.0 / self.config.subarrays;
+        RingId(bank_id / self.config.banks.num)
     }
 
-    fn get_row_id(&self, mat_b_row_id: LogicRowId, col_id: LogicColId) -> PhysicRowId {
+    fn get_row_id(&self, mat_b_row_id: LogicRowId, _col_id: LogicColId) -> PhysicRowId {
         PhysicRowId(mat_b_row_id.0)
     }
+
     fn get_row_id_dense(&self, target_row_id: LogicRowId, col_id: LogicColId) -> PhysicRowId {
         PhysicRowId((target_row_id.0 * self.dense_dim + col_id.0) / 256)
     }
 
     fn get_partition_id_row(&self, row_id: LogicRowId) -> SubarrayId {
-        todo!()
+        // the rows are distrubuted to every subarray
+        SubarrayId(row_id.0 / self.row_per_partition)
     }
+
     fn get_partition_id_col(&self, col_id: LogicColId) -> SubarrayId {
-        todo!()
+        // the cols are distrubuted to every subarray
+        SubarrayId(col_id.0 / self.col_per_partition)
     }
     /// reduce the result and return the result
-    fn report(&self) -> SingleResult {
-        todo!()
+    fn report(&self, name: String) -> SingleResult {
+        // reduce the result
+        let subarray_result: Vec<_> = self
+            .sub_array
+            .par_iter()
+            .map(|sub_array| sub_array.report())
+            .collect();
+        let ring_result: Vec<_> = self.ring.par_iter().map(|ring| ring.report()).collect();
+        let tsv_result: Vec<_> = self.tsv.par_iter().map(|tsv| tsv.report()).collect();
+        SingleResult {
+            name,
+            subarray_result,
+            ring_result,
+            tsv_result,
+        }
     }
 }
 
 struct GearboxSim {
-    ele_per_partition: usize,
-    num_partitions: usize,
+    row_per_partition: usize,
+    #[allow(unused)]
+    col_per_partition: usize,
     /// the id of evil col: this col will  have a backup copy in each partition
     evil_col_ids: HashSet<usize>,
     /// the id of evil row: the evil row will be partitioned into each components,there are no remote access needed.
@@ -393,19 +554,25 @@ impl GearboxSim {
     ) -> Self {
         debug!(num_partitions, "new gearbox sim");
         let num_rows = matrix_b.rows();
-        let mut ele_per_partition = num_rows / num_partitions;
-        if ele_per_partition == 0 {
-            ele_per_partition = 1;
+        let num_cols = matrix_b.cols();
+        let mut row_per_partition = num_rows / num_partitions;
+        let mut col_per_partition = num_cols / num_partitions;
+        if row_per_partition == 0 {
+            row_per_partition = 1;
         }
-        assert!(ele_per_partition > 0);
+        if col_per_partition == 0 {
+            col_per_partition = 1;
+        }
+        assert!(row_per_partition > 0);
+        assert!(col_per_partition > 0);
         let num_rings = config.gearbox_config.stacks * config.gearbox_config.layers;
         let mut dense_dim = matrix_b.cols() / num_partitions;
         if dense_dim == 0 {
             dense_dim = 1;
         }
         GearboxSim {
-            ele_per_partition,
-            num_partitions,
+            row_per_partition,
+            col_per_partition,
             evil_col_ids: evil_col_ids.into_iter().collect(),
             evil_row_ids: evil_row_ids.into_iter().collect(),
             matrix_b,
@@ -415,6 +582,8 @@ impl GearboxSim {
                 num_rings,
                 dense_dim,
                 config.clone(),
+                row_per_partition,
+                col_per_partition,
             ),
         }
     }
@@ -424,7 +593,7 @@ impl GearboxSim {
         debug!("run gearbox sim");
         let evil_rows = self.evil_row_ids.len();
         let evil_cols = self.evil_col_ids.len();
-        debug!(?self.ele_per_partition, ?self.num_partitions, ?evil_rows, ?evil_cols, "run gearbox sim");
+        debug!(?self.row_per_partition,?self.row_per_partition,  ?evil_rows, ?evil_cols, "run gearbox sim");
         debug!(?self.evil_row_ids, ?self.evil_col_ids, "run gearbox sim");
         // distribute the task to components
         for (_, (target_id, mat_b_row_id)) in input_mat {
@@ -478,8 +647,8 @@ impl GearboxSim {
     }
 
     /// reduce the result and return the result
-    fn report(&self) -> SingleResult {
-        self.hardware.report()
+    fn report(&self, name: String) -> SingleResult {
+        self.hardware.report(name)
     }
 
     fn get_partition_id_row(&self, row_id: LogicRowId) -> SubarrayId {
@@ -523,12 +692,12 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
     );
 
     gearbox.run(&matrix_a);
-    gearbox.report()
+    gearbox.report(path.to_string())
 }
 fn analyze_gearbox_inner<LevelType: LevelTrait>(
     config: &Config,
     _total_size: &LevelType::Storage,
-) -> SplitAnalyzeResult
+) -> GearboxReslt
 where
     LevelType::Storage: Debug + Sync,
     LevelType::Mapping: Debug,
@@ -544,7 +713,7 @@ where
         })
         .collect_vec();
 
-    SplitAnalyzeResult { results }
+    GearboxReslt { results }
 }
 
 /// the stat result of the seq spmm
@@ -573,7 +742,7 @@ pub struct SeqResult {
     /// total input read times
     pub input_read_times: usize,
 }
-
+#[allow(unused)]
 #[derive(Default, Debug)]
 struct SubarrayStatus {
     opened_row: Option<usize>,
@@ -596,6 +765,7 @@ impl SubarrayStatus {
     /// - `columns`: the cols of a row
     /// # Return
     /// the tuple (first_row_cycle, remaining_cycle,row_activated)
+    #[allow(unused)]
     fn open_row(
         &mut self,
         start: (usize, usize),
@@ -639,7 +809,6 @@ impl SubarrayStatus {
 
 #[cfg(test)]
 mod tests {
-    use tracing::debug;
 
     use crate::{
         init_logger_debug,

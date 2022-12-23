@@ -9,7 +9,6 @@ version = "0.1.1"
 
 [dependencies]
 clap = {version = "4.0.15", features = ["derive", "color"]}
-clap_complete = "4.0.2"
 enum-as-inner = "0.5.1"
 eyre = "0.6.8"
 hashbrown = "0.13.1"
@@ -28,3 +27,7 @@ opt-level = 3
 
 [lib]
 # crate-type = ["cdylib", "rlib","staticlib"]
+
+[build-dependencies]
+clap = {version = "4.0.15", features = ["derive", "color"]}
+clap_complete = "4.0.2"

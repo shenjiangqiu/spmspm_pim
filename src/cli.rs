@@ -3,7 +3,6 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use clap_complete::Shell;
 
 /// the command line interface of the simulator
 #[derive(Parser, Debug)]
@@ -19,8 +18,6 @@ pub struct Cli {
 pub enum Operation {
     /// run the simulator
     Run(RunArgs),
-    /// generate the shell completion script
-    Completion(CompArgs),
     /// analyze the result
     Analyze(AnalyzeArgs),
 }
@@ -30,13 +27,6 @@ pub enum Operation {
 pub struct RunArgs {
     /// the config file path
     pub config: PathBuf,
-}
-
-/// the arguments of the completion subcommand
-#[derive(Debug, Args)]
-pub struct CompArgs {
-    /// the shell type
-    pub shell: Shell,
 }
 
 /// the arguments of the analyze subcommand

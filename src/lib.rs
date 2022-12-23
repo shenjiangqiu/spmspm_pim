@@ -4,9 +4,8 @@
 pub mod analysis;
 pub mod pim;
 use crate::pim::config::Config;
-use clap::{Command, CommandFactory, Parser};
-use clap_complete::Generator;
-use cli::{AnalyzeArgs, Cli, CompArgs, RunArgs};
+use clap::Parser;
+use cli::{AnalyzeArgs, Cli, RunArgs};
 use eyre::Result;
 pub use pim::Simulator;
 use std::ffi::OsString;
@@ -39,9 +38,6 @@ pub(crate) fn init_logger(filter: LevelFilter) {
         });
 }
 
-fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
-    clap_complete::generate(gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());
-}
 /// the main function of the simulator
 pub fn main_inner<A, T>(args: A) -> Result<()>
 where
@@ -61,10 +57,7 @@ where
 
             simulator.run(&config);
         }
-        cli::Operation::Completion(CompArgs { shell }) => {
-            let mut cmd = Cli::command();
-            print_completions(shell, &mut cmd);
-        }
+
         cli::Operation::Analyze(AnalyzeArgs { analyze, config }) => match analyze {
             cli::AnalyzeType::All => {
                 println!("analyze with config: {:?}", config);

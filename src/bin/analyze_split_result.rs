@@ -3,7 +3,7 @@ use std::{fmt::Display, fs::File};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use spmspm_pim::analysis::analyze_split_spmm::SplitAnalyzeResult;
-
+use std::io::Write;
 #[derive(Debug, Serialize, Deserialize)]
 struct Report {
     name: String,
@@ -64,7 +64,10 @@ impl Display for Report {
 
 fn main() -> eyre::Result<()> {
     let split_spmm_result: SplitAnalyzeResult =
-        serde_json::from_reader(File::open("split_spmm.json")?)?;
+        serde_json::from_reader(File::open("output/gearbox_spmm.json")?)?;
+    let report_path = "reports/gearbox_spmm.txt";
+    // create the file for write
+    let mut file_to_write = File::create(report_path)?;
     for graph in split_spmm_result.results {
         println!("graph: {}", graph.name);
         println!("nnz: {:?}", graph.nnz_stats);
@@ -147,7 +150,7 @@ fn main() -> eyre::Result<()> {
             input_read_bytes,
             input_read_times,
         };
-        println!("{}", report);
+        writeln!(file_to_write,"{}", report)?;
     }
     Ok(())
 }

@@ -1,0 +1,133 @@
+graph: mtx/outerspace/2cubes_sphere/2cubes_sphere.mtx
+nnz: NnzStats { mean: 804.328125, max: 825, min: 785 }
+min: 86116, max: 225471, mean: 150096.04
+mean_comp: 28498.10-18.99%, mean_open: 121597.94-81.01%, mean_open_no_overlap: 339568.75, mean_temp_read: 97047.24-28.58%, mean_temp_write: 120930.76-35.61%, mean_input_read: 121590.76-35.81%
+row_open_bytes: 8192.00, used_bytes: 53614.46, use_rate: 654.47%
+input_read_bytes: 53614.46, input_read_times: 5494.85, read_per_time: 9.76
+
+graph: mtx/outerspace/filter3D/filter3D_B.mtx
+nnz: NnzStats { mean: 3.44482421875, max: 5, min: 2 }
+min: 169342, max: 190507, mean: 179535.23
+mean_comp: 24303.23-13.54%, mean_open: 155232.00-86.46%, mean_open_no_overlap: 310464.00, mean_temp_read: 0.00-0.00%, mean_temp_write: 155232.00-50.00%, mean_input_read: 155232.00-50.00%
+row_open_bytes: 256.00, used_bytes: 97212.94, use_rate: 37973.80%
+input_read_bytes: 97212.94, input_read_times: 7055.00, read_per_time: 13.78
+
+graph: mtx/outerspace/p2p-Gnutella31/p2p-Gnutella31.mtx
+nnz: NnzStats { mean: 72.212890625, max: 128, min: 20 }
+min: 2634, max: 19099, mean: 9592.66
+mean_comp: 394.91-4.12%, mean_open: 9197.75-95.88%, mean_open_no_overlap: 19737.47, mean_temp_read: 1946.28-9.86%, mean_temp_write: 8598.41-43.56%, mean_input_read: 9192.78-46.58%
+row_open_bytes: 7428.25, used_bytes: 1560.55, use_rate: 21.01%
+input_read_bytes: 1560.55, input_read_times: 388.84, read_per_time: 4.01
+
+graph: mtx/outerspace/amazon0312/amazon0312.mtx
+nnz: NnzStats { mean: 1562.71484375, max: 1572, min: 1553 }
+min: 406882, max: 1410955, mean: 947731.05
+mean_comp: 69765.35-7.36%, mean_open: 877965.71-92.64%, mean_open_no_overlap: 2038568.88, mean_temp_read: 286663.60-14.06%, mean_temp_write: 873948.50-42.87%, mean_input_read: 877956.78-43.07%
+row_open_bytes: 27186.38, used_bytes: 227754.81, use_rate: 837.75%
+input_read_bytes: 227754.81, input_read_times: 39722.89, read_per_time: 5.73
+
+graph: mtx/outerspace/filter3D/filter3D_C.mtx
+nnz: NnzStats { mean: 0.00244140625, max: 2, min: 0 }
+min: 0, max: 90, mean: 0.11
+mean_comp: 0.00-2.22%, mean_open: 0.11-97.78%, mean_open_no_overlap: 0.20, mean_temp_read: 0.00-0.00%, mean_temp_write: 0.10-47.37%, mean_input_read: 0.11-52.63%
+row_open_bytes: 0.62, used_bytes: 0.01, use_rate: 1.56%
+input_read_bytes: 0.01, input_read_times: 0.00, read_per_time: 4.00
+
+graph: mtx/outerspace/poisson3Da/poisson3Da.mtx
+nnz: NnzStats { mean: 172.2470703125, max: 243, min: 70 }
+min: 54390, max: 180645, mean: 121392.57
+mean_comp: 8033.82-6.62%, mean_open: 113358.75-93.38%, mean_open_no_overlap: 314745.70, mean_temp_read: 88689.97-28.18%, mean_temp_write: 112700.82-35.81%, mean_input_read: 113354.90-36.01%
+row_open_bytes: 8123.12, used_bytes: 22985.70, use_rate: 282.97%
+input_read_bytes: 22985.70, input_read_times: 5120.76, read_per_time: 4.49
+
+graph: mtx/outerspace/ca-CondMat/ca-CondMat.mtx
+nnz: NnzStats { mean: 91.27734375, max: 353, min: 0 }
+min: 0, max: 226476, mean: 46216.61
+mean_comp: 2206.53-4.77%, mean_open: 44010.08-95.23%, mean_open_no_overlap: 107672.97, mean_temp_read: 20262.79-18.82%, mean_temp_write: 43401.58-40.31%, mean_input_read: 44008.59-40.87%
+row_open_bytes: 7570.88, used_bytes: 8061.57, use_rate: 106.48%
+input_read_bytes: 8061.57, input_read_times: 1970.82, read_per_time: 4.09
+
+graph: mtx/outerspace/filter3D/filter3D_E.mtx
+nnz: NnzStats { mean: 1321.84814453125, max: 1390, min: 1262 }
+min: 233717, max: 1019036, mean: 554664.82
+mean_comp: 86207.67-15.54%, mean_open: 468457.15-84.46%, mean_open_no_overlap: 1327944.84, mean_temp_read: 392774.10-29.58%, mean_temp_write: 466718.21-35.15%, mean_input_read: 468452.53-35.28%
+row_open_bytes: 14247.00, used_bytes: 167878.69, use_rate: 1178.34%
+input_read_bytes: 167878.69, input_read_times: 21212.46, read_per_time: 7.91
+
+graph: mtx/outerspace/roadNet-CA/roadNet-CA.mtx
+nnz: NnzStats { mean: 2701.7646484375, max: 2706, min: 2697 }
+min: 99712, max: 226668, mean: 141401.90
+mean_comp: 13446.47-9.51%, mean_open: 127955.44-90.49%, mean_open_no_overlap: 262584.59, mean_temp_read: 46894.65-17.86%, mean_temp_write: 87737.72-33.41%, mean_input_read: 127952.21-48.73%
+row_open_bytes: 230792.50, used_bytes: 34225.38, use_rate: 14.83%
+input_read_bytes: 34225.38, input_read_times: 3986.08, read_per_time: 8.59
+
+graph: mtx/outerspace/cage12/cage12.mtx
+nnz: NnzStats { mean: 992.44921875, max: 1019, min: 970 }
+min: 95266, max: 514561, mean: 290862.82
+mean_comp: 30670.97-10.54%, mean_open: 260191.85-89.46%, mean_open_no_overlap: 701024.34, mean_temp_read: 181330.94-25.87%, mean_temp_write: 259509.67-37.02%, mean_input_read: 260183.73-37.11%
+row_open_bytes: 8272.75, used_bytes: 67599.27, use_rate: 817.13%
+input_read_bytes: 67599.27, input_read_times: 11793.89, read_per_time: 5.73
+
+graph: mtx/outerspace/filter3D/filter3D.mtx
+nnz: NnzStats { mean: 1321.86474609375, max: 1390, min: 1255 }
+min: 233678, max: 1019060, mean: 554693.35
+mean_comp: 86212.80-15.54%, mean_open: 468480.55-84.46%, mean_open_no_overlap: 1327997.97, mean_temp_read: 392788.05-29.58%, mean_temp_write: 466734.00-35.15%, mean_input_read: 468475.92-35.28%
+row_open_bytes: 14271.50, used_bytes: 167885.13, use_rate: 1176.37%
+input_read_bytes: 167885.13, input_read_times: 21213.18, read_per_time: 7.91
+
+graph: mtx/outerspace/m133-b3/m133-b3.mtx
+nnz: NnzStats { mean: 391.015625, max: 396, min: 388 }
+min: 23244, max: 26986, mean: 25772.54
+mean_comp: 2674.20-10.38%, mean_open: 23098.33-89.62%, mean_open_no_overlap: 52207.76, mean_temp_read: 6714.09-12.86%, mean_temp_write: 22416.84-42.94%, mean_input_read: 23076.83-44.20%
+row_open_bytes: 8191.88, used_bytes: 6256.25, use_rate: 76.37%
+input_read_bytes: 6256.25, input_read_times: 1016.95, read_per_time: 6.15
+
+graph: mtx/outerspace/scircuit/scircuit.mtx
+nnz: NnzStats { mean: 468.23046875, max: 779, min: 261 }
+min: 16353, max: 139761, mean: 46633.26
+mean_comp: 7867.13-16.87%, mean_open: 38766.13-83.13%, mean_open_no_overlap: 100699.06, mean_temp_read: 23896.06-23.73%, mean_temp_write: 38083.67-37.82%, mean_input_read: 38719.33-38.45%
+row_open_bytes: 8192.00, used_bytes: 16946.05, use_rate: 206.86%
+input_read_bytes: 16946.05, input_read_times: 1727.97, read_per_time: 9.81
+
+graph: mtx/outerspace/mario002/mario002.mtx
+nnz: NnzStats { mean: 1025.9970703125, max: 1029, min: 1022 }
+min: 68787, max: 165988, mean: 99424.27
+mean_comp: 9475.27-9.53%, mean_open: 89949.00-90.47%, mean_open_no_overlap: 235280.27, mean_temp_read: 56044.74-23.82%, mean_temp_write: 89287.76-37.95%, mean_input_read: 89947.76-38.23%
+row_open_bytes: 8192.00, used_bytes: 25057.35, use_rate: 305.88%
+input_read_bytes: 25057.35, input_read_times: 4056.53, read_per_time: 6.18
+
+graph: mtx/outerspace/webbase-1M/webbase-1M.mtx
+nnz: NnzStats { mean: 1516.375, max: 4809, min: 0 }
+min: 0, max: 67043966, mean: 3070525.85
+mean_comp: 956007.04-31.13%, mean_open: 2114518.81-68.87%, mean_open_no_overlap: 2744549.82, mean_temp_read: 450440.06-16.41%, mean_temp_write: 1271187.93-46.32%, mean_input_read: 1022921.83-37.27%
+row_open_bytes: 2686120.62, used_bytes: 2675351.66, use_rate: 99.60%
+input_read_bytes: 2675351.66, input_read_times: 16608.66, read_per_time: 161.08
+
+graph: mtx/outerspace/cop20k_A/cop20k_A.mtx
+nnz: NnzStats { mean: 1281.41162109375, max: 1337, min: 1219 }
+min: 248866, max: 868814, mean: 415111.68
+mean_comp: 84640.00-20.39%, mean_open: 330471.68-79.61%, mean_open_no_overlap: 935594.31, mean_temp_read: 276174.92-29.52%, mean_temp_write: 328952.94-35.16%, mean_input_read: 330466.46-35.32%
+row_open_bytes: 12821.25, used_bytes: 156022.24, use_rate: 1216.90%
+input_read_bytes: 156022.24, input_read_times: 14950.41, read_per_time: 10.44
+
+graph: mtx/outerspace/web-Google/web-Google.mtx
+nnz: NnzStats { mean: 2492.69482421875, max: 2656, min: 2342 }
+min: 11334659, max: 17528117, mean: 14127426.08
+mean_comp: 826570.77-5.85%, mean_open: 13300855.32-94.15%, mean_open_no_overlap: 25252359.35, mean_temp_read: 3260137.73-12.91%, mean_temp_write: 8727640.65-34.56%, mean_input_read: 13264580.98-52.53%
+row_open_bytes: 26136586.88, used_bytes: 2690245.26, use_rate: 10.29%
+input_read_bytes: 2690245.26, input_read_times: 395575.55, read_per_time: 6.80
+
+graph: mtx/outerspace/email-Enron/email-Enron.mtx
+nnz: NnzStats { mean: 179.5224609375, max: 1412, min: 0 }
+min: 0, max: 2379791, mean: 389548.90
+mean_comp: 52063.37-13.37%, mean_open: 337485.53-86.63%, mean_open_no_overlap: 884702.08, mean_temp_read: 214647.89-24.26%, mean_temp_write: 335177.81-37.89%, mean_input_read: 334876.38-37.85%
+row_open_bytes: 14348.38, used_bytes: 100588.77, use_rate: 701.05%
+input_read_bytes: 100588.77, input_read_times: 15121.20, read_per_time: 6.65
+
+graph: mtx/outerspace/offshore/offshore.mtx
+nnz: NnzStats { mean: 2071.61767578125, max: 2093, min: 2051 }
+min: 181952, max: 607072, mean: 465698.34
+mean_comp: 68837.54-14.78%, mean_open: 396860.80-85.22%, mean_open_no_overlap: 1000831.14, mean_temp_read: 267465.50-26.72%, mean_temp_write: 336519.66-33.62%, mean_input_read: 396845.98-39.65%
+row_open_bytes: 337341.62, used_bytes: 139340.85, use_rate: 41.31%
+input_read_bytes: 139340.85, input_read_times: 15294.13, read_per_time: 9.11
+

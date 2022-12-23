@@ -1,4 +1,4 @@
-use std::{fmt::Display, fs::File, path::PathBuf};
+use std::{fs::File, path::PathBuf};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};

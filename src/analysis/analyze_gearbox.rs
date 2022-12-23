@@ -36,6 +36,7 @@ pub struct GearboxReslt {
 
 impl GearboxReslt {
     /// print out all the results
+    #[allow(unused)]
     pub fn show_results(&self) {
         unimplemented!()
     }
@@ -219,8 +220,8 @@ impl Ring {
         // simulate the ring process
         let mut pathes = vec![0; self.ports as usize];
         for (source, target) in self.tasks.iter() {
-            let forward_len = (target.0 - source.0 + self.ports) % self.ports;
-            let backward_len = (source.0 - target.0 + self.ports) % self.ports;
+            let forward_len = (target.0 + self.ports - source.0) % self.ports;
+            let backward_len = (source.0 + self.ports - target.0) % self.ports;
             let (from, to) = if forward_len < backward_len {
                 (source.0, target.0)
             } else {
@@ -555,8 +556,8 @@ impl GearboxSim {
         debug!(num_partitions, "new gearbox sim");
         let num_rows = matrix_b.rows();
         let num_cols = matrix_b.cols();
-        let mut row_per_partition = num_rows / num_partitions;
-        let mut col_per_partition = num_cols / num_partitions;
+        let mut row_per_partition = (num_rows + num_partitions - 1) / num_partitions;
+        let mut col_per_partition = (num_cols + num_partitions - 1) / num_partitions;
         if row_per_partition == 0 {
             row_per_partition = 1;
         }

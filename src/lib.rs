@@ -9,6 +9,7 @@ use clap_complete::Generator;
 use cli::{AnalyzeArgs, Cli, CompArgs, RunArgs};
 use eyre::Result;
 pub use pim::Simulator;
+use std::ffi::OsString;
 use std::fs::File;
 use std::io::Write;
 use tracing::info;
@@ -42,8 +43,12 @@ fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
     clap_complete::generate(gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());
 }
 /// the main function of the simulator
-pub fn main_inner() -> Result<()> {
-    let cli = Cli::parse();
+pub fn main_inner<A, T>(args: A) -> Result<()>
+where
+    A: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    let cli = Cli::parse_from(args);
     init_logger_info();
 
     match cli.subcmd {
@@ -83,7 +88,6 @@ pub fn main_inner() -> Result<()> {
                 info!("analyze with config: {:?}", config);
                 let config = Config::new(config);
                 let gearbox_result = analysis::analyze_gearbox::analyze_gearbox(&config);
-                gearbox_result.show_results();
                 let json = serde_json::to_string_pretty(&gearbox_result)?;
                 File::create("gearbox.json")?.write_all(json.as_bytes())?;
             }
@@ -116,7 +120,7 @@ pub fn main_inner() -> Result<()> {
 mod tests {
     use sprs::{num_kinds::Pattern, CsMat};
 
-    use crate::{pim::config::Config, Simulator};
+    use crate::{main_inner, pim::config::Config, Simulator};
 
     #[test]
     fn it_works() {
@@ -158,5 +162,16 @@ mod tests {
         );
         let matrix_c = &matrix_a * &matrix_b;
         println!("{:?}", matrix_c);
+    }
+
+    #[test]
+    fn test_gearbox() -> eyre::Result<()> {
+        let args = [
+            "spmspm_pim",
+            "analyze",
+            "gearbox",
+            "configs/gearbox_test.toml",
+        ];
+        main_inner(args)
     }
 }

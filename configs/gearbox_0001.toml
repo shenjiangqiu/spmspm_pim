@@ -1,0 +1,73 @@
+
+activate_cycle = 22
+cas = 22
+columns = 256
+dram_type = 'DDR4'
+graph_path = [
+  "mtx/outerspace/2cubes_sphere/2cubes_sphere.mtx",
+  "mtx/outerspace/filter3D/filter3D_B.mtx",
+  "mtx/outerspace/p2p-Gnutella31/p2p-Gnutella31.mtx",
+  "mtx/outerspace/amazon0312/amazon0312.mtx",
+  "mtx/outerspace/filter3D/filter3D_C.mtx",
+  "mtx/outerspace/poisson3Da/poisson3Da.mtx",
+  "mtx/outerspace/ca-CondMat/ca-CondMat.mtx",
+  "mtx/outerspace/filter3D/filter3D_E.mtx",
+  "mtx/outerspace/roadNet-CA/roadNet-CA.mtx",
+  "mtx/outerspace/cage12/cage12.mtx",
+  "mtx/outerspace/filter3D/filter3D.mtx",
+  "mtx/outerspace/m133-b3/m133-b3.mtx",
+  "mtx/outerspace/scircuit/scircuit.mtx",
+  "mtx/outerspace/mario002/mario002.mtx",
+  "mtx/outerspace/webbase-1M/webbase-1M.mtx",
+  "mtx/outerspace/cop20k_A/cop20k_A.mtx",
+  "mtx/outerspace/web-Google/web-Google.mtx",
+  "mtx/outerspace/email-Enron/email-Enron.mtx",
+  "mtx/outerspace/offshore/offshore.mtx",
+]
+output_path = 'output/gearbox_out_0001.json'
+precharge_cycle = 22
+rows = 32768
+subarray_provider_size = 2
+subarray_task_queue_size = 2
+subarrays = 32
+window_size = 0
+
+[channels]
+max_msg_generated = 2
+max_msg_in = 2
+max_msg_out = 2
+merger_num = 16
+num = 32
+
+[ranks]
+max_msg_generated = 2
+max_msg_in = 2
+max_msg_out = 2
+merger_num = 12
+num = 1
+
+[chips]
+max_msg_generated = 2
+max_msg_in = 2
+max_msg_out = 2
+merger_num = 8
+num = 1
+
+[bank_groups]
+max_msg_generated = 2
+max_msg_in = 2
+max_msg_out = 2
+merger_num = 8
+num = 1
+
+[banks]
+max_msg_generated = 2
+max_msg_in = 2
+max_msg_out = 2
+merger_num = 8
+num = 64
+
+[gearbox_config]
+layers = 8
+stacks = 4
+topk = 0.0001

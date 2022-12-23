@@ -81,7 +81,7 @@ where
                 let split_result = analysis::analyze_split_spmm::analyze_split_spmm(&config);
                 split_result.show_results();
                 let json = serde_json::to_string_pretty(&split_result)?;
-                File::create("split_spmm.json")?.write_all(json.as_bytes())?;
+                File::create(config.output_path)?.write_all(json.as_bytes())?;
                 info!("time elapsed: {:?}", current_time.elapsed());
             }
             cli::AnalyzeType::Gearbox => {
@@ -89,7 +89,7 @@ where
                 let config = Config::new(config);
                 let gearbox_result = analysis::analyze_gearbox::analyze_gearbox(&config);
                 let json = serde_json::to_string_pretty(&gearbox_result)?;
-                File::create("gearbox.json")?.write_all(json.as_bytes())?;
+                File::create(config.output_path)?.write_all(json.as_bytes())?;
             }
             cli::AnalyzeType::Nnz => {
                 let current_time = std::time::Instant::now();

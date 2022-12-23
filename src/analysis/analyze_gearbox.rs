@@ -20,14 +20,14 @@ use sprs::{num_kinds::Pattern, CsMat, TriMat};
 use tracing::{debug, info};
 
 /// the statistics of a single graph
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct SingleResult {
     pub name: String,
     pub subarray_result: Vec<SubArrayResult>,
     pub ring_result: Vec<RingResult>,
     pub tsv_result: Vec<TsvResult>,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 /// the statistics of all graphs
 pub struct GearboxReslt {
     /// the statistics of all graphs
@@ -91,13 +91,13 @@ struct SubArray {
     local_read_rows: Vec<(PhysicRowId, usize)>,
     local_write_rows: Vec<(PhysicRowId, usize)>,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct SubArrayResult {
-    cycle: usize,
-    row_open_cycle: usize,
-    row_read_cycle: usize,
-    row_write_cycle: usize,
-    comp_cycle: usize,
+    pub cycle: usize,
+    pub row_open_cycle: usize,
+    pub row_read_cycle: usize,
+    pub row_write_cycle: usize,
+    pub comp_cycle: usize,
 }
 impl SubArray {
     /// create a new subarray
@@ -199,10 +199,10 @@ struct Ring {
     ports: u8,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct RingResult {
-    cycle: usize,
-    traffic: usize,
+    pub cycle: usize,
+    pub traffic: usize,
 }
 
 impl Ring {
@@ -243,10 +243,10 @@ impl Ring {
 struct Tsv {
     traffic: usize,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TsvResult {
-    cycle: usize,
-    traffic: usize,
+    pub cycle: usize,
+    pub traffic: usize,
 }
 impl Tsv {
     fn new() -> Self {
@@ -671,6 +671,9 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
         (matrix_a.to_csr(), matrix_a.transpose_view().to_csr());
     let mat_b_rows = matrix_b.rows();
     let mat_b_cols = matrix_b.cols();
+
+    info!(?mat_b_rows, ?mat_b_cols, "matrix b shape");
+
     let mut mat_b_row_ids = (0..mat_b_rows)
         .zip(matrix_b.outer_iterator().map(|row| row.nnz()))
         .collect_vec();
@@ -679,10 +682,11 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
         .collect_vec();
     mat_b_row_ids.sort_by_key(|(_index, nnz)| *nnz);
     mat_b_col_ids.sort_by_key(|(_index, nnz)| *nnz);
-    let top_rows = (mat_b_col_ids.len() as f32 * config.gearbox_config.topk) as usize;
-    assert!(top_rows > 0);
+    let top_rows = (mat_b_row_ids.len() as f32 * config.gearbox_config.topk) as usize;
+    let top_rows = if top_rows == 0 { 1 } else { top_rows };
 
-    let top_cols = (mat_b_row_ids.len() as f32 * config.gearbox_config.topk) as usize;
+    let top_cols = (mat_b_col_ids.len() as f32 * config.gearbox_config.topk) as usize;
+    let top_cols = if top_cols == 0 { 1 } else { top_cols };
     assert!(top_cols > 0);
     let mut gearbox = GearboxSim::new(
         partitions,

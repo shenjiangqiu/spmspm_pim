@@ -22,3 +22,4 @@ out.txt
 split_spmm*.json
 split_analysis*.txt
 nnz.json
+output

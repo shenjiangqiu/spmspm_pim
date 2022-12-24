@@ -21,9 +21,9 @@ fn main() {
     fs::create_dir_all(&outdir).unwrap();
 
     let mut cmd = cli::Cli::command();
-    print_completions(Shell::Zsh, &mut cmd, &outdir);
-    print_completions(Shell::Bash, &mut cmd, &outdir);
-    print_completions(Shell::Fish, &mut cmd, &outdir);
-    print_completions(Shell::PowerShell, &mut cmd, &outdir);
-    print_completions(Shell::Elvish, &mut cmd, &outdir);
+    print_completions(Shell::Zsh, &mut cmd, "completion_scripts");
+    print_completions(Shell::Bash, &mut cmd, "completion_scripts");
+    print_completions(Shell::Fish, &mut cmd, "completion_scripts");
+    print_completions(Shell::PowerShell, &mut cmd, "completion_scripts");
+    print_completions(Shell::Elvish, &mut cmd, "completion_scripts");
 }

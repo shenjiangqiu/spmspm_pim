@@ -23,3 +23,4 @@ split_spmm*.json
 split_analysis*.txt
 nnz.json
 output
+completion_scripts/*

@@ -14,6 +14,7 @@ eyre = "0.6.8"
 hashbrown = "0.13.1"
 humantime = "2.1.0"
 itertools = "0.10.5"
+plotlib = "0.5.1"
 rayon = "1.6.1"
 serde = {version = "1.0.145", features = ["derive"]}
 serde_json = "1.0.86"

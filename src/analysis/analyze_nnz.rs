@@ -99,7 +99,11 @@ where
         .map(|(index, path)| {
             info!("analyzing graph {}/{}", index + 1, total_graphs);
 
-            let matrix_a: CsMat<Pattern> = sprs::io::read_matrix_market(path).unwrap().to_csr();
+            let matrix_a: CsMat<Pattern> = sprs::io::read_matrix_market(path)
+                .unwrap_or_else(|e| {
+                    panic!("failed to read matrix market file:{path}; {}", e);
+                })
+                .to_csr();
             let matrix_b = matrix_a.transpose_view().to_csr();
             // perform matrix_a * matrix_b
             let new_vecs: Vec<_> = matrix_a

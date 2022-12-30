@@ -1,75 +1,30 @@
-use std::{fs::File, io::BufReader};
+use std::{error::Error, fs::File, io::BufReader};
 
 use clap::Parser;
-use plotters::prelude::*;
+use plotters::{coord::Shift, prelude::*};
+use plotters_text::TextDrawingBackend;
 use spmspm_pim::{
     analysis::{analyze_gearbox::GearboxReslt, analyze_split_spmm::SplitAnalyzeResult},
     cli::DrawCli,
     init_logger_info,
 };
+use tracing::info;
+#[derive(Debug)]
+enum Ext {
+    Png,
+    Svg,
+    Console,
+}
 
-fn main() -> eyre::Result<()> {
-    init_logger_info();
-    let args = DrawCli::parse();
-    // get the speed up from spmm and gearbox
-    // first calculate the runting for out design
-    let split_path = args
-        .split_result
-        .unwrap_or_else(|| "output/gearbox_out_001_split_spmm.json".into());
-    let gearbox_path = args
-        .gearbox_result
-        .unwrap_or_else(|| "output/gearbox_out_001_gearbox.json".into());
-    let output_path = args
-        .output
-        .unwrap_or_else(|| "output/gearbox_out_001.png".into());
-    let split_result: SplitAnalyzeResult =
-        serde_json::from_reader(BufReader::new(File::open(split_path)?))?;
-    let gearbox_result: GearboxReslt =
-        serde_json::from_reader(BufReader::new(File::open(gearbox_path)?))?;
-    let mut data = vec![];
-    for (split, gearbox) in split_result.results.into_iter().zip(gearbox_result.results) {
-        assert_eq!(split.name, gearbox.name);
-        // first get the runtime
-        let split_time = split
-            .graph_result
-            .iter()
-            .map(|x| x.cycle)
-            .max()
-            .ok_or(eyre::format_err!("no max"))?;
-        let gearbox_time_ring = gearbox
-            .ring_result
-            .iter()
-            .map(|x| x.cycle)
-            .max()
-            .ok_or(eyre::format_err!("no max"))?;
-        let gearbox_time_tsv = gearbox
-            .tsv_result
-            .iter()
-            .map(|x| x.cycle)
-            .max()
-            .ok_or(eyre::format_err!("no max"))?;
-        let gearbox_time_comp = gearbox
-            .subarray_result
-            .iter()
-            .map(|x| x.cycle * 10)
-            .max()
-            .ok_or(eyre::format_err!("no max"))?;
-        let gearbox_time = gearbox_time_ring
-            .max(gearbox_time_tsv)
-            .max(gearbox_time_comp);
-        let speed_up = gearbox_time as f32 / split_time as f32;
-        let speed_up_tsv = gearbox_time_tsv as f32 / split_time as f32;
-        let speed_up_ring = gearbox_time_ring as f32 / split_time as f32;
-        let speed_up_comp = gearbox_time_comp as f32 / split_time as f32;
-        data.push((
-            split.name,
-            (speed_up, speed_up_tsv, speed_up_ring, speed_up_comp),
-        ));
-    }
-    // draw the speed up using plotlib
-    let root = BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area();
-    let (left, right) = root.split_horizontally(1200);
-    root.fill(&WHITE)?;
+const MIN_CONSOLE_WIDTH: u16 = 320;
+const MIN_CONSOLE_HEIGHT: u16 = 60;
+
+type SpeedUp = (f32, f32, f32, f32);
+fn draw<'a, DB: DrawingBackend + 'a>(
+    root: DrawingArea<DB, Shift>,
+    data: &[(String, SpeedUp)],
+) -> Result<(), Box<dyn Error + 'a>> {
+    let (left, right) = root.split_horizontally(root.dim_in_pixel().0 as f32 * (2.0 / 3.0));
 
     let num_recs = data.len();
     let gap = 1.0 / num_recs as f32;
@@ -86,11 +41,11 @@ fn main() -> eyre::Result<()> {
          .0;
     let mut chart = ChartBuilder::on(&left)
         .caption("Speed Up", ("sans-serif", 50).into_font())
-        .margin(5)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
+        .margin(1)
+        .x_label_area_size(10.percent_height())
+        .y_label_area_size(10.percent_width())
         .build_cartesian_2d(0f32..1f32, 0f32..max_hight * 1.2)?;
-    chart.configure_mesh().draw()?;
+    chart.configure_mesh().disable_mesh().draw()?;
 
     chart.draw_series(data.iter().enumerate().map(|(id, (_, speedup))| {
         Rectangle::new(
@@ -137,9 +92,9 @@ fn main() -> eyre::Result<()> {
     // draw the names
     let mut right_chart = ChartBuilder::on(&right)
         .caption("Names", ("sans-serif", 50).into_font())
-        .margin(5)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
+        .margin(10.percent())
+        .x_label_area_size(0)
+        .y_label_area_size(0)
         .build_cartesian_2d(0f32..1f32, 0f32..1f32)?;
     // right_chart.configure_mesh().disable_mesh().draw()?;
 
@@ -152,6 +107,135 @@ fn main() -> eyre::Result<()> {
             ("sans-serif", 20).into_font(),
         )
     }))?;
+    root.present()?;
+    Ok(())
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let args = DrawCli::parse();
+    init_logger_info();
+    info!("start draw");
+
+    // get the speed up from spmm and gearbox
+    // first calculate the runting for out design
+    let split_path = args
+        .split_result
+        .unwrap_or_else(|| "output/gearbox_out_001_split_spmm.json".into());
+    let gearbox_path = args
+        .gearbox_result
+        .unwrap_or_else(|| "output/gearbox_out_001_gearbox.json".into());
+    let output_path = args.output.unwrap_or_else(|| "console".into());
+
+    let ext = match output_path.extension() {
+        Some(ext) => match ext.to_str().unwrap() {
+            "png" => Ext::Png,
+            "svg" => Ext::Svg,
+            _ => {
+                let terminal_size = terminal_size::terminal_size().unwrap();
+                if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT
+                {
+                    eprintln!(
+                        "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
+                        terminal_size.0 .0, terminal_size.1 .0
+                    );
+                    std::process::exit(1);
+                };
+                Ext::Console
+            }
+        },
+        None => {
+            let terminal_size = terminal_size::terminal_size().unwrap();
+            if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT {
+                eprintln!(
+                        "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
+                        terminal_size.0 .0, terminal_size.1 .0
+                    );
+                std::process::exit(1);
+            };
+            Ext::Console
+        }
+    };
+    info!("ext is {:?}", ext);
+    info!("start parsing {:?} and {:?}", split_path, gearbox_path);
+    let split_result: SplitAnalyzeResult =
+        serde_json::from_reader(BufReader::new(File::open(split_path)?))?;
+    info!("finish parsing split");
+    let gearbox_result: GearboxReslt =
+        serde_json::from_reader(BufReader::new(File::open(gearbox_path)?))?;
+    info!("finish parsing gearbox");
+    let mut data = vec![];
+    for (split, gearbox) in split_result.results.into_iter().zip(gearbox_result.results) {
+        assert_eq!(split.name, gearbox.name);
+        // first get the runtime
+        let split_time = split
+            .graph_result
+            .iter()
+            .map(|x| x.cycle)
+            .max()
+            .ok_or(eyre::format_err!("no max"))?;
+        let gearbox_time_ring = gearbox
+            .ring_result
+            .iter()
+            .map(|x| x.cycle)
+            .max()
+            .ok_or(eyre::format_err!("no max"))?;
+        let gearbox_time_tsv = gearbox
+            .tsv_result
+            .iter()
+            .map(|x| x.cycle)
+            .max()
+            .ok_or(eyre::format_err!("no max"))?;
+        let gearbox_time_comp = gearbox
+            .subarray_result
+            .iter()
+            .map(|x| x.cycle * 10)
+            .max()
+            .ok_or(eyre::format_err!("no max"))?;
+        let gearbox_time = gearbox_time_ring
+            .max(gearbox_time_tsv)
+            .max(gearbox_time_comp);
+        let speed_up = gearbox_time as f32 / split_time as f32;
+        let speed_up_tsv = gearbox_time_tsv as f32 / split_time as f32;
+        let speed_up_ring = gearbox_time_ring as f32 / split_time as f32;
+        let speed_up_comp = gearbox_time_comp as f32 / split_time as f32;
+        data.push((
+            split.name,
+            (speed_up, speed_up_tsv, speed_up_ring, speed_up_comp),
+        ));
+    }
+    // draw the speed up using plotlib
+    match ext {
+        Ext::Png => {
+            let root = BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+            root.fill(&WHITE)?;
+
+            draw(root, &data).unwrap_or_else(|err| {
+                eprintln!("error: {}", err);
+                std::process::exit(1);
+            });
+        }
+        Ext::Svg => {
+            let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+            root.fill(&WHITE)?;
+
+            draw(root, &data).unwrap_or_else(|err| {
+                eprintln!("error: {}", err);
+                std::process::exit(1);
+            });
+        }
+        Ext::Console => {
+            info!("draw to console");
+            let terminal_size = terminal_size::terminal_size().unwrap();
+
+            let root =
+                TextDrawingBackend::new(terminal_size.0 .0 as u32, terminal_size.1 .0 as u32)
+                    .into_drawing_area();
+            draw(root, &data).unwrap_or_else(|err| {
+                eprintln!("error: {}", err);
+                std::process::exit(1);
+            });
+        }
+    }
 
     Ok(())
 }

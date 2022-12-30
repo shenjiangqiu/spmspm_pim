@@ -92,7 +92,7 @@ impl MergerStatus {
                         }
                     }
                 }
-                return false;
+                false
                 // all data received
             }
             Waiting::WaitingForDrain => {
@@ -101,12 +101,10 @@ impl MergerStatus {
                     self.status = Waiting::Idle;
                     true
                 } else {
-                    return false;
+                    false
                 }
             }
-            _ => {
-                return false;
-            }
+            _ => false,
         }
     }
 
@@ -160,7 +158,7 @@ impl MergerStatus {
         match self.status {
             Waiting::Idle => {
                 self.status = Waiting::WaitingForTask;
-                self.current_target = to.clone();
+                self.current_target = *to;
                 self.waiting_data_childs.insert(child_id);
             }
             Waiting::WaitingForTask => {
@@ -258,6 +256,7 @@ where
 }
 
 impl<LevelType: LevelTrait + Debug, Child> SimpleStreamMerger<LevelType, Child> {
+    #[allow(clippy::too_many_arguments)]
     /// create a new simple stream merger
     pub fn new(
         id: usize,
@@ -363,7 +362,7 @@ impl<LevelType: LevelTrait + Debug, Child> SimpleStreamMerger<LevelType, Child> 
         if let Some(pe_id) = self.current_receiving_targets.remove(to) {
             let pe = &mut self.mergers[pe_id];
             pe.receive_end();
-            self.current_working_targets.insert(to.clone(), pe_id);
+            self.current_working_targets.insert(*to, pe_id);
         }
     }
 }
@@ -408,7 +407,7 @@ where
                         self.id,
                         "merger can not receive task,level: {:?}", self.current_level
                     );
-                    return Err((self.current_level.clone(), task));
+                    return Err((self.current_level, task));
                 }
             }
             Task::End(ref _end_task) => {
@@ -430,7 +429,7 @@ where
                 let child_id = task_data.target_id.get_level_id(&child_level);
                 // first test if self can receive this task
                 debug!(?self.current_level,self.id, "test child:{:?}-{}", child_level, child_id,);
-                let to = task_data.to.clone();
+                let to = task_data.to;
                 self.children[child_id].receive_task(task, context, current_cycle)?;
                 // record this task
                 debug!(?self.current_level,
@@ -475,8 +474,7 @@ impl<LevelType: Debug, Child> StreamProvider for SimpleStreamMerger<LevelType, C
         let next_valid = self
             .current_working_targets
             .iter()
-            .skip_while(|&(_k, v)| self.mergers[*v].generated_message.is_empty())
-            .next();
+            .find(|&(_k, v)| !self.mergers[*v].generated_message.is_empty());
         if let Some((_to, pe_id)) = next_valid {
             let pe = &mut self.mergers[*pe_id];
             let mut data = Vec::new();

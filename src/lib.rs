@@ -10,22 +10,22 @@ use eyre::Result;
 pub use pim::Simulator;
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::Write;
+use std::io::BufWriter;
 use tracing::info;
 use tracing::metadata::LevelFilter;
 pub mod cli;
 #[allow(dead_code)]
-pub(crate) fn init_logger_info() {
+pub fn init_logger_info() {
     init_logger(LevelFilter::INFO);
 }
 
 #[allow(dead_code)]
-pub(crate) fn init_logger_debug() {
+pub fn init_logger_debug() {
     init_logger(LevelFilter::DEBUG);
 }
 
 #[allow(dead_code)]
-pub(crate) fn init_logger(filter: LevelFilter) {
+pub fn init_logger(filter: LevelFilter) {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::builder()
@@ -71,18 +71,43 @@ where
                 let current_time = std::time::Instant::now();
                 println!("analyze with config: {:?}", config);
                 let config = Config::new(config);
+
+                let stem = config.output_path.file_stem().unwrap();
+                let externsion = config.output_path.extension().unwrap();
+                let new_file_name = format!(
+                    "{}_split_spmm.{}",
+                    stem.to_str().unwrap(),
+                    externsion.to_str().unwrap()
+                );
+                let dir_name = config.output_path.parent().unwrap();
+                let new_path = dir_name.join(new_file_name);
+                info!("the result will be written to {:?}", new_path);
+
                 let split_result = analysis::analyze_split_spmm::analyze_split_spmm(&config);
                 split_result.show_results();
-                let json = serde_json::to_string_pretty(&split_result)?;
-                File::create(config.output_path)?.write_all(json.as_bytes())?;
+
+                serde_json::to_writer(BufWriter::new(File::create(new_path)?), &split_result)?;
                 info!("time elapsed: {:?}", current_time.elapsed());
             }
             cli::AnalyzeType::Gearbox => {
+                let current_time = std::time::Instant::now();
                 info!("analyze with config: {:?}", config);
                 let config = Config::new(config);
+
+                let stem = config.output_path.file_stem().unwrap();
+                let externsion = config.output_path.extension().unwrap();
+                let new_file_name = format!(
+                    "{}_gearbox.{}",
+                    stem.to_str().unwrap(),
+                    externsion.to_str().unwrap()
+                );
+                let dir_name = config.output_path.parent().unwrap();
+                let new_path = dir_name.join(new_file_name);
+                info!("the result will be written to {:?}", new_path);
+
                 let gearbox_result = analysis::analyze_gearbox::analyze_gearbox(&config);
-                let json = serde_json::to_string_pretty(&gearbox_result)?;
-                File::create(config.output_path)?.write_all(json.as_bytes())?;
+                serde_json::to_writer(BufWriter::new(File::create(new_path)?), &gearbox_result)?;
+                info!("time elapsed: {:?}", current_time.elapsed());
             }
             cli::AnalyzeType::Nnz => {
                 let current_time = std::time::Instant::now();
@@ -90,8 +115,11 @@ where
                 let config = Config::new(config);
                 let nnz_result = analysis::analyze_nnz::analyze_nnz_spmm(&config);
                 nnz_result.show_results();
-                let json = serde_json::to_string_pretty(&nnz_result)?;
-                File::create("nnz.json")?.write_all(json.as_bytes())?;
+
+                serde_json::to_writer(
+                    BufWriter::new(File::create(config.output_path)?),
+                    &nnz_result,
+                )?;
                 info!("time elapsed: {:?}", current_time.elapsed());
             }
             cli::AnalyzeType::NnzNative => {
@@ -100,8 +128,10 @@ where
                 let config = Config::new(config);
                 let nnz_result = analysis::analyze_nnz_native::analyze_nnz_spmm(&config);
                 nnz_result.show_results();
-                let json = serde_json::to_string_pretty(&nnz_result)?;
-                File::create("nnz_native.json")?.write_all(json.as_bytes())?;
+                serde_json::to_writer(
+                    BufWriter::new(File::create(config.output_path)?),
+                    &nnz_result,
+                )?;
                 info!("time elapsed: {:?}", current_time.elapsed());
             }
         },

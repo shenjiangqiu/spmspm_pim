@@ -58,3 +58,14 @@ pub enum AnalyzeType {
     /// nnz using native algorithm
     NnzNative,
 }
+
+#[derive(Parser, Debug)]
+#[command(name = "draw", about = "draw the speed up of spmm and gearbox")]
+pub struct DrawCli {
+    /// the path of the split spmm result
+    pub split_result: Option<PathBuf>,
+    /// the path of gearbox result
+    pub gearbox_result: Option<PathBuf>,
+    /// the output path of png,
+    pub output: Option<PathBuf>,
+}

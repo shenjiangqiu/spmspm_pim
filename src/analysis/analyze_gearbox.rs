@@ -173,7 +173,7 @@ impl SubArray {
             cycle += read_times;
         }
         SubArrayResult {
-            cycle: cycle,
+            cycle,
             row_open_cycle,
             row_read_cycle,
             row_write_cycle,

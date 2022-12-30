@@ -35,6 +35,7 @@ impl From<[usize; LEVELS]> for Storage {
 }
 
 impl Storage {
+    #[allow(clippy::too_many_arguments)]
     /// create a new storage
     pub fn new(
         channel: usize,
@@ -148,14 +149,12 @@ impl LevelTrait for Level {
     }
 
     fn get_level_id(&self, storage: &Storage) -> usize {
-        return storage.data[self.to_usize()];
+        storage.data[self.to_usize()]
     }
 
     fn get_sub_path_to_level(&self, storage: &Storage) -> Self::Storage {
         let mut data = [0; LEVELS];
-        for i in 0..=self.to_usize() {
-            data[i] = storage.data[i];
-        }
+        data[..(self.to_usize() + 1)].copy_from_slice(&storage.data[..(self.to_usize() + 1)]);
         Storage { data }
     }
     /// TODO: Description

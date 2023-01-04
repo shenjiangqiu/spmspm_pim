@@ -57,10 +57,15 @@ impl SplitAnalyzeResult {
                 input_read_bytes,
                 input_read_times,
                 row_open_no_overlap,
+                ignore_empty_row_meta_cycle,
             } in &result.graph_result
             {
                 println!("cycle: {}", cycle);
                 println!("meta_cycle: {}", meta_cycle);
+                println!(
+                    "ignore_empty_row_meta_cycle: {}",
+                    ignore_empty_row_meta_cycle
+                );
                 println!("comp_cycle: {}", compute_cycle);
                 println!("row_open: {}", row_open);
                 println!("row_open_no_overlap: {}", row_open_no_overlap);
@@ -205,6 +210,7 @@ pub struct SeqResult {
     pub cycle: u64,
     /// meta data cycles
     pub meta_cycle: u64,
+    pub ignore_empty_row_meta_cycle: u64,
     /// the graph name
     pub name: String,
     /// compute cycles
@@ -377,10 +383,10 @@ where
     let mut temp_result_read: u64 = 0;
     let mut final_result_write: u64 = 0;
     let mut matrix_b_read: u64 = 0;
+    let mut ignore_empty_row_meta_cycle: u64 = 0;
 
     let mut row_open_bytes: usize = 0;
     let mut used_bytes: usize = 0;
-
     let mut input_read_bytes: usize = 0;
     let mut input_read_times: usize = 0;
     let mut row_open: u64 = 0;
@@ -436,6 +442,8 @@ where
                 // no need to work
                 continue;
             }
+            ignore_empty_row_meta_cycle += first_row_cycle as u64 + remaining_row_cycle as u64;
+
             let (current_temp, current_final) = if reverse_result {
                 (&mut final_result_subarray, &mut temp_result_subarray)
             } else {
@@ -514,6 +522,7 @@ where
     SeqResult {
         cycle,
         meta_cycle,
+        ignore_empty_row_meta_cycle,
         name: path,
         compute_cycle,
         temp_result_read,

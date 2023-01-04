@@ -279,15 +279,24 @@ fn draw_box<'a, DB: DrawingBackend + 'a>(
             graph
                 .graph_result
                 .iter()
-                .flat_map(|x| [x.cycle, x.meta_cycle, x.compute_cycle, x.row_open])
+                .flat_map(|x| {
+                    [
+                        x.cycle,
+                        x.meta_cycle,
+                        x.compute_cycle,
+                        x.row_open,
+                        x.ignore_empty_row_meta_cycle,
+                    ]
+                })
                 .collect_vec()
                 .as_slice(),
         );
 
         let types = [
             "cycle".to_string(),
-            "compute_cycle".to_string(),
             "meta_cycle".to_string(),
+            "meta_ignore_empty".to_string(),
+            "compute_cycle".to_string(),
             "row_open".to_string(),
         ];
         let colors = [
@@ -295,8 +304,10 @@ fn draw_box<'a, DB: DrawingBackend + 'a>(
             RGBColor(0, 255, 0),
             RGBColor(0, 0, 255),
             RGBColor(255, 255, 0),
+            RGBColor(0, 255, 255),
         ];
         let segs = types.clone();
+        let range_size = value_range.end - value_range.start;
         let mut chart = ChartBuilder::on(&chart)
             .caption(graph.name.clone(), ("sans-serif", 20).into_font())
             .x_label_area_size(10.percent())
@@ -309,53 +320,58 @@ fn draw_box<'a, DB: DrawingBackend + 'a>(
 
         chart.configure_mesh().disable_mesh().draw()?;
 
-        let cycle_quatiles = Quartiles::new(
-            graph
-                .graph_result
-                .iter()
-                .map(|x| x.cycle as f32)
-                .collect_vec()
-                .as_slice(),
+        let data = graph.graph_result.iter().fold(
+            [vec![], vec![], vec![], vec![], vec![]],
+            |[
+                mut cycles,
+                mut meta_cycles,
+                mut meta_no_empty_cycles,
+                mut comp_cycles,
+                mut row_opens,
+            ],
+             c| {
+                cycles.push(c.cycle);
+                meta_cycles.push(c.meta_cycle);
+                meta_no_empty_cycles.push(c.ignore_empty_row_meta_cycle);
+                comp_cycles.push(c.compute_cycle);
+                row_opens.push(c.row_open);
+                [
+                    cycles,
+                    meta_cycles,
+                    meta_no_empty_cycles,
+                    comp_cycles,
+                    row_opens,
+                ]
+            },
         );
-        let cycle_compute = Quartiles::new(
-            graph
-                .graph_result
-                .iter()
-                .map(|x| x.compute_cycle as f32)
-                .collect_vec()
-                .as_slice(),
-        );
-        let meta_cycle_quatiles = Quartiles::new(
-            graph
-                .graph_result
-                .iter()
-                .map(|x| x.meta_cycle as f32)
-                .collect_vec()
-                .as_slice(),
-        );
-        let row_open_quatiles = Quartiles::new(
-            graph
-                .graph_result
-                .iter()
-                .map(|x| x.row_open as f32)
-                .collect_vec()
-                .as_slice(),
-        );
+        let maxs = data.iter().map(|x| x.iter().max().unwrap()).collect_vec();
+        let quatiles = data
+            .iter()
+            .map(|x| Quartiles::new(x.iter().map(|x| *x as f32).collect_vec().as_slice()))
+            .collect_vec();
 
-        chart.draw_series(
-            types
-                .iter()
-                .zip([
-                    cycle_quatiles,
-                    cycle_compute,
-                    meta_cycle_quatiles,
-                    row_open_quatiles,
-                ])
-                .zip(colors.iter())
-                .map(|((name, data), color)| {
-                    Boxplot::new_horizontal(SegmentValue::CenterOf(name), &data).style(color)
-                }),
-        )?;
+        chart.draw_series(types.iter().zip(quatiles.iter()).zip(colors.iter()).map(
+            |((name, data), color)| {
+                Boxplot::new_horizontal(SegmentValue::CenterOf(name), data).style(color)
+            },
+        ))?;
+        chart.draw_series(types.iter().zip(maxs.iter()).zip(colors.iter()).map(
+            |((name, &&data), color)| {
+                Rectangle::new(
+                    [
+                        (
+                            data as f32 + range_size as f32 * 0.01,
+                            SegmentValue::CenterOf(name),
+                        ),
+                        (
+                            data as f32 - range_size as f32 * 0.01,
+                            SegmentValue::Exact(name),
+                        ),
+                    ],
+                    color.mix(0.5).filled(),
+                )
+            },
+        ))?;
         chart.configure_series_labels().draw()?;
     }
     root.present()?;

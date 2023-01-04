@@ -1,11 +1,12 @@
 use std::{error::Error, fs::File, io::BufReader};
 
 use clap::Parser;
-use plotters::{coord::Shift, prelude::*};
+use itertools::Itertools;
+use plotters::{coord::Shift, data::fitting_range, prelude::*};
 use plotters_text::TextDrawingBackend;
 use spmspm_pim::{
     analysis::{analyze_gearbox::GearboxReslt, analyze_split_spmm::SplitAnalyzeResult},
-    cli::DrawCli,
+    cli::{DrawCli, SpeedUpArgs, SplitArgs},
     init_logger_info,
 };
 use tracing::info;
@@ -116,6 +117,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     init_logger_info();
     info!("start draw");
 
+    match args.subcmd {
+        spmspm_pim::cli::DrawType::SpeedUp(speed_up_args) => draw_speedup(speed_up_args)?,
+        spmspm_pim::cli::DrawType::Split(split_args) => draw_split(split_args)?,
+    }
+    Ok(())
+}
+
+fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
     // get the speed up from spmm and gearbox
     // first calculate the runting for out design
     let split_path = args
@@ -125,7 +134,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         .gearbox_result
         .unwrap_or_else(|| "output/gearbox_out_001_gearbox.json".into());
     let output_path = args.output.unwrap_or_else(|| "console".into());
-
     let ext = match output_path.extension() {
         Some(ext) => match ext.to_str().unwrap() {
             "png" => Ext::Png,
@@ -135,9 +143,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT
                 {
                     eprintln!(
-                        "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
-                        terminal_size.0 .0, terminal_size.1 .0
-                    );
+            "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
+            terminal_size.0 .0, terminal_size.1 .0
+        );
                     std::process::exit(1);
                 };
                 Ext::Console
@@ -147,9 +155,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             let terminal_size = terminal_size::terminal_size().unwrap();
             if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT {
                 eprintln!(
-                        "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
-                        terminal_size.0 .0, terminal_size.1 .0
-                    );
+            "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
+            terminal_size.0 .0, terminal_size.1 .0
+        );
                 std::process::exit(1);
             };
             Ext::Console
@@ -236,7 +244,121 @@ fn main() -> Result<(), Box<dyn Error>> {
             });
         }
     }
+    Ok(())
+}
 
+fn draw_split(args: SplitArgs) -> Result<(), Box<dyn Error>> {
+    let SplitArgs {
+        split_result,
+        output,
+    } = args;
+    let output_path = output.unwrap_or_else(|| "console.svg".into());
+    let split_result =
+        split_result.unwrap_or_else(|| "output/gearbox_out_001_split_spmm.json".into());
+    let split_result: SplitAnalyzeResult =
+        serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
+    // generate the box plot for each graph
+    let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+    draw_box(root, &split_result).unwrap_or_else(|err| {
+        eprintln!("error: {}", err);
+        std::process::exit(1);
+    });
+    Ok(())
+}
+
+fn draw_box<'a, DB: DrawingBackend + 'a>(
+    root: DrawingArea<DB, Shift>,
+    result: &SplitAnalyzeResult,
+) -> Result<(), Box<dyn Error + 'a>> {
+    root.fill(&WHITE)?;
+    let charts = root.split_evenly((4, 5));
+    for (graph, chart) in result.results.iter().zip(charts) {
+        info!("draw graph {}", graph.name);
+        // first get the min_max for the cycles for each bank
+        let value_range = fitting_range(
+            graph
+                .graph_result
+                .iter()
+                .flat_map(|x| [x.cycle, x.meta_cycle, x.compute_cycle, x.row_open])
+                .collect_vec()
+                .as_slice(),
+        );
+
+        let types = [
+            "cycle".to_string(),
+            "compute_cycle".to_string(),
+            "meta_cycle".to_string(),
+            "row_open".to_string(),
+        ];
+        let colors = [
+            RGBColor(255, 0, 0),
+            RGBColor(0, 255, 0),
+            RGBColor(0, 0, 255),
+            RGBColor(255, 255, 0),
+        ];
+        let segs = types.clone();
+        let mut chart = ChartBuilder::on(&chart)
+            .caption(graph.name.clone(), ("sans-serif", 20).into_font())
+            .x_label_area_size(10.percent())
+            .y_label_area_size(10.percent())
+            .margin(5.percent())
+            .build_cartesian_2d(
+                (value_range.start as f32 * 0.85)..(value_range.end as f32 * 1.15),
+                segs.into_segmented(),
+            )?;
+
+        chart.configure_mesh().disable_mesh().draw()?;
+
+        let cycle_quatiles = Quartiles::new(
+            graph
+                .graph_result
+                .iter()
+                .map(|x| x.cycle as f32)
+                .collect_vec()
+                .as_slice(),
+        );
+        let cycle_compute = Quartiles::new(
+            graph
+                .graph_result
+                .iter()
+                .map(|x| x.compute_cycle as f32)
+                .collect_vec()
+                .as_slice(),
+        );
+        let meta_cycle_quatiles = Quartiles::new(
+            graph
+                .graph_result
+                .iter()
+                .map(|x| x.meta_cycle as f32)
+                .collect_vec()
+                .as_slice(),
+        );
+        let row_open_quatiles = Quartiles::new(
+            graph
+                .graph_result
+                .iter()
+                .map(|x| x.row_open as f32)
+                .collect_vec()
+                .as_slice(),
+        );
+
+        chart.draw_series(
+            types
+                .iter()
+                .zip([
+                    cycle_quatiles,
+                    cycle_compute,
+                    meta_cycle_quatiles,
+                    row_open_quatiles,
+                ])
+                .zip(colors.iter())
+                .map(|((name, data), color)| {
+                    Boxplot::new_horizontal(SegmentValue::CenterOf(name), &data).style(color)
+                }),
+        )?;
+        chart.configure_series_labels().draw()?;
+    }
+    root.present()?;
     Ok(())
 }
 

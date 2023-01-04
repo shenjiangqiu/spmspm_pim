@@ -134,6 +134,26 @@ where
                 )?;
                 info!("time elapsed: {:?}", current_time.elapsed());
             }
+            cli::AnalyzeType::GearboxParallel => {
+                let current_time = std::time::Instant::now();
+                info!("analyze with config: {:?}", config);
+                let config = Config::new(config);
+
+                let stem = config.output_path.file_stem().unwrap();
+                let externsion = config.output_path.extension().unwrap();
+                let new_file_name = format!(
+                    "{}_gearbox.{}",
+                    stem.to_str().unwrap(),
+                    externsion.to_str().unwrap()
+                );
+                let dir_name = config.output_path.parent().unwrap();
+                let new_path = dir_name.join(new_file_name);
+                info!("the result will be written to {:?}", new_path);
+
+                let gearbox_result = analysis::analyze_gearbox_parallel::analyze_gearbox(&config);
+                serde_json::to_writer(BufWriter::new(File::create(new_path)?), &gearbox_result)?;
+                info!("time elapsed: {:?}", current_time.elapsed());
+            }
         },
     };
     Ok(())

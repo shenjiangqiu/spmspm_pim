@@ -45,6 +45,7 @@ impl SplitAnalyzeResult {
             println!("nnz_stats: {:?}", result.nnz_stats);
             for SeqResult {
                 cycle,
+                meta_cycle,
                 name: _,
                 compute_cycle,
                 row_open,
@@ -59,6 +60,7 @@ impl SplitAnalyzeResult {
             } in &result.graph_result
             {
                 println!("cycle: {}", cycle);
+                println!("meta_cycle: {}", meta_cycle);
                 println!("comp_cycle: {}", compute_cycle);
                 println!("row_open: {}", row_open);
                 println!("row_open_no_overlap: {}", row_open_no_overlap);
@@ -174,8 +176,8 @@ where
                 .matrix
                 .par_iter()
                 .enumerate()
-                .map(|(_bank_id, single_matrix)| {
-                    info!("computing bank {_bank_id}/{}", s_matrix.matrix.len());
+                .map(|(bank_id, single_matrix)| {
+                    info!("computing bank {bank_id}/{}", s_matrix.matrix.len());
                     compute_bank_cycle_seq::<LevelType>(
                         config,
                         path.to_string(),
@@ -201,6 +203,8 @@ where
 pub struct SeqResult {
     /// the cycles
     pub cycle: u64,
+    /// meta data cycles
+    pub meta_cycle: u64,
     /// the graph name
     pub name: String,
     /// compute cycles
@@ -368,6 +372,7 @@ where
 {
     // initialize the statistics
     let mut cycle: u64 = 0;
+    let mut meta_cycle: u64 = 0;
     let mut compute_cycle: u64 = 0;
     let mut temp_result_read: u64 = 0;
     let mut final_result_write: u64 = 0;
@@ -393,6 +398,8 @@ where
     // assume we have the two sub arrays to store the partial result(it's not affecting the cycle accuracy)
     let mut temp_result_subarray = SubarrayStatus::default();
     let mut final_result_subarray = SubarrayStatus::default();
+    // the location to store the meta data(the ind_ptr)
+    let mut metadata_subarray = SubarrayStatus::default();
     // a map from subarray to status
     let mut open_row_status: hashbrown::HashMap<usize, SubarrayStatus> = Default::default();
     for task in matrix_a.outer_iterator() {
@@ -402,6 +409,24 @@ where
         // mean the result should be write to the temporary result subarray.
         let mut reverse_result = task.nnz() % 2 == 0;
         for (task_id_b, _) in task.iter() {
+            // first need to read the metadata to detect the location to read
+            // we can assume that the ptr is located at address 0..size*4
+            let ind_ptr_address = task_id_b * 4;
+            let col_per_row = config.columns;
+            let row_id = ind_ptr_address / col_per_row;
+            let col_id = ind_ptr_address % col_per_row;
+            // the cycles to read the meta data
+            let (first_row_cycle, remaining_row_cycle, _) = metadata_subarray.open_row(
+                (row_id, col_id),
+                8,
+                config.activate_cycle as usize,
+                config.precharge_cycle as usize,
+                config.cas as usize,
+                config.columns,
+            );
+            cycle += first_row_cycle as u64 + remaining_row_cycle as u64;
+            meta_cycle += first_row_cycle as u64 + remaining_row_cycle as u64;
+
             debug!("------start a acc task------");
             debug!(?task_id_b);
             debug!(?current_result);
@@ -488,6 +513,7 @@ where
 
     SeqResult {
         cycle,
+        meta_cycle,
         name: path,
         compute_cycle,
         temp_result_read,

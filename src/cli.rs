@@ -53,19 +53,45 @@ pub enum AnalyzeType {
     SplitSpmm,
     /// run gearbox test
     Gearbox,
+
+    /// run gearbox test
+    GearboxParallel,
+
     /// nnz
     Nnz,
     /// nnz using native algorithm
     NnzNative,
 }
 
+#[derive(Debug, Subcommand)]
+pub enum DrawType {
+    /// draw the speed up of spmm and gearbox
+    SpeedUp(SpeedUpArgs),
+    ///
+    Split(SplitArgs),
+}
+
 #[derive(Parser, Debug)]
 #[command(name = "draw", about = "draw the speed up of spmm and gearbox")]
 pub struct DrawCli {
+    #[clap(subcommand)]
+    pub subcmd: DrawType,
+}
+
+#[derive(Args, Debug)]
+pub struct SpeedUpArgs {
     /// the path of the split spmm result
     pub split_result: Option<PathBuf>,
     /// the path of gearbox result
     pub gearbox_result: Option<PathBuf>,
+    /// the output path of png,
+    pub output: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+pub struct SplitArgs {
+    /// the path of the split spmm result
+    pub split_result: Option<PathBuf>,
     /// the output path of png,
     pub output: Option<PathBuf>,
 }

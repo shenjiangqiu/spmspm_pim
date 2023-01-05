@@ -2,7 +2,12 @@ use std::{error::Error, fs::File, io::BufReader};
 
 use clap::Parser;
 use itertools::Itertools;
-use plotters::{coord::Shift, data::fitting_range, prelude::*};
+use plotters::{
+    coord::Shift,
+    data::fitting_range,
+    prelude::*,
+    style::full_palette::{BLUEGREY, PINK},
+};
 use plotters_text::TextDrawingBackend;
 use spmspm_pim::{
     analysis::{analyze_gearbox::GearboxReslt, analyze_split_spmm::SplitAnalyzeResult},
@@ -294,8 +299,11 @@ fn draw_box<'a, DB: DrawingBackend + 'a>(
 
         let types = [
             "cycle".to_string(),
+            "total_cycle_ignore_empty".to_string(),
+            "total_cycle_fix_empty".to_string(),
+            "ignore_empty_row_meta_cycle".to_string(),
+            "fix_empty_row_meta_cycle".to_string(),
             "meta_cycle".to_string(),
-            "meta_ignore_empty".to_string(),
             "compute_cycle".to_string(),
             "row_open".to_string(),
         ];
@@ -304,7 +312,10 @@ fn draw_box<'a, DB: DrawingBackend + 'a>(
             RGBColor(0, 255, 0),
             RGBColor(0, 0, 255),
             RGBColor(255, 255, 0),
-            RGBColor(0, 255, 255),
+            RGBColor(255, 0, 255),
+            PINK,
+            BLACK,
+            BLUEGREY,
         ];
         let segs = types.clone();
         let range_size = value_range.end - value_range.start;
@@ -321,24 +332,35 @@ fn draw_box<'a, DB: DrawingBackend + 'a>(
         chart.configure_mesh().disable_mesh().draw()?;
 
         let data = graph.graph_result.iter().fold(
-            [vec![], vec![], vec![], vec![], vec![]],
+            [vec![], vec![], vec![], vec![], vec![], vec![], vec![],  vec![]],
             |[
                 mut cycles,
+                mut total_cycle_ignore_empty,
+                mut total_cycle_fix_empty,
+                mut ignore_empty_row_meta_cycle,
+                mut fix_empty_row_meta_cycle,
                 mut meta_cycles,
-                mut meta_no_empty_cycles,
                 mut comp_cycles,
                 mut row_opens,
             ],
+
+            
              c| {
                 cycles.push(c.cycle);
+                total_cycle_ignore_empty.push(c.total_cycle_ignore_empty_meta);
+                total_cycle_fix_empty.push(c.total_cycle_fix_empty_meta);
+                ignore_empty_row_meta_cycle.push(c.ignore_empty_row_meta_cycle);
+                fix_empty_row_meta_cycle.push(c.fix_empty_meta_cycle);
                 meta_cycles.push(c.meta_cycle);
-                meta_no_empty_cycles.push(c.ignore_empty_row_meta_cycle);
                 comp_cycles.push(c.compute_cycle);
                 row_opens.push(c.row_open);
                 [
                     cycles,
+                    total_cycle_ignore_empty,
+                    total_cycle_fix_empty,
+                    ignore_empty_row_meta_cycle,
+                    fix_empty_row_meta_cycle,
                     meta_cycles,
-                    meta_no_empty_cycles,
                     comp_cycles,
                     row_opens,
                 ]

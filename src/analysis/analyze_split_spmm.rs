@@ -58,6 +58,9 @@ impl SplitAnalyzeResult {
                 input_read_times,
                 row_open_no_overlap,
                 ignore_empty_row_meta_cycle,
+                total_cycle_ignore_empty_meta,
+                total_cycle_fix_empty_meta,
+                fix_empty_meta_cycle,
             } in &result.graph_result
             {
                 println!("cycle: {}", cycle);
@@ -66,6 +69,13 @@ impl SplitAnalyzeResult {
                     "ignore_empty_row_meta_cycle: {}",
                     ignore_empty_row_meta_cycle
                 );
+                println!(
+                    "total_cycle_ignore_empty_meta: {}",
+                    total_cycle_ignore_empty_meta
+                );
+                println!("total_cycle_fix_empty_meta: {}", total_cycle_fix_empty_meta);
+                println!("fix_empty_meta_cycle: {}", fix_empty_meta_cycle);
+
                 println!("comp_cycle: {}", compute_cycle);
                 println!("row_open: {}", row_open);
                 println!("row_open_no_overlap: {}", row_open_no_overlap);
@@ -211,6 +221,9 @@ pub struct SeqResult {
     /// meta data cycles
     pub meta_cycle: u64,
     pub ignore_empty_row_meta_cycle: u64,
+    pub total_cycle_ignore_empty_meta: u64,
+    pub total_cycle_fix_empty_meta: u64,
+    pub fix_empty_meta_cycle: u64,
     /// the graph name
     pub name: String,
     /// compute cycles
@@ -385,6 +398,11 @@ where
     let mut matrix_b_read: u64 = 0;
     let mut ignore_empty_row_meta_cycle: u64 = 0;
 
+    let mut total_cycle_ignore_empty_meta: u64 = 0;
+    let mut total_cycle_fix_empty_meta: u64 = 0;
+
+    let mut fix_empty_meta_cycle: u64 = 0;
+
     let mut row_open_bytes: usize = 0;
     let mut used_bytes: usize = 0;
     let mut input_read_bytes: usize = 0;
@@ -440,10 +458,15 @@ where
             let input_row = matrix_b.outer_view(task_id_b).unwrap();
             if input_row.nnz() == 0 {
                 // no need to work
+                total_cycle_fix_empty_meta += 2;
+                fix_empty_meta_cycle += 2;
                 continue;
             }
             ignore_empty_row_meta_cycle += first_row_cycle as u64 + remaining_row_cycle as u64;
+            fix_empty_meta_cycle += first_row_cycle as u64 + remaining_row_cycle as u64;
 
+            total_cycle_ignore_empty_meta += first_row_cycle as u64 + remaining_row_cycle as u64;
+            total_cycle_fix_empty_meta += first_row_cycle as u64 + remaining_row_cycle as u64;
             let (current_temp, current_final) = if reverse_result {
                 (&mut final_result_subarray, &mut temp_result_subarray)
             } else {
@@ -521,6 +544,9 @@ where
 
     SeqResult {
         cycle,
+        total_cycle_ignore_empty_meta,
+        total_cycle_fix_empty_meta,
+        fix_empty_meta_cycle,
         meta_cycle,
         ignore_empty_row_meta_cycle,
         name: path,

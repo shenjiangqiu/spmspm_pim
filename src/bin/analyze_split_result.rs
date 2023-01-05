@@ -39,7 +39,7 @@ impl Display for Report {
             self.mean_comp,self.mean_comp/self.mean_cycle*100.,
             self.mean_open,self.mean_open/self.mean_cycle*100.,
             self.mean_open_no_overlap,
-            self.mean_temp_read,self.mean_temp_read/self.mean_open_no_overlap*100., 
+            self.mean_temp_read,self.mean_temp_read/self.mean_open_no_overlap*100.,
             self.mean_temp_write,self.mean_temp_write/self.mean_open_no_overlap*100.,
             self.mean_input_read,self.mean_input_read/self.mean_open_no_overlap*100.
         )?;
@@ -150,7 +150,7 @@ fn main() -> eyre::Result<()> {
             input_read_bytes,
             input_read_times,
         };
-        writeln!(file_to_write,"{}", report)?;
+        writeln!(file_to_write, "{}", report)?;
     }
     Ok(())
 }

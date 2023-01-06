@@ -1,4 +1,4 @@
-use std::{error::Error, fs::File, io::BufReader, path::PathBuf, fmt::Debug};
+use std::{error::Error, fmt::Debug, fs::File, io::BufReader, path::PathBuf};
 
 use clap::Parser;
 use itertools::Itertools;
@@ -6,7 +6,7 @@ use plotters::{
     coord::Shift,
     data::fitting_range,
     prelude::*,
-    style::full_palette::{BLUEGREY, PINK, GREY},
+    style::full_palette::{BLUEGREY, GREY, PINK},
 };
 use plotters_text::TextDrawingBackend;
 use spmspm_pim::{
@@ -14,7 +14,9 @@ use spmspm_pim::{
     cli::{DrawCli, SpeedUpArgs, SplitArgs},
     init_logger_info,
 };
+use terminal_size::{Height, Width};
 use tracing::info;
+
 #[derive(Debug)]
 enum Ext {
     Png,
@@ -26,6 +28,7 @@ const MIN_CONSOLE_WIDTH: u16 = 320;
 const MIN_CONSOLE_HEIGHT: u16 = 60;
 
 type SpeedUp = (f32, f32, f32, f32);
+
 fn draw<'a, DB: DrawingBackend + 'a>(
     root: DrawingArea<DB, Shift>,
     data: &[(String, SpeedUp)],
@@ -35,7 +38,7 @@ fn draw<'a, DB: DrawingBackend + 'a>(
     let num_recs = data.len();
     let gap = 1.0 / num_recs as f32;
     let width = gap * 0.8;
-    let max_hight = data
+    let max_height = data
         .iter()
         .max_by(|a, b| {
             a.1 .0
@@ -50,7 +53,7 @@ fn draw<'a, DB: DrawingBackend + 'a>(
         .margin(1)
         .x_label_area_size(10.percent_height())
         .y_label_area_size(10.percent_width())
-        .build_cartesian_2d(0f32..1f32, 0f32..max_hight * 1.2)?;
+        .build_cartesian_2d(0f32..1f32, 0f32..max_height * 1.2)?;
     chart.configure_mesh().disable_mesh().draw()?;
 
     chart.draw_series(data.iter().enumerate().map(|(id, (_, speedup))| {
@@ -132,7 +135,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 /// draw the cycle distribution of the split result
-fn draw_cycle_dist(args:SplitArgs)->Result<(), Box<dyn Error>>{
+fn draw_cycle_dist(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let SplitArgs {
         split_result,
         output,
@@ -144,23 +147,35 @@ fn draw_cycle_dist(args:SplitArgs)->Result<(), Box<dyn Error>>{
         serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
     // generate the box plot for each graph
     match get_ext(&output_path) {
-        Ext::Svg=> draw_cycle_dist_rec(SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area(), &split_result).unwrap_or_else(|err| {
+        Ext::Svg => draw_cycle_dist_rec(
+            SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area(),
+            &split_result,
+        )
+        .unwrap_or_else(|err| {
             eprintln!("error: {}", err);
             std::process::exit(1);
         }),
-        Ext::Png => draw_cycle_dist_rec(BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area(), &split_result).unwrap_or_else(|err| {
+        Ext::Png => draw_cycle_dist_rec(
+            BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area(),
+            &split_result,
+        )
+        .unwrap_or_else(|err| {
             eprintln!("error: {}", err);
             std::process::exit(1);
         }),
         Ext::Console => {
-            
             let terminal_size = terminal_size::terminal_size().unwrap();
-            
-            draw_cycle_dist_rec(TextDrawingBackend::new(terminal_size.0.0 as u32,terminal_size.1.0 as u32).into_drawing_area(), &split_result).unwrap_or_else(|err| {
-            eprintln!("error: {}", err);
-            std::process::exit(1);
-        })},
-     
+
+            draw_cycle_dist_rec(
+                TextDrawingBackend::new(terminal_size.0 .0 as u32, terminal_size.1 .0 as u32)
+                    .into_drawing_area(),
+                &split_result,
+            )
+            .unwrap_or_else(|err| {
+                eprintln!("error: {}", err);
+                std::process::exit(1);
+            })
+        }
     }
     let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
     draw_cycle_dist_rec(root, &split_result).unwrap_or_else(|err| {
@@ -180,111 +195,175 @@ fn draw_cycle_dist_rec<'a, DB: DrawingBackend + 'a>(
         info!("draw graph {}", graph.name);
         // first get the min_max for the cycles for each bank
         let num_partition = graph.graph_result.len() as u64;
-        
-        let cycle = graph.graph_result.iter().map(|x| x.cycle).sum::<u64>()/num_partition;
-        let total_cycle_fix_empty_meta = graph.graph_result.iter().map(|x| x.total_cycle_fix_empty_meta).sum::<u64>()/num_partition;
-        let total_cycle_ignore_empty_meta = graph.graph_result.iter().map(|x| x.total_cycle_ignore_empty_meta).sum::<u64>()/num_partition;
-        let total_cycle_ignore_meta = graph.graph_result.iter().map(|x| x.total_cycle_ignore_meta).sum::<u64>()/num_partition;
-        let meta_cycle = graph.graph_result.iter().map(|x| x.meta_cycle).sum::<u64>()/num_partition;
-        let fix_empty_meta_cycle = graph.graph_result.iter().map(|x| x.fix_empty_meta_cycle).sum::<u64>()/num_partition;
-        let ignore_empty_row_meta_cycle = graph.graph_result.iter().map(|x| x.ignore_empty_row_meta_cycle).sum::<u64>()/num_partition;
-        let compute_cycle = graph.graph_result.iter().map(|x| x.compute_cycle).sum::<u64>()/num_partition;
-        let row_open = graph.graph_result.iter().map(|x| x.row_open).sum::<u64>()/num_partition;
-        let max_cycle = *[cycle,total_cycle_fix_empty_meta,total_cycle_ignore_empty_meta,total_cycle_ignore_meta,meta_cycle,fix_empty_meta_cycle,ignore_empty_row_meta_cycle,compute_cycle,row_open].iter().max().unwrap();
+
+        let cycle = graph.graph_result.iter().map(|x| x.cycle).sum::<u64>() / num_partition;
+        let total_cycle_fix_empty_meta = graph
+            .graph_result
+            .iter()
+            .map(|x| x.total_cycle_fix_empty_meta)
+            .sum::<u64>()
+            / num_partition;
+        let total_cycle_ignore_empty_meta = graph
+            .graph_result
+            .iter()
+            .map(|x| x.total_cycle_ignore_empty_meta)
+            .sum::<u64>()
+            / num_partition;
+        let total_cycle_ignore_meta = graph
+            .graph_result
+            .iter()
+            .map(|x| x.total_cycle_ignore_meta)
+            .sum::<u64>()
+            / num_partition;
+        let meta_cycle =
+            graph.graph_result.iter().map(|x| x.meta_cycle).sum::<u64>() / num_partition;
+        let fix_empty_meta_cycle = graph
+            .graph_result
+            .iter()
+            .map(|x| x.fix_empty_meta_cycle)
+            .sum::<u64>()
+            / num_partition;
+        let ignore_empty_row_meta_cycle = graph
+            .graph_result
+            .iter()
+            .map(|x| x.ignore_empty_row_meta_cycle)
+            .sum::<u64>()
+            / num_partition;
+        let compute_cycle = graph
+            .graph_result
+            .iter()
+            .map(|x| x.compute_cycle)
+            .sum::<u64>()
+            / num_partition;
+        let row_open = graph.graph_result.iter().map(|x| x.row_open).sum::<u64>() / num_partition;
+        let max_cycle = *[
+            cycle,
+            total_cycle_fix_empty_meta,
+            total_cycle_ignore_empty_meta,
+            total_cycle_ignore_meta,
+            meta_cycle,
+            fix_empty_meta_cycle,
+            ignore_empty_row_meta_cycle,
+            compute_cycle,
+            row_open,
+        ]
+        .iter()
+        .max()
+        .unwrap();
 
         let colors = [BLACK, RED, BLUE, GREEN, YELLOW, PINK, GREY, CYAN, MAGENTA];
         let name = PathBuf::from(graph.name.clone());
-        let segs = ["cycle","total_cycle_fix_empty_meta","total_cycle_ignore_empty_meta","total_cycle_ignore_meta","meta_cycle","fix_empty_meta_cycle","ignore_empty_row_meta_cycle","compute_cycle","row_open"];
+        let segs = [
+            "cycle",
+            "total_cycle_fix_empty_meta",
+            "total_cycle_ignore_empty_meta",
+            "total_cycle_ignore_meta",
+            "meta_cycle",
+            "fix_empty_meta_cycle",
+            "ignore_empty_row_meta_cycle",
+            "compute_cycle",
+            "row_open",
+        ];
         let mut chart = ChartBuilder::on(&chart)
-            .caption(format!("{}",name.file_name().unwrap().to_str().unwrap()), ("sans-serif", 20).into_font())
+            .caption(
+                format!("{}", name.file_name().unwrap().to_str().unwrap()),
+                ("sans-serif", 20).into_font(),
+            )
             .x_label_area_size(10.percent())
             .y_label_area_size(10.percent())
             .margin(5.percent())
-            .build_cartesian_2d(
-                0..max_cycle,
-                segs.into_segmented(),
-            )?;
+            .build_cartesian_2d(0..max_cycle, segs.into_segmented())?;
 
         chart.configure_mesh().disable_mesh().draw()?;
 
-        
-        chart.draw_series(
-           
-                [Rectangle::new(
-                    [
-                        (0, SegmentValue::CenterOf(&"cycle")),
-                        (cycle , SegmentValue::Exact(&"cycle")),
-                    ],
-                    colors[0].mix(0.5).filled(),
-                ),
-                Rectangle::new(
-                    [
-                        (0, SegmentValue::CenterOf(&"total_cycle_fix_empty_meta")),
-                        (total_cycle_fix_empty_meta , SegmentValue::Exact(&"total_cycle_fix_empty_meta")),
-                    ],
-                    colors[1].mix(0.5).filled(),
-                ),
-                Rectangle::new(
-                    [
-                        (0, SegmentValue::CenterOf(&"total_cycle_ignore_empty_meta")),
-                        (total_cycle_ignore_empty_meta , SegmentValue::Exact(&"total_cycle_ignore_empty_meta")),
-                    ],
-                    colors[2].mix(0.5).filled(),
-                ),
-                Rectangle::new(
-                    [
-                        (0, SegmentValue::CenterOf(&"total_cycle_ignore_meta")),
-                        (total_cycle_ignore_meta , SegmentValue::Exact(&"total_cycle_ignore_meta")),
-                    ],
-                    colors[3].mix(0.5).filled(),
-                ),
-                Rectangle::new(
-                    [
-                        (0, SegmentValue::CenterOf(&"meta_cycle")),
-                        (meta_cycle , SegmentValue::Exact(&"meta_cycle")),
-                    ],
-                    colors[4].mix(0.5).filled(),
-                ),
-                Rectangle::new(
-                    [
-                        (0, SegmentValue::CenterOf(&"fix_empty_meta_cycle")),
-                        (fix_empty_meta_cycle , SegmentValue::Exact(&"fix_empty_meta_cycle")),
-                    ],
-                    colors[5].mix(0.5).filled(),
-                ),
-                Rectangle::new(
-                    [
-                        (0, SegmentValue::CenterOf(&"ignore_empty_row_meta_cycle")),
-                        (ignore_empty_row_meta_cycle , SegmentValue::Exact(&"ignore_empty_row_meta_cycle")),
-                    ],
-                    colors[6].mix(0.5).filled(),
-                ),
-                Rectangle::new(
-                    [
-                        (0, SegmentValue::CenterOf(&"compute_cycle")),
-                        (compute_cycle , SegmentValue::Exact(&"compute_cycle")),
-                    ],
-                    colors[7].mix(0.5).filled(),
-                ),
-                Rectangle::new(
-                    [
-                        (0, SegmentValue::CenterOf(&"row_open")),
-                        (row_open , SegmentValue::Exact(&"row_open")),
-                    ],
-                    colors[8].mix(0.5).filled(),
-                )
+        chart.draw_series([
+            Rectangle::new(
+                [
+                    (0, SegmentValue::CenterOf(&"cycle")),
+                    (cycle, SegmentValue::Exact(&"cycle")),
+                ],
+                colors[0].mix(0.5).filled(),
+            ),
+            Rectangle::new(
+                [
+                    (0, SegmentValue::CenterOf(&"total_cycle_fix_empty_meta")),
+                    (
+                        total_cycle_fix_empty_meta,
+                        SegmentValue::Exact(&"total_cycle_fix_empty_meta"),
+                    ),
+                ],
+                colors[1].mix(0.5).filled(),
+            ),
+            Rectangle::new(
+                [
+                    (0, SegmentValue::CenterOf(&"total_cycle_ignore_empty_meta")),
+                    (
+                        total_cycle_ignore_empty_meta,
+                        SegmentValue::Exact(&"total_cycle_ignore_empty_meta"),
+                    ),
+                ],
+                colors[2].mix(0.5).filled(),
+            ),
+            Rectangle::new(
+                [
+                    (0, SegmentValue::CenterOf(&"total_cycle_ignore_meta")),
+                    (
+                        total_cycle_ignore_meta,
+                        SegmentValue::Exact(&"total_cycle_ignore_meta"),
+                    ),
+                ],
+                colors[3].mix(0.5).filled(),
+            ),
+            Rectangle::new(
+                [
+                    (0, SegmentValue::CenterOf(&"meta_cycle")),
+                    (meta_cycle, SegmentValue::Exact(&"meta_cycle")),
+                ],
+                colors[4].mix(0.5).filled(),
+            ),
+            Rectangle::new(
+                [
+                    (0, SegmentValue::CenterOf(&"fix_empty_meta_cycle")),
+                    (
+                        fix_empty_meta_cycle,
+                        SegmentValue::Exact(&"fix_empty_meta_cycle"),
+                    ),
+                ],
+                colors[5].mix(0.5).filled(),
+            ),
+            Rectangle::new(
+                [
+                    (0, SegmentValue::CenterOf(&"ignore_empty_row_meta_cycle")),
+                    (
+                        ignore_empty_row_meta_cycle,
+                        SegmentValue::Exact(&"ignore_empty_row_meta_cycle"),
+                    ),
+                ],
+                colors[6].mix(0.5).filled(),
+            ),
+            Rectangle::new(
+                [
+                    (0, SegmentValue::CenterOf(&"compute_cycle")),
+                    (compute_cycle, SegmentValue::Exact(&"compute_cycle")),
+                ],
+                colors[7].mix(0.5).filled(),
+            ),
+            Rectangle::new(
+                [
+                    (0, SegmentValue::CenterOf(&"row_open")),
+                    (row_open, SegmentValue::Exact(&"row_open")),
+                ],
+                colors[8].mix(0.5).filled(),
+            ),
+        ])?;
 
-                ]
-        )?;
-       
         chart.configure_series_labels().draw()?;
     }
     root.present()?;
     Ok(())
 }
 
-
-fn draw_empty(args:SplitArgs)->Result<(), Box<dyn Error>>{
+fn draw_empty(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let SplitArgs {
         split_result,
         output,
@@ -311,42 +390,38 @@ fn draw_empty_rec<'a, DB: DrawingBackend + 'a>(
     for (graph, chart) in result.results.iter().zip(charts) {
         info!("draw graph {}", graph.name);
         // first get the min_max for the cycles for each bank
-        
-        let empty_rate:f32 = graph.graph_result.iter().map(|x| (x.total_empty_row as f32)/((x.total_empty_row+x.total_non_empt_row) as f32)).sum::<f32>()/graph.graph_result.len() as f32;
+
+        let empty_rate: f32 = graph
+            .graph_result
+            .iter()
+            .map(|x| {
+                (x.total_empty_row as f32) / ((x.total_empty_row + x.total_non_empt_row) as f32)
+            })
+            .sum::<f32>()
+            / graph.graph_result.len() as f32;
 
         let name = PathBuf::from(graph.name.clone());
         let mut chart = ChartBuilder::on(&chart)
-            .caption(format!("{}:{}",name.file_name().unwrap().to_str().unwrap(), empty_rate), ("sans-serif", 20).into_font())
+            .caption(
+                format!(
+                    "{}:{}",
+                    name.file_name().unwrap().to_str().unwrap(),
+                    empty_rate
+                ),
+                ("sans-serif", 20).into_font(),
+            )
             .x_label_area_size(10.percent())
             .y_label_area_size(10.percent())
             .margin(5.percent())
-            .build_cartesian_2d(
-                (0f32)..(1f32),
-                (0f32)..(1f32),
-            )?;
+            .build_cartesian_2d((0f32)..(1f32), (0f32)..(1f32))?;
 
         chart.configure_mesh().disable_mesh().draw()?;
 
-        
-        chart.draw_series(
-           
-                [Rectangle::new(
-                    [
-                        (0f32, 0f32),
-                        (1f32, empty_rate),
-                    ],
-                    BLACK.mix(0.5).filled(),
-                ),
-                Rectangle::new(
-                    [
-                        (0f32, empty_rate),
-                        (1f32, 1f32),
-                    ],
-                    RED.mix(0.5).filled(),
-                ),
-                ]
-        )?;
-       
+        chart.draw_series([
+            Rectangle::new([(0f32, 0f32), (1f32, empty_rate)], BLACK.mix(0.5).filled()),
+            Rectangle::new([(0f32, empty_rate), (1f32, 1f32)], RED.mix(0.5).filled()),
+        ])?;
+
         chart.configure_series_labels().draw()?;
     }
     root.present()?;
@@ -355,7 +430,6 @@ fn draw_empty_rec<'a, DB: DrawingBackend + 'a>(
 
 fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
     // get the speed up from spmm and gearbox
-    // first calculate the runting for out design
     let split_path = args
         .split_result
         .unwrap_or_else(|| "output/gearbox_out_001_split_spmm.json".into());
@@ -412,7 +486,7 @@ fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
             (speed_up, speed_up_tsv, speed_up_ring, speed_up_comp),
         ));
     }
-    // draw the speed up using plotlib
+    // draw the speed up using plotters
     match ext {
         Ext::Png => {
             let root = BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area();
@@ -455,32 +529,28 @@ fn get_ext(output_path: &PathBuf) -> Ext {
             "svg" => Ext::Svg,
             _ => {
                 let terminal_size = terminal_size::terminal_size().unwrap();
-                if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT
-                {
-                    eprintln!(
-            "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
-            terminal_size.0 .0, terminal_size.1 .0
-        );
-                    std::process::exit(1);
-                };
+                check_terminal_size(terminal_size);
                 Ext::Console
             }
         },
         None => {
             let terminal_size = terminal_size::terminal_size().unwrap();
-            if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT {
-                eprintln!(
-            "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
-            terminal_size.0 .0, terminal_size.1 .0
-        );
-                std::process::exit(1);
-            };
+            check_terminal_size(terminal_size);
             Ext::Console
         }
     };
     ext
 }
 
+fn check_terminal_size(terminal_size: (Width, Height)) {
+    if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT {
+        eprintln!(
+            "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
+            terminal_size.0.0, terminal_size.1.0
+        );
+        std::process::exit(1);
+    };
+}
 
 fn draw_split(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let SplitArgs {
@@ -547,7 +617,7 @@ fn draw_box<'a, DB: DrawingBackend + 'a>(
             BLACK,
             BLUEGREY,
         ];
-        let segs = types.clone();
+        let segments = types.clone();
         let range_size = value_range.end - value_range.start;
         let mut chart = ChartBuilder::on(&chart)
             .caption(graph.name.clone(), ("sans-serif", 20).into_font())
@@ -556,25 +626,23 @@ fn draw_box<'a, DB: DrawingBackend + 'a>(
             .margin(5.percent())
             .build_cartesian_2d(
                 (value_range.start as f32 * 0.85)..(value_range.end as f32 * 1.15),
-                segs.into_segmented(),
+                segments.into_segmented(),
             )?;
 
         chart.configure_mesh().disable_mesh().draw()?;
 
         let data = graph.graph_result.iter().fold(
-            [vec![], vec![], vec![], vec![], vec![], vec![], vec![],  vec![]],
+            [vec![], vec![], vec![], vec![], vec![], vec![], vec![], vec![]],
             |[
-                mut cycles,
-                mut total_cycle_ignore_empty,
-                mut total_cycle_fix_empty,
-                mut ignore_empty_row_meta_cycle,
-                mut fix_empty_row_meta_cycle,
-                mut meta_cycles,
-                mut comp_cycles,
-                mut row_opens,
-            ],
-
-            
+             mut cycles,
+             mut total_cycle_ignore_empty,
+             mut total_cycle_fix_empty,
+             mut ignore_empty_row_meta_cycle,
+             mut fix_empty_row_meta_cycle,
+             mut meta_cycles,
+             mut comp_cycles,
+             mut row_opens,
+             ],
              c| {
                 cycles.push(c.cycle);
                 total_cycle_ignore_empty.push(c.total_cycle_ignore_empty_meta);
@@ -596,18 +664,18 @@ fn draw_box<'a, DB: DrawingBackend + 'a>(
                 ]
             },
         );
-        let maxs = data.iter().map(|x| x.iter().max().unwrap()).collect_vec();
-        let quatiles = data
+        let maxes = data.iter().map(|x| x.iter().max().unwrap()).collect_vec();
+        let quartiles = data
             .iter()
             .map(|x| Quartiles::new(x.iter().map(|x| *x as f32).collect_vec().as_slice()))
             .collect_vec();
 
-        chart.draw_series(types.iter().zip(quatiles.iter()).zip(colors.iter()).map(
+        chart.draw_series(types.iter().zip(quartiles.iter()).zip(colors.iter()).map(
             |((name, data), color)| {
                 Boxplot::new_horizontal(SegmentValue::CenterOf(name), data).style(color)
             },
         ))?;
-        chart.draw_series(types.iter().zip(maxs.iter()).zip(colors.iter()).map(
+        chart.draw_series(types.iter().zip(maxes.iter()).zip(colors.iter()).map(
             |((name, &&data), color)| {
                 Rectangle::new(
                     [
@@ -632,7 +700,6 @@ fn draw_box<'a, DB: DrawingBackend + 'a>(
 
 #[cfg(test)]
 mod tests {
-
     use sprs::{num_kinds::Pattern, CsMat};
 
     #[test]

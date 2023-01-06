@@ -1,4 +1,10 @@
-use std::{error::Error, fmt::Debug, fs::File, io::BufReader, path::PathBuf};
+use std::{
+    error::Error,
+    fmt::Debug,
+    fs::File,
+    io::BufReader,
+    path::{Path, PathBuf},
+};
 
 use clap::Parser;
 use itertools::Itertools;
@@ -146,23 +152,25 @@ fn draw_cycle_dist(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let split_result: SplitAnalyzeResult =
         serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
     // generate the box plot for each graph
+    info!("{:?}", get_ext(&output_path));
     match get_ext(&output_path) {
-        Ext::Svg => draw_cycle_dist_rec(
-            SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area(),
-            &split_result,
-        )
-        .unwrap_or_else(|err| {
-            eprintln!("error: {}", err);
-            std::process::exit(1);
-        }),
-        Ext::Png => draw_cycle_dist_rec(
-            BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area(),
-            &split_result,
-        )
-        .unwrap_or_else(|err| {
-            eprintln!("error: {}", err);
-            std::process::exit(1);
-        }),
+        Ext::Svg => {
+            let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+            root.fill(&WHITE)?;
+            draw_cycle_dist_rec(root, &split_result).unwrap_or_else(|err| {
+                eprintln!("error: {}", err);
+                std::process::exit(1);
+            })
+        }
+        Ext::Png => {
+            let root = BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+            info!("draw png");
+            root.fill(&WHITE)?;
+            draw_cycle_dist_rec(root, &split_result).unwrap_or_else(|err| {
+                eprintln!("error: {}", err);
+                std::process::exit(1);
+            })
+        }
         Ext::Console => {
             let terminal_size = terminal_size::terminal_size().unwrap();
 
@@ -177,11 +185,7 @@ fn draw_cycle_dist(args: SplitArgs) -> Result<(), Box<dyn Error>> {
             })
         }
     }
-    let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
-    draw_cycle_dist_rec(root, &split_result).unwrap_or_else(|err| {
-        eprintln!("error: {}", err);
-        std::process::exit(1);
-    });
+
     Ok(())
 }
 
@@ -189,7 +193,6 @@ fn draw_cycle_dist_rec<'a, DB: DrawingBackend + 'a>(
     root: DrawingArea<DB, Shift>,
     result: &SplitAnalyzeResult,
 ) -> Result<(), Box<dyn Error + 'a>> {
-    root.fill(&WHITE)?;
     let charts = root.split_evenly((4, 5));
     for (graph, chart) in result.results.iter().zip(charts) {
         info!("draw graph {}", graph.name);
@@ -374,18 +377,42 @@ fn draw_empty(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let split_result: SplitAnalyzeResult =
         serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
     // generate the box plot for each graph
-    let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
-    draw_empty_rec(root, &split_result).unwrap_or_else(|err| {
-        eprintln!("error: {}", err);
-        std::process::exit(1);
-    });
+    match get_ext(&output_path) {
+        Ext::Svg => {
+            let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+            draw_empty_rec(root, &split_result).unwrap_or_else(|err| {
+                eprintln!("error: {}", err);
+                std::process::exit(1);
+            });
+        }
+        Ext::Png => {
+            let root = BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+            draw_empty_rec(root, &split_result).unwrap_or_else(|err| {
+                eprintln!("error: {}", err);
+                std::process::exit(1);
+            });
+        }
+        Ext::Console => {
+            let terminal_size = terminal_size::terminal_size().unwrap();
+
+            draw_cycle_dist_rec(
+                TextDrawingBackend::new(terminal_size.0 .0 as u32, terminal_size.1 .0 as u32)
+                    .into_drawing_area(),
+                &split_result,
+            )
+            .unwrap_or_else(|err| {
+                eprintln!("error: {}", err);
+                std::process::exit(1);
+            })
+        }
+    }
+
     Ok(())
 }
 fn draw_empty_rec<'a, DB: DrawingBackend + 'a>(
     root: DrawingArea<DB, Shift>,
     result: &SplitAnalyzeResult,
 ) -> Result<(), Box<dyn Error + 'a>> {
-    root.fill(&WHITE)?;
     let charts = root.split_evenly((4, 5));
     for (graph, chart) in result.results.iter().zip(charts) {
         info!("draw graph {}", graph.name);
@@ -522,7 +549,7 @@ fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn get_ext(output_path: &PathBuf) -> Ext {
+fn get_ext(output_path: &Path) -> Ext {
     let ext = match output_path.extension() {
         Some(ext) => match ext.to_str().unwrap() {
             "png" => Ext::Png,
@@ -700,11 +727,25 @@ fn draw_box<'a, DB: DrawingBackend + 'a>(
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
+    use spmspm_pim::cli::SplitArgs;
     use sprs::{num_kinds::Pattern, CsMat};
+
+    use crate::draw_cycle_dist;
 
     #[test]
     fn test_read_mtx() {
         const MTX_PATH: &str = "mtx/gearbox/ca-hollywood-2009.mtx";
         let _graph: CsMat<Pattern> = sprs::io::read_matrix_market(MTX_PATH).unwrap().to_csr();
+    }
+
+    #[test]
+    fn test_draw_cycle_png() {
+        draw_cycle_dist(SplitArgs {
+            split_result: None,
+            output: Some(PathBuf::from("test.png")),
+        })
+        .unwrap();
     }
 }

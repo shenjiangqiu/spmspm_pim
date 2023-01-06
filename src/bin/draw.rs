@@ -42,6 +42,7 @@ trait DrawFn {
 }
 
 type SpeedUp = (f32, f32, f32, f32);
+
 struct SpeedUpDrawer;
 
 impl DrawFn for SpeedUpDrawer {
@@ -53,8 +54,9 @@ impl DrawFn for SpeedUpDrawer {
         draw(root, data)
     }
 }
+
 /// the generic fn to draw the data using the DrawFn
-fn draw_data<DATA: ?Sized, F: DrawFn<DATA = DATA>>(
+fn draw_data<DATA: ?Sized, F: DrawFn<DATA=DATA>>(
     output_path: &Path,
     split_result: &DATA,
 ) -> Result<(), Box<dyn Error>> {
@@ -80,17 +82,18 @@ fn draw_data<DATA: ?Sized, F: DrawFn<DATA = DATA>>(
             let terminal_size = terminal_size::terminal_size().unwrap();
 
             F::draw_apply(
-                TextDrawingBackend::new(terminal_size.0 .0 as u32, terminal_size.1 .0 as u32)
+                TextDrawingBackend::new(terminal_size.0.0 as u32, terminal_size.1.0 as u32)
                     .into_drawing_area(),
                 &split_result,
             )
-            .unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            })
+                .unwrap_or_else(|err| {
+                    eprintln!("error: {}", err);
+                    std::process::exit(1);
+                })
         }
     })
 }
+
 /// draw speedup
 fn draw<'a, DB: DrawingBackend + 'a>(
     root: DrawingArea<DB, Shift>,
@@ -104,13 +107,13 @@ fn draw<'a, DB: DrawingBackend + 'a>(
     let max_height = data
         .iter()
         .max_by(|a, b| {
-            a.1 .0
-                .partial_cmp(&b.1 .0)
+            a.1.0
+                .partial_cmp(&b.1.0)
                 .unwrap_or(std::cmp::Ordering::Equal)
         })
         .unwrap()
         .1
-         .0;
+        .0;
     let mut chart = ChartBuilder::on(&left)
         .caption("Speed Up", ("sans-serif", 50).into_font())
         .margin(1)
@@ -171,7 +174,7 @@ fn draw<'a, DB: DrawingBackend + 'a>(
     // right_chart.configure_mesh().disable_mesh().draw()?;
 
     right_chart.draw_series(data.iter().enumerate().map(|(id, (name, speedup))| {
-        let name = std::path::Path::new(name);
+        let name = Path::new(name);
         let file_name = name.file_name().unwrap().to_str().unwrap();
         Text::new(
             format!("{}-{}-{:?}", id, file_name, speedup),
@@ -198,6 +201,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 struct CycleDrawer;
+
 impl DrawFn for CycleDrawer {
     type DATA = SplitAnalyzeResult;
 
@@ -288,9 +292,9 @@ fn draw_cycle_dist_rec<'a, DB: DrawingBackend + 'a>(
             compute_cycle,
             row_open,
         ]
-        .iter()
-        .max()
-        .unwrap();
+            .iter()
+            .max()
+            .unwrap();
 
         let colors = [BLACK, RED, BLUE, GREEN, YELLOW, PINK, GREY, CYAN, MAGENTA];
         let name = PathBuf::from(graph.name.clone());
@@ -405,6 +409,7 @@ fn draw_cycle_dist_rec<'a, DB: DrawingBackend + 'a>(
 }
 
 struct EmptyDrawer;
+
 impl DrawFn for EmptyDrawer {
     type DATA = SplitAnalyzeResult;
 
@@ -431,6 +436,7 @@ fn draw_empty(args: SplitArgs) -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
 fn draw_empty_rec<'a, DB: DrawingBackend + 'a>(
     root: DrawingArea<DB, Shift>,
     result: &SplitAnalyzeResult,
@@ -562,7 +568,7 @@ fn get_ext(output_path: &Path) -> Ext {
 }
 
 fn check_terminal_size(terminal_size: (Width, Height)) {
-    if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT {
+    if terminal_size.0.0 < MIN_CONSOLE_WIDTH || terminal_size.1.0 < MIN_CONSOLE_HEIGHT {
         eprintln!(
             "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
             terminal_size.0.0, terminal_size.1.0
@@ -572,6 +578,7 @@ fn check_terminal_size(terminal_size: (Width, Height)) {
 }
 
 struct SplitDrawer;
+
 impl DrawFn for SplitDrawer {
     type DATA = SplitAnalyzeResult;
 
@@ -582,6 +589,7 @@ impl DrawFn for SplitDrawer {
         draw_box(root, data)
     }
 }
+
 fn draw_split(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let SplitArgs {
         split_result,
@@ -745,6 +753,6 @@ mod tests {
             split_result: None,
             output: Some(PathBuf::from("test.png")),
         })
-        .unwrap();
+            .unwrap();
     }
 }

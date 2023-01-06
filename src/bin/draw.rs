@@ -1,4 +1,4 @@
-use std::{error::Error, fs::File, io::BufReader};
+use std::{error::Error, fs::File, io::BufReader, path::PathBuf, fmt::Debug};
 
 use clap::Parser;
 use itertools::Itertools;
@@ -6,7 +6,7 @@ use plotters::{
     coord::Shift,
     data::fitting_range,
     prelude::*,
-    style::full_palette::{BLUEGREY, PINK},
+    style::full_palette::{BLUEGREY, PINK, GREY},
 };
 use plotters_text::TextDrawingBackend;
 use spmspm_pim::{
@@ -125,7 +125,231 @@ fn main() -> Result<(), Box<dyn Error>> {
     match args.subcmd {
         spmspm_pim::cli::DrawType::SpeedUp(speed_up_args) => draw_speedup(speed_up_args)?,
         spmspm_pim::cli::DrawType::Split(split_args) => draw_split(split_args)?,
+        spmspm_pim::cli::DrawType::Empty(split_args) => draw_empty(split_args)?,
+        spmspm_pim::cli::DrawType::Cycle(split_args) => draw_cycle_dist(split_args)?,
     }
+    Ok(())
+}
+
+/// draw the cycle distribution of the split result
+fn draw_cycle_dist(args:SplitArgs)->Result<(), Box<dyn Error>>{
+    let SplitArgs {
+        split_result,
+        output,
+    } = args;
+    let output_path = output.unwrap_or_else(|| "output/cycle_dist.svg".into());
+    let split_result =
+        split_result.unwrap_or_else(|| "output/gearbox_out_001_split_spmm.json".into());
+    let split_result: SplitAnalyzeResult =
+        serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
+    // generate the box plot for each graph
+    match get_ext(&output_path) {
+        Ext::Svg=> draw_cycle_dist_rec(SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area(), &split_result).unwrap_or_else(|err| {
+            eprintln!("error: {}", err);
+            std::process::exit(1);
+        }),
+        Ext::Png => draw_cycle_dist_rec(BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area(), &split_result).unwrap_or_else(|err| {
+            eprintln!("error: {}", err);
+            std::process::exit(1);
+        }),
+        Ext::Console => {
+            
+            let terminal_size = terminal_size::terminal_size().unwrap();
+            
+            draw_cycle_dist_rec(TextDrawingBackend::new(terminal_size.0.0 as u32,terminal_size.1.0 as u32).into_drawing_area(), &split_result).unwrap_or_else(|err| {
+            eprintln!("error: {}", err);
+            std::process::exit(1);
+        })},
+     
+    }
+    let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+    draw_cycle_dist_rec(root, &split_result).unwrap_or_else(|err| {
+        eprintln!("error: {}", err);
+        std::process::exit(1);
+    });
+    Ok(())
+}
+
+fn draw_cycle_dist_rec<'a, DB: DrawingBackend + 'a>(
+    root: DrawingArea<DB, Shift>,
+    result: &SplitAnalyzeResult,
+) -> Result<(), Box<dyn Error + 'a>> {
+    root.fill(&WHITE)?;
+    let charts = root.split_evenly((4, 5));
+    for (graph, chart) in result.results.iter().zip(charts) {
+        info!("draw graph {}", graph.name);
+        // first get the min_max for the cycles for each bank
+        let num_partition = graph.graph_result.len() as u64;
+        
+        let cycle = graph.graph_result.iter().map(|x| x.cycle).sum::<u64>()/num_partition;
+        let total_cycle_fix_empty_meta = graph.graph_result.iter().map(|x| x.total_cycle_fix_empty_meta).sum::<u64>()/num_partition;
+        let total_cycle_ignore_empty_meta = graph.graph_result.iter().map(|x| x.total_cycle_ignore_empty_meta).sum::<u64>()/num_partition;
+        let total_cycle_ignore_meta = graph.graph_result.iter().map(|x| x.total_cycle_ignore_meta).sum::<u64>()/num_partition;
+        let meta_cycle = graph.graph_result.iter().map(|x| x.meta_cycle).sum::<u64>()/num_partition;
+        let fix_empty_meta_cycle = graph.graph_result.iter().map(|x| x.fix_empty_meta_cycle).sum::<u64>()/num_partition;
+        let ignore_empty_row_meta_cycle = graph.graph_result.iter().map(|x| x.ignore_empty_row_meta_cycle).sum::<u64>()/num_partition;
+        let compute_cycle = graph.graph_result.iter().map(|x| x.compute_cycle).sum::<u64>()/num_partition;
+        let row_open = graph.graph_result.iter().map(|x| x.row_open).sum::<u64>()/num_partition;
+        let max_cycle = *[cycle,total_cycle_fix_empty_meta,total_cycle_ignore_empty_meta,total_cycle_ignore_meta,meta_cycle,fix_empty_meta_cycle,ignore_empty_row_meta_cycle,compute_cycle,row_open].iter().max().unwrap();
+
+        let colors = [BLACK, RED, BLUE, GREEN, YELLOW, PINK, GREY, CYAN, MAGENTA];
+        let name = PathBuf::from(graph.name.clone());
+        let segs = ["cycle","total_cycle_fix_empty_meta","total_cycle_ignore_empty_meta","total_cycle_ignore_meta","meta_cycle","fix_empty_meta_cycle","ignore_empty_row_meta_cycle","compute_cycle","row_open"];
+        let mut chart = ChartBuilder::on(&chart)
+            .caption(format!("{}",name.file_name().unwrap().to_str().unwrap()), ("sans-serif", 20).into_font())
+            .x_label_area_size(10.percent())
+            .y_label_area_size(10.percent())
+            .margin(5.percent())
+            .build_cartesian_2d(
+                0..max_cycle,
+                segs.into_segmented(),
+            )?;
+
+        chart.configure_mesh().disable_mesh().draw()?;
+
+        
+        chart.draw_series(
+           
+                [Rectangle::new(
+                    [
+                        (0, SegmentValue::CenterOf(&"cycle")),
+                        (cycle , SegmentValue::Exact(&"cycle")),
+                    ],
+                    colors[0].mix(0.5).filled(),
+                ),
+                Rectangle::new(
+                    [
+                        (0, SegmentValue::CenterOf(&"total_cycle_fix_empty_meta")),
+                        (total_cycle_fix_empty_meta , SegmentValue::Exact(&"total_cycle_fix_empty_meta")),
+                    ],
+                    colors[1].mix(0.5).filled(),
+                ),
+                Rectangle::new(
+                    [
+                        (0, SegmentValue::CenterOf(&"total_cycle_ignore_empty_meta")),
+                        (total_cycle_ignore_empty_meta , SegmentValue::Exact(&"total_cycle_ignore_empty_meta")),
+                    ],
+                    colors[2].mix(0.5).filled(),
+                ),
+                Rectangle::new(
+                    [
+                        (0, SegmentValue::CenterOf(&"total_cycle_ignore_meta")),
+                        (total_cycle_ignore_meta , SegmentValue::Exact(&"total_cycle_ignore_meta")),
+                    ],
+                    colors[3].mix(0.5).filled(),
+                ),
+                Rectangle::new(
+                    [
+                        (0, SegmentValue::CenterOf(&"meta_cycle")),
+                        (meta_cycle , SegmentValue::Exact(&"meta_cycle")),
+                    ],
+                    colors[4].mix(0.5).filled(),
+                ),
+                Rectangle::new(
+                    [
+                        (0, SegmentValue::CenterOf(&"fix_empty_meta_cycle")),
+                        (fix_empty_meta_cycle , SegmentValue::Exact(&"fix_empty_meta_cycle")),
+                    ],
+                    colors[5].mix(0.5).filled(),
+                ),
+                Rectangle::new(
+                    [
+                        (0, SegmentValue::CenterOf(&"ignore_empty_row_meta_cycle")),
+                        (ignore_empty_row_meta_cycle , SegmentValue::Exact(&"ignore_empty_row_meta_cycle")),
+                    ],
+                    colors[6].mix(0.5).filled(),
+                ),
+                Rectangle::new(
+                    [
+                        (0, SegmentValue::CenterOf(&"compute_cycle")),
+                        (compute_cycle , SegmentValue::Exact(&"compute_cycle")),
+                    ],
+                    colors[7].mix(0.5).filled(),
+                ),
+                Rectangle::new(
+                    [
+                        (0, SegmentValue::CenterOf(&"row_open")),
+                        (row_open , SegmentValue::Exact(&"row_open")),
+                    ],
+                    colors[8].mix(0.5).filled(),
+                )
+
+                ]
+        )?;
+       
+        chart.configure_series_labels().draw()?;
+    }
+    root.present()?;
+    Ok(())
+}
+
+
+fn draw_empty(args:SplitArgs)->Result<(), Box<dyn Error>>{
+    let SplitArgs {
+        split_result,
+        output,
+    } = args;
+    let output_path = output.unwrap_or_else(|| "empty.svg".into());
+    let split_result =
+        split_result.unwrap_or_else(|| "output/gearbox_out_001_split_spmm.json".into());
+    let split_result: SplitAnalyzeResult =
+        serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
+    // generate the box plot for each graph
+    let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+    draw_empty_rec(root, &split_result).unwrap_or_else(|err| {
+        eprintln!("error: {}", err);
+        std::process::exit(1);
+    });
+    Ok(())
+}
+fn draw_empty_rec<'a, DB: DrawingBackend + 'a>(
+    root: DrawingArea<DB, Shift>,
+    result: &SplitAnalyzeResult,
+) -> Result<(), Box<dyn Error + 'a>> {
+    root.fill(&WHITE)?;
+    let charts = root.split_evenly((4, 5));
+    for (graph, chart) in result.results.iter().zip(charts) {
+        info!("draw graph {}", graph.name);
+        // first get the min_max for the cycles for each bank
+        
+        let empty_rate:f32 = graph.graph_result.iter().map(|x| (x.total_empty_row as f32)/((x.total_empty_row+x.total_non_empt_row) as f32)).sum::<f32>()/graph.graph_result.len() as f32;
+
+        let name = PathBuf::from(graph.name.clone());
+        let mut chart = ChartBuilder::on(&chart)
+            .caption(format!("{}:{}",name.file_name().unwrap().to_str().unwrap(), empty_rate), ("sans-serif", 20).into_font())
+            .x_label_area_size(10.percent())
+            .y_label_area_size(10.percent())
+            .margin(5.percent())
+            .build_cartesian_2d(
+                (0f32)..(1f32),
+                (0f32)..(1f32),
+            )?;
+
+        chart.configure_mesh().disable_mesh().draw()?;
+
+        
+        chart.draw_series(
+           
+                [Rectangle::new(
+                    [
+                        (0f32, 0f32),
+                        (1f32, empty_rate),
+                    ],
+                    BLACK.mix(0.5).filled(),
+                ),
+                Rectangle::new(
+                    [
+                        (0f32, empty_rate),
+                        (1f32, 1f32),
+                    ],
+                    RED.mix(0.5).filled(),
+                ),
+                ]
+        )?;
+       
+        chart.configure_series_labels().draw()?;
+    }
+    root.present()?;
     Ok(())
 }
 
@@ -139,35 +363,7 @@ fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
         .gearbox_result
         .unwrap_or_else(|| "output/gearbox_out_001_gearbox.json".into());
     let output_path = args.output.unwrap_or_else(|| "console".into());
-    let ext = match output_path.extension() {
-        Some(ext) => match ext.to_str().unwrap() {
-            "png" => Ext::Png,
-            "svg" => Ext::Svg,
-            _ => {
-                let terminal_size = terminal_size::terminal_size().unwrap();
-                if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT
-                {
-                    eprintln!(
-            "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
-            terminal_size.0 .0, terminal_size.1 .0
-        );
-                    std::process::exit(1);
-                };
-                Ext::Console
-            }
-        },
-        None => {
-            let terminal_size = terminal_size::terminal_size().unwrap();
-            if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT {
-                eprintln!(
-            "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
-            terminal_size.0 .0, terminal_size.1 .0
-        );
-                std::process::exit(1);
-            };
-            Ext::Console
-        }
-    };
+    let ext = get_ext(&output_path);
     info!("ext is {:?}", ext);
     info!("start parsing {:?} and {:?}", split_path, gearbox_path);
     let split_result: SplitAnalyzeResult =
@@ -251,6 +447,40 @@ fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
     }
     Ok(())
 }
+
+fn get_ext(output_path: &PathBuf) -> Ext {
+    let ext = match output_path.extension() {
+        Some(ext) => match ext.to_str().unwrap() {
+            "png" => Ext::Png,
+            "svg" => Ext::Svg,
+            _ => {
+                let terminal_size = terminal_size::terminal_size().unwrap();
+                if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT
+                {
+                    eprintln!(
+            "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
+            terminal_size.0 .0, terminal_size.1 .0
+        );
+                    std::process::exit(1);
+                };
+                Ext::Console
+            }
+        },
+        None => {
+            let terminal_size = terminal_size::terminal_size().unwrap();
+            if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT {
+                eprintln!(
+            "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
+            terminal_size.0 .0, terminal_size.1 .0
+        );
+                std::process::exit(1);
+            };
+            Ext::Console
+        }
+    };
+    ext
+}
+
 
 fn draw_split(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let SplitArgs {

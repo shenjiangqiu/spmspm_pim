@@ -69,6 +69,8 @@ pub enum DrawType {
     SpeedUp(SpeedUpArgs),
     ///
     Split(SplitArgs),
+    Empty(SplitArgs),
+    Cycle(SplitArgs),
 }
 
 #[derive(Parser, Debug)]
@@ -81,17 +83,22 @@ pub struct DrawCli {
 #[derive(Args, Debug)]
 pub struct SpeedUpArgs {
     /// the path of the split spmm result
+    #[clap(short, long)]
     pub split_result: Option<PathBuf>,
     /// the path of gearbox result
+    #[clap(short, long)]
     pub gearbox_result: Option<PathBuf>,
     /// the output path of png,
+    #[clap(short, long)]
     pub output: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 pub struct SplitArgs {
     /// the path of the split spmm result
+    #[clap(short, long)]
     pub split_result: Option<PathBuf>,
     /// the output path of png,
+    #[clap(short, long)]
     pub output: Option<PathBuf>,
 }

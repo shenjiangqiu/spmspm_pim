@@ -61,6 +61,9 @@ impl SplitAnalyzeResult {
                 total_cycle_ignore_empty_meta,
                 total_cycle_fix_empty_meta,
                 fix_empty_meta_cycle,
+                total_non_empt_row,
+                total_empty_row,
+                total_cycle_ignore_meta,
             } in &result.graph_result
             {
                 println!("cycle: {}", cycle);
@@ -69,6 +72,7 @@ impl SplitAnalyzeResult {
                     "ignore_empty_row_meta_cycle: {}",
                     ignore_empty_row_meta_cycle
                 );
+                println!("total_cycle_ignore_meta: {}", total_cycle_ignore_meta);
                 println!(
                     "total_cycle_ignore_empty_meta: {}",
                     total_cycle_ignore_empty_meta
@@ -86,6 +90,8 @@ impl SplitAnalyzeResult {
                 println!("used_bytes: {}\n", used_bytes);
                 println!("input_read_bytes: {}", input_read_bytes);
                 println!("input_read_times: {}\n", input_read_times);
+                println!("total_non_empt_row: {}", total_non_empt_row);
+                println!("total_empty_row: {}", total_empty_row);
             }
         }
     }
@@ -219,6 +225,7 @@ pub struct SeqResult {
     /// the cycles
     pub cycle: u64,
     /// meta data cycles
+    pub total_cycle_ignore_meta: u64,
     pub meta_cycle: u64,
     pub ignore_empty_row_meta_cycle: u64,
     pub total_cycle_ignore_empty_meta: u64,
@@ -246,6 +253,8 @@ pub struct SeqResult {
     pub input_read_bytes: usize,
     /// total input read times
     pub input_read_times: usize,
+    pub total_non_empt_row: u64,
+    pub total_empty_row: u64,
 }
 
 /// add two vector and return a new vector(sparse)
@@ -400,9 +409,11 @@ where
 
     let mut total_cycle_ignore_empty_meta: u64 = 0;
     let mut total_cycle_fix_empty_meta: u64 = 0;
+    let mut total_cycle_ignore_meta: u64 = 0;
 
     let mut fix_empty_meta_cycle: u64 = 0;
-
+    let mut total_empty_row: u64 = 0;
+    let mut total_non_empt_row: u64 = 0;
     let mut row_open_bytes: usize = 0;
     let mut used_bytes: usize = 0;
     let mut input_read_bytes: usize = 0;
@@ -460,13 +471,17 @@ where
                 // no need to work
                 total_cycle_fix_empty_meta += 2;
                 fix_empty_meta_cycle += 2;
+                total_empty_row += 1;
                 continue;
             }
-            ignore_empty_row_meta_cycle += first_row_cycle as u64 + remaining_row_cycle as u64;
+            total_non_empt_row += 1;
+
+            total_cycle_fix_empty_meta += first_row_cycle as u64 + remaining_row_cycle as u64;
             fix_empty_meta_cycle += first_row_cycle as u64 + remaining_row_cycle as u64;
 
             total_cycle_ignore_empty_meta += first_row_cycle as u64 + remaining_row_cycle as u64;
-            total_cycle_fix_empty_meta += first_row_cycle as u64 + remaining_row_cycle as u64;
+            ignore_empty_row_meta_cycle += first_row_cycle as u64 + remaining_row_cycle as u64;
+
             let (current_temp, current_final) = if reverse_result {
                 (&mut final_result_subarray, &mut temp_result_subarray)
             } else {
@@ -507,7 +522,9 @@ where
             // calculate the cycle:
             // 1. the cycle to calculate the nnz
             let _compute_cycle = current_result.nnz() as u64;
-            cycle += _compute_cycle;
+            let mut cycle_compute_and_row_open = 0;
+            cycle_compute_and_row_open += _compute_cycle;
+
             compute_cycle += _compute_cycle;
             // 2. the cycle to open the row of the input matrix
             let input_row_detail = LevelType::get_row_detail(&mappings_b, task_id_b);
@@ -533,12 +550,17 @@ where
             debug!(?input_cycle1, ?input_cycle2);
             // the first row open can be parallel, so we only count the max cycle
             let first = temp_result1.max(final_result1).max(input_cycle1) as u64;
-            cycle += first;
+            cycle_compute_and_row_open += first;
             row_open += first;
             // other row switch should be sequential
             let others = (temp_result2 + final_result2 + input_cycle2) as u64;
-            cycle += others;
+            cycle_compute_and_row_open += others;
             row_open += others;
+
+            cycle += cycle_compute_and_row_open;
+            total_cycle_fix_empty_meta += cycle_compute_and_row_open;
+            total_cycle_ignore_empty_meta += cycle_compute_and_row_open;
+            total_cycle_ignore_meta += cycle_compute_and_row_open;
         }
     }
 
@@ -546,6 +568,7 @@ where
         cycle,
         total_cycle_ignore_empty_meta,
         total_cycle_fix_empty_meta,
+        total_cycle_ignore_meta,
         fix_empty_meta_cycle,
         meta_cycle,
         ignore_empty_row_meta_cycle,
@@ -560,6 +583,8 @@ where
         used_bytes,
         input_read_bytes,
         input_read_times,
+        total_non_empt_row,
+        total_empty_row,
     }
 }
 

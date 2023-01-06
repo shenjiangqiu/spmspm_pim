@@ -33,8 +33,65 @@ enum Ext {
 const MIN_CONSOLE_WIDTH: u16 = 320;
 const MIN_CONSOLE_HEIGHT: u16 = 60;
 
-type SpeedUp = (f32, f32, f32, f32);
+trait DrawFn {
+    type DATA: ?Sized;
+    fn draw_apply<'a, DB: DrawingBackend + 'a>(
+        root: DrawingArea<DB, Shift>,
+        data: &Self::DATA,
+    ) -> Result<(), Box<dyn Error + 'a>>;
+}
 
+type SpeedUp = (f32, f32, f32, f32);
+struct SpeedUpDrawer;
+
+impl DrawFn for SpeedUpDrawer {
+    type DATA = [(String, SpeedUp)];
+    fn draw_apply<'a, DB: DrawingBackend + 'a>(
+        root: DrawingArea<DB, Shift>,
+        data: &Self::DATA,
+    ) -> Result<(), Box<dyn Error + 'a>> {
+        draw(root, data)
+    }
+}
+/// the generic fn to draw the data using the DrawFn
+fn draw_data<DATA: ?Sized, F: DrawFn<DATA = DATA>>(
+    output_path: &Path,
+    split_result: &DATA,
+) -> Result<(), Box<dyn Error>> {
+    Ok(match get_ext(&output_path) {
+        Ext::Svg => {
+            let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+            root.fill(&WHITE)?;
+            F::draw_apply(root, &split_result).unwrap_or_else(|err| {
+                eprintln!("error: {}", err);
+                std::process::exit(1);
+            })
+        }
+        Ext::Png => {
+            let root = BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+            info!("draw png");
+            root.fill(&WHITE)?;
+            F::draw_apply(root, &split_result).unwrap_or_else(|err| {
+                eprintln!("error: {}", err);
+                std::process::exit(1);
+            })
+        }
+        Ext::Console => {
+            let terminal_size = terminal_size::terminal_size().unwrap();
+
+            F::draw_apply(
+                TextDrawingBackend::new(terminal_size.0 .0 as u32, terminal_size.1 .0 as u32)
+                    .into_drawing_area(),
+                &split_result,
+            )
+            .unwrap_or_else(|err| {
+                eprintln!("error: {}", err);
+                std::process::exit(1);
+            })
+        }
+    })
+}
+/// draw speedup
 fn draw<'a, DB: DrawingBackend + 'a>(
     root: DrawingArea<DB, Shift>,
     data: &[(String, SpeedUp)],
@@ -140,6 +197,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+struct CycleDrawer;
+impl DrawFn for CycleDrawer {
+    type DATA = SplitAnalyzeResult;
+
+    fn draw_apply<'a, DB: DrawingBackend + 'a>(
+        root: DrawingArea<DB, Shift>,
+        data: &Self::DATA,
+    ) -> Result<(), Box<dyn Error + 'a>> {
+        draw_cycle_dist_rec(root, data)
+    }
+}
+
 /// draw the cycle distribution of the split result
 fn draw_cycle_dist(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let SplitArgs {
@@ -153,38 +222,7 @@ fn draw_cycle_dist(args: SplitArgs) -> Result<(), Box<dyn Error>> {
         serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
     // generate the box plot for each graph
     info!("{:?}", get_ext(&output_path));
-    match get_ext(&output_path) {
-        Ext::Svg => {
-            let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
-            root.fill(&WHITE)?;
-            draw_cycle_dist_rec(root, &split_result).unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            })
-        }
-        Ext::Png => {
-            let root = BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area();
-            info!("draw png");
-            root.fill(&WHITE)?;
-            draw_cycle_dist_rec(root, &split_result).unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            })
-        }
-        Ext::Console => {
-            let terminal_size = terminal_size::terminal_size().unwrap();
-
-            draw_cycle_dist_rec(
-                TextDrawingBackend::new(terminal_size.0 .0 as u32, terminal_size.1 .0 as u32)
-                    .into_drawing_area(),
-                &split_result,
-            )
-            .unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            })
-        }
-    }
+    draw_data::<_, CycleDrawer>(&output_path, &split_result)?;
 
     Ok(())
 }
@@ -366,6 +404,18 @@ fn draw_cycle_dist_rec<'a, DB: DrawingBackend + 'a>(
     Ok(())
 }
 
+struct EmptyDrawer;
+impl DrawFn for EmptyDrawer {
+    type DATA = SplitAnalyzeResult;
+
+    fn draw_apply<'a, DB: DrawingBackend + 'a>(
+        root: DrawingArea<DB, Shift>,
+        data: &Self::DATA,
+    ) -> Result<(), Box<dyn Error + 'a>> {
+        draw_empty_rec(root, data)
+    }
+}
+
 fn draw_empty(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let SplitArgs {
         split_result,
@@ -377,35 +427,7 @@ fn draw_empty(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let split_result: SplitAnalyzeResult =
         serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
     // generate the box plot for each graph
-    match get_ext(&output_path) {
-        Ext::Svg => {
-            let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
-            draw_empty_rec(root, &split_result).unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            });
-        }
-        Ext::Png => {
-            let root = BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area();
-            draw_empty_rec(root, &split_result).unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            });
-        }
-        Ext::Console => {
-            let terminal_size = terminal_size::terminal_size().unwrap();
-
-            draw_cycle_dist_rec(
-                TextDrawingBackend::new(terminal_size.0 .0 as u32, terminal_size.1 .0 as u32)
-                    .into_drawing_area(),
-                &split_result,
-            )
-            .unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            })
-        }
-    }
+    draw_data::<_, EmptyDrawer>(&output_path, &split_result)?;
 
     Ok(())
 }
@@ -514,38 +536,8 @@ fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
         ));
     }
     // draw the speed up using plotters
-    match ext {
-        Ext::Png => {
-            let root = BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area();
-            root.fill(&WHITE)?;
+    draw_data::<_, SpeedUpDrawer>(&output_path, &data)?;
 
-            draw(root, &data).unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            });
-        }
-        Ext::Svg => {
-            let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
-            root.fill(&WHITE)?;
-
-            draw(root, &data).unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            });
-        }
-        Ext::Console => {
-            info!("draw to console");
-            let terminal_size = terminal_size::terminal_size().unwrap();
-
-            let root =
-                TextDrawingBackend::new(terminal_size.0 .0 as u32, terminal_size.1 .0 as u32)
-                    .into_drawing_area();
-            draw(root, &data).unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            });
-        }
-    }
     Ok(())
 }
 
@@ -579,6 +571,17 @@ fn check_terminal_size(terminal_size: (Width, Height)) {
     };
 }
 
+struct SplitDrawer;
+impl DrawFn for SplitDrawer {
+    type DATA = SplitAnalyzeResult;
+
+    fn draw_apply<'a, DB: DrawingBackend + 'a>(
+        root: DrawingArea<DB, Shift>,
+        data: &Self::DATA,
+    ) -> Result<(), Box<dyn Error + 'a>> {
+        draw_box(root, data)
+    }
+}
 fn draw_split(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let SplitArgs {
         split_result,
@@ -590,11 +593,7 @@ fn draw_split(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let split_result: SplitAnalyzeResult =
         serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
     // generate the box plot for each graph
-    let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
-    draw_box(root, &split_result).unwrap_or_else(|err| {
-        eprintln!("error: {}", err);
-        std::process::exit(1);
-    });
+    draw_data::<_, SplitDrawer>(&output_path, &split_result)?;
     Ok(())
 }
 

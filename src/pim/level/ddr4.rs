@@ -141,13 +141,20 @@ impl LevelTrait for Level {
         Self::SubArray
     }
 
+    fn subarray() -> Self {
+        Self::SubArray
+    }
     fn row() -> Self {
         Self::Row
     }
+
     fn bank() -> Self {
         Self::Bank
     }
 
+    fn col() -> Self {
+        Self::Column
+    }
     fn get_level_id(&self, storage: &Storage) -> usize {
         storage.data[self.to_usize()]
     }
@@ -157,9 +164,18 @@ impl LevelTrait for Level {
         data[..(self.to_usize() + 1)].copy_from_slice(&storage.data[..(self.to_usize() + 1)]);
         Storage { data }
     }
+
+    fn get_total_level(&self, total_size: &Self::Storage) -> usize {
+        total_size.get_total_level(self)
+    }
+
+    fn get_flat_level_id(&self, total_size: &Self::Storage, id: &Self::Storage) -> usize {
+        id.get_flat_level_id(total_size, self)
+    }
+
     /// TODO: Description
     fn get_mapping(total_size: &Self::Storage, graph: &CsMat<Pattern>) -> Self::Mapping {
-        assert!(graph.storage() == CSR);
+        assert_eq!(graph.storage(), CSR);
         debug!(
             "start to build mapping for ddr4,total size: {:?}",
             total_size
@@ -199,28 +215,12 @@ impl LevelTrait for Level {
         &mapping.rows[row]
     }
 
-    fn get_total_level(&self, total_size: &Self::Storage) -> usize {
-        total_size.get_total_level(self)
-    }
-
-    fn get_flat_level_id(&self, total_size: &Self::Storage, id: &Self::Storage) -> usize {
-        id.get_flat_level_id(total_size, self)
-    }
-
     fn set_one_to_level(storage: &Self::Storage, level: &Self) -> Self::Storage {
         let mut storage = storage.clone();
         for i in 0..(level.to_usize()) {
             storage.data[i] = 1;
         }
         storage
-    }
-
-    fn subarray() -> Self {
-        Self::SubArray
-    }
-
-    fn col() -> Self {
-        Self::Column
     }
 }
 
@@ -232,7 +232,7 @@ mod tests {
         let graph = sprs::io::read_matrix_market("mtx/test.mtx")
             .unwrap()
             .to_csr();
-        let total_size = super::Storage::new(1, 1, 8, 4, 4, 2, 2, 16);
+        let total_size = Storage::new(1, 1, 8, 4, 4, 2, 2, 16);
         let mapping = Level::get_mapping(&total_size, &graph);
         println!("{:?}", mapping);
     }

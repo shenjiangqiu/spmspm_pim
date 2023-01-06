@@ -94,7 +94,6 @@ impl<LevelType: LevelTrait> ResourceConstraint<LevelType> {
         let cycle: u64 = task.tasks.iter().map(|task| (task.size / 4) as u64).sum();
         let finished_time = current_time + cycle;
         todo!();
-        Ok(events)
     }
     // free the resource for a task
     fn deallocate(&mut self, task: RoundTasks<LevelType>) {

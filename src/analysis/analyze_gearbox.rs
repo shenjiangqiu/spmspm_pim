@@ -29,12 +29,12 @@ pub struct SingleResult {
 }
 #[derive(Serialize, Deserialize)]
 /// the statistics of all graphs
-pub struct GearboxReslt {
+pub struct GearboxResult {
     /// the statistics of all graphs
     pub results: Vec<SingleResult>,
 }
 
-impl GearboxReslt {
+impl GearboxResult {
     /// print out all the results
     #[allow(unused)]
     pub fn show_results(&self) {
@@ -42,20 +42,20 @@ impl GearboxReslt {
     }
 }
 
-impl Debug for GearboxReslt {
+impl Debug for GearboxResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&self, f)
     }
 }
 
-impl Display for GearboxReslt {
+impl Display for GearboxResult {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         unimplemented!();
     }
 }
 
 /// analyze the split spmm
-pub(crate) fn analyze_gearbox(config: &Config) -> GearboxReslt {
+pub(crate) fn analyze_gearbox(config: &Config) -> GearboxResult {
     match config.dram_type {
         crate::pim::config::DramType::DDR3 => unimplemented!(),
         crate::pim::config::DramType::DDR4 => {
@@ -218,7 +218,7 @@ impl Ring {
 
     fn report(&self) -> RingResult {
         // simulate the ring process
-        let mut pathes = vec![0; self.ports as usize];
+        let mut paths = vec![0; self.ports as usize];
         for (source, target) in self.tasks.iter() {
             let forward_len = (target.0 + self.ports - source.0) % self.ports;
             let backward_len = (source.0 + self.ports - target.0) % self.ports;
@@ -228,12 +228,12 @@ impl Ring {
                 (target.0, source.0)
             };
             for i in from..to {
-                pathes[i as usize] += 1;
+                paths[i as usize] += 1;
             }
         }
 
         RingResult {
-            cycle: *pathes.iter().max().unwrap_or(&0),
+            cycle: *paths.iter().max().unwrap_or(&0),
             traffic: self.tasks.len(),
         }
     }
@@ -292,10 +292,10 @@ struct Hardware {
     config: Config,
     /// the dimension of dense matrix in one subarray
     dense_dim: usize,
-    /// for normal rows, distrubute them to different subarrays
+    /// for normal rows, distribute them to different subarrays
     row_per_partition: usize,
-    /// for target rows, distrubute the cols to different subarrays
-    /// and for the evil row, distrubute them by column
+    /// for target rows, distribute the cols to different subarrays
+    /// and for the evil row, distribute them by column
     col_per_partition: usize,
 }
 
@@ -310,10 +310,7 @@ impl Hardware {
         col_per_partition: usize,
     ) -> Self {
         // each single layer should be a channel
-        assert!(
-            config.gearbox_config.stacks * config.gearbox_config.layers == config.channels.num,
-            "the number of stacks and layers should be equal to the number of channels"
-        );
+        assert_eq!(config.gearbox_config.stacks * config.gearbox_config.layers, config.channels.num, "the number of stacks and layers should be equal to the number of channels");
         Self {
             sub_array: vec![SubArray::new(); num_subarray],
             ring: vec![Ring::new(config.banks.num as u8); num_rings],
@@ -702,7 +699,7 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
 fn analyze_gearbox_inner<LevelType: LevelTrait>(
     config: &Config,
     _total_size: &LevelType::Storage,
-) -> GearboxReslt
+) -> GearboxResult
 where
     LevelType::Storage: Debug + Sync,
     LevelType::Mapping: Debug,
@@ -718,7 +715,7 @@ where
         })
         .collect_vec();
 
-    GearboxReslt { results }
+    GearboxResult { results }
 }
 
 /// the stat result of the seq spmm

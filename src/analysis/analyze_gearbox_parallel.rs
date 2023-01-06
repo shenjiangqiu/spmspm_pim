@@ -317,10 +317,7 @@ impl Hardware {
         col_per_partition: usize,
     ) -> Self {
         // each single layer should be a channel
-        assert!(
-            config.gearbox_config.stacks * config.gearbox_config.layers == config.channels.num,
-            "the number of stacks and layers should be equal to the number of channels"
-        );
+        assert_eq!(config.gearbox_config.stacks * config.gearbox_config.layers, config.channels.num, "the number of stacks and layers should be equal to the number of channels");
         Self {
             sub_array: (0..num_subarray)
                 .map(|_| SubArray {

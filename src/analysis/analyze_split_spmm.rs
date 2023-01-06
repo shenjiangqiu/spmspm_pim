@@ -160,7 +160,7 @@ where
             let matrix_a: CsMat<Pattern> = sprs::io::read_matrix_market(path).unwrap().to_csr();
             let totoal_nnz = matrix_a.nnz();
             let matrix_b = matrix_a.transpose_view().to_owned();
-            assert!(matrix_b.storage() == sprs::CompressedStorage::CSC);
+            assert_eq!(matrix_b.storage(), sprs::CompressedStorage::CSC);
             let cols = matrix_b.cols();
             // build the split points
             // the ideal start nnz
@@ -271,7 +271,7 @@ pub fn sparse_add<T>(v1: CsVecView<T>, v2: CsVecView<T>) -> CsVec<T>
 where
     T: Add<Output = T> + Copy,
 {
-    assert!(v1.dim() == v2.dim());
+    assert_eq!(v1.dim(), v2.dim());
     let mut v1_iter = v1.iter();
     let mut v2_iter = v2.iter();
     let mut v1_next = v1_iter.next();

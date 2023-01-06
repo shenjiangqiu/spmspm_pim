@@ -16,7 +16,7 @@ use plotters::{
 };
 use plotters_text::TextDrawingBackend;
 use spmspm_pim::{
-    analysis::{analyze_gearbox::GearboxReslt, analyze_split_spmm::SplitAnalyzeResult},
+    analysis::{analyze_gearbox::GearboxResult, analyze_split_spmm::SplitAnalyzeResult},
     cli::{DrawCli, SpeedUpArgs, SplitArgs},
     init_logger_info,
 };
@@ -498,7 +498,7 @@ fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
     let split_result: SplitAnalyzeResult =
         serde_json::from_reader(BufReader::new(File::open(split_path)?))?;
     info!("finish parsing split");
-    let gearbox_result: GearboxReslt =
+    let gearbox_result: GearboxResult =
         serde_json::from_reader(BufReader::new(File::open(gearbox_path)?))?;
     info!("finish parsing gearbox");
     let mut data = vec![];

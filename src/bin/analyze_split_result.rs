@@ -4,6 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use spmspm_pim::analysis::analyze_split_spmm::SplitAnalyzeResult;
 use std::io::Write;
+
 #[derive(Debug, Serialize, Deserialize)]
 struct Report {
     name: String,
@@ -35,13 +36,13 @@ impl Display for Report {
             self.min_cycle, self.max_cycle, self.mean_cycle
         )?;
         writeln!(f,
-            "mean_comp: {:.2}-{:.2}%, mean_open: {:.2}-{:.2}%, mean_open_no_overlap: {:.2}, mean_temp_read: {:.2}-{:.2}%, mean_temp_write: {:.2}-{:.2}%, mean_input_read: {:.2}-{:.2}%",
-            self.mean_comp,self.mean_comp/self.mean_cycle*100.,
-            self.mean_open,self.mean_open/self.mean_cycle*100.,
-            self.mean_open_no_overlap,
-            self.mean_temp_read,self.mean_temp_read/self.mean_open_no_overlap*100.,
-            self.mean_temp_write,self.mean_temp_write/self.mean_open_no_overlap*100.,
-            self.mean_input_read,self.mean_input_read/self.mean_open_no_overlap*100.
+                 "mean_comp: {:.2}-{:.2}%, mean_open: {:.2}-{:.2}%, mean_open_no_overlap: {:.2}, mean_temp_read: {:.2}-{:.2}%, mean_temp_write: {:.2}-{:.2}%, mean_input_read: {:.2}-{:.2}%",
+                 self.mean_comp, self.mean_comp / self.mean_cycle * 100.,
+                 self.mean_open, self.mean_open / self.mean_cycle * 100.,
+                 self.mean_open_no_overlap,
+                 self.mean_temp_read, self.mean_temp_read / self.mean_open_no_overlap * 100.,
+                 self.mean_temp_write, self.mean_temp_write / self.mean_open_no_overlap * 100.,
+                 self.mean_input_read, self.mean_input_read / self.mean_open_no_overlap * 100.
         )?;
         writeln!(
             f,

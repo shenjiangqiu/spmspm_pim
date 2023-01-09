@@ -14,6 +14,8 @@ use std::io::BufWriter;
 use tracing::info;
 use tracing::metadata::LevelFilter;
 pub mod cli;
+pub mod draw;
+
 #[allow(dead_code)]
 pub fn init_logger_info() {
     init_logger(LevelFilter::INFO);

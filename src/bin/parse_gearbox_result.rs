@@ -9,6 +9,7 @@ use tracing::{info, metadata::LevelFilter};
 struct InputList {
     files: Vec<PathBuf>,
 }
+
 fn main() -> eyre::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -167,6 +168,7 @@ fn main() -> eyre::Result<()> {
 
     Ok(())
 }
+
 #[derive(Debug, Serialize, Deserialize)]
 struct Report {
     graph_name: String,

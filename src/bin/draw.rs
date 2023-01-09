@@ -72,35 +72,66 @@ fn draw<'a, DB: DrawingBackend + 'a>(
             RED.filled(),
         )
     }))?;
-    // draw a yellow line for tsv speedup
+    // draw a yellow rec for tsv speedup
     for (id, (_, speedup)) in data.iter().enumerate() {
-        chart.draw_series(LineSeries::new(
+        chart.draw_series([Rectangle::new(
             [
-                ((id as f32 * gap), speedup.1 as f32),
-                (id as f32 * gap + width * 1.2, speedup.1 as f32),
+                ((id as f32 * gap - 0.01), speedup.1 as f32),
+                (
+                    id as f32 * gap + width * 1.2,
+                    speedup.1 as f32 + 0.01 * max_height,
+                ),
             ],
-            BLACK,
-        ))?;
+            YELLOW.mix(0.5).filled(),
+        )])?;
     }
     // draw a green line for ring speedup
+    // for (id, (_, speedup)) in data.iter().enumerate() {
+    //     chart.draw_series(LineSeries::new(
+    //         [
+    //             ((id as f32 * gap), speedup.2 as f32),
+    //             (id as f32 * gap + width * 1.2, speedup.2 as f32),
+    //         ],
+    //         GREEN,
+    //     ))?;
+    // }
+    // draw a green rec for ring speedup
     for (id, (_, speedup)) in data.iter().enumerate() {
-        chart.draw_series(LineSeries::new(
+        chart.draw_series([Rectangle::new(
             [
-                ((id as f32 * gap), speedup.2 as f32),
-                (id as f32 * gap + width * 1.2, speedup.2 as f32),
+                ((id as f32 * gap - 0.01), speedup.2 as f32),
+                (
+                    id as f32 * gap + width * 1.2,
+                    speedup.2 as f32 + 0.01 * max_height,
+                ),
             ],
-            GREEN,
-        ))?;
+            GREEN.mix(0.5).filled(),
+        )])?;
     }
+
     // draw a blue line for comp speedup
+    // for (id, (_, speedup)) in data.iter().enumerate() {
+    //     chart.draw_series(LineSeries::new(
+    //         [
+    //             ((id as f32 * gap), speedup.3 as f32),
+    //             (id as f32 * gap + width * 1.2, speedup.3 as f32),
+    //         ],
+    //         BLUE,
+    //     ))?;
+    // }
+
+    // draw a blue rec for comp speedup
     for (id, (_, speedup)) in data.iter().enumerate() {
-        chart.draw_series(LineSeries::new(
+        chart.draw_series([Rectangle::new(
             [
-                ((id as f32 * gap), speedup.3 as f32),
-                (id as f32 * gap + width * 1.2, speedup.3 as f32),
+                ((id as f32 * gap - 0.01), speedup.3 as f32),
+                (
+                    id as f32 * gap + width * 1.2,
+                    speedup.3 as f32 + 0.01 * max_height,
+                ),
             ],
-            BLUE,
-        ))?;
+            BLUE.mix(0.5).filled(),
+        )])?;
     }
 
     // draw a line at y=1
@@ -252,7 +283,7 @@ fn draw_cycle_dist_rec<'a, DB: DrawingBackend + 'a>(
         ];
         let mut chart = ChartBuilder::on(&chart)
             .caption(
-                format!("{}", name.file_name().unwrap().to_str().unwrap()),
+                name.file_name().unwrap().to_str().unwrap(),
                 ("sans-serif", 20).into_font(),
             )
             .x_label_area_size(10.percent())
@@ -409,7 +440,7 @@ fn draw_empty_rec<'a, DB: DrawingBackend + 'a>(
             .x_label_area_size(10.percent())
             .y_label_area_size(10.percent())
             .margin(5.percent())
-            .build_cartesian_2d((0f32)..(1f32), (0f32)..(1f32))?;
+            .build_cartesian_2d(0f32..1f32, 0f32..1f32)?;
 
         chart.configure_mesh().disable_mesh().draw()?;
 
@@ -443,13 +474,24 @@ fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
         serde_json::from_reader(BufReader::new(File::open(gearbox_path)?))?;
     info!("finish parsing gearbox");
     let mut data = vec![];
-    for (split, gearbox) in split_result.results.into_iter().zip(gearbox_result.results) {
+    for (split, gearbox) in split_result
+        .results
+        .into_iter()
+        .zip(gearbox_result.results)
+        .filter(|(_split, gearbox)| {
+            // at least one cycle is larger than 10000
+            // filter out the small graphs
+            gearbox.tsv_result[0].cycle >= 10000
+                || gearbox.ring_result[0].cycle >= 10000
+                || gearbox.subarray_result[0].cycle >= 10000
+        })
+    {
         assert_eq!(split.name, gearbox.name);
         // first get the runtime
         let split_time = split
             .graph_result
             .iter()
-            .map(|x| x.cycle)
+            .map(|x| x.total_cycle_ignore_meta)
             .max()
             .ok_or(eyre::format_err!("no max"))?;
         let gearbox_time_ring = gearbox

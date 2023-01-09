@@ -5,6 +5,7 @@
 use crate::pim::config::Config;
 
 pub mod analyze_gearbox;
+pub mod analyze_gearbox_origin;
 pub mod analyze_gearbox_parallel;
 pub(crate) mod analyze_nnz;
 pub(crate) mod analyze_nnz_native;
@@ -17,6 +18,7 @@ pub mod partition;
 pub mod schedule_window;
 pub mod sequential_event_sim;
 pub mod split;
+
 pub fn print_all_stats(config: &Config) {
     let single_task_overlap_stat = overlap::compute_single_task_overlap_stat(config);
     for stat in single_task_overlap_stat {

@@ -301,7 +301,7 @@ struct TsvId(usize);
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 struct RingPort(u8);
 
-struct Hardware {
+pub struct Hardware {
     sub_array: Vec<SubArray>,
     ring: Vec<Ring>,
     tsv: Vec<Tsv>,
@@ -550,17 +550,16 @@ impl Hardware {
         }
     }
 }
-
-struct GearboxSim {
-    row_per_partition: usize,
+pub struct GearboxSim {
+    pub row_per_partition: usize,
     #[allow(unused)]
-    col_per_partition: usize,
+    pub col_per_partition: usize,
     /// the id of evil col: this col will  have a backup copy in each partition
-    evil_col_ids: HashSet<usize>,
+    pub evil_col_ids: HashSet<usize>,
     /// the id of evil row: the evil row will be partitioned into each components,there are no remote access needed.
-    evil_row_ids: HashSet<usize>,
-    matrix_b: CsMat<Pattern>,
-    hardware: Hardware,
+    pub evil_row_ids: HashSet<usize>,
+    pub matrix_b: CsMat<Pattern>,
+    pub hardware: Hardware,
 }
 
 impl GearboxSim {
@@ -688,7 +687,7 @@ impl DrawFn for DistributionDrawer {
         data: &Self::DATA,
     ) -> Result<(), Box<dyn Error + 'a>> {
         let size = data.len();
-        let max_nnz = data.into_iter().map(|(_, nnz)| *nnz).max().unwrap();
+        let max_nnz = data.iter().map(|(_, nnz)| *nnz).max().unwrap();
 
         let mut chart = ChartBuilder::on(&root)
             .set_all_label_area_size(10.percent())
@@ -701,7 +700,7 @@ impl DrawFn for DistributionDrawer {
             .y_desc("nnzs")
             .axis_desc_style(("sans-serif", 15).into_font())
             .draw()?;
-        chart.draw_series(data.into_iter().enumerate().map(|(id, (_row_id, nnz))| {
+        chart.draw_series(data.iter().enumerate().map(|(id, (_row_id, nnz))| {
             Rectangle::new(
                 [(id as i32, 0), (id as i32 + 1, *nnz)],
                 RED.mix(0.3).filled(),
@@ -713,6 +712,11 @@ impl DrawFn for DistributionDrawer {
 
 /// draw the distribution of nnzs
 fn draw_distribution(nnzs: &[(usize, usize)], graph_name: &Path) {
+    let dir_name = graph_name.parent().unwrap();
+
+    // create the dir if it doesn't exist
+    std::fs::create_dir_all(dir_name).unwrap();
+
     draw::draw_data::<_, DistributionDrawer>(graph_name, nnzs).unwrap_or_else(|e| {
         error!(
             "cannot generate the distribution graph for path: {:?}",
@@ -749,9 +753,15 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
         .collect_vec();
     mat_b_row_ids.sort_by_key(|(_index, nnz)| Reverse(*nnz));
     mat_b_col_ids.sort_by_key(|(_index, nnz)| Reverse(*nnz));
-
-    draw_distribution(&mat_b_row_ids, Path::new("mat_b_row_ids.png"));
-    draw_distribution(&mat_b_col_ids, Path::new("mat_b_col_ids.png"));
+    let file_name = Path::new(path).file_stem().unwrap().to_string_lossy();
+    draw_distribution(
+        &mat_b_row_ids,
+        Path::new(&format!("output/{}-{}", file_name, "mat_b_row_ids.png")),
+    );
+    draw_distribution(
+        &mat_b_col_ids,
+        Path::new(&format!("output/{}-{}", file_name, "mat_b_col_ids.png")),
+    );
 
     let top_rows = (mat_b_row_ids.len() as f32 * config.gearbox_config.topk) as usize;
     let top_rows = if top_rows == 0 { 1 } else { top_rows };

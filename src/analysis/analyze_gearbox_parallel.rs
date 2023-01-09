@@ -4,6 +4,9 @@
 //! !!! this module is derived from analyze_split_spmm.rs and the code and ***doc*** might not be accurate
 //!
 //! the parallel version of the gearbox analysis
+//!
+//! # after testing , the speed for this version is much slower than that of the sequential version
+//!
 use hashbrown::HashSet;
 use itertools::Itertools;
 use std::{

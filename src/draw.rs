@@ -57,11 +57,12 @@ pub fn draw_data<DATA: ?Sized, F: DrawFn<DATA = DATA>>(
     output_path: &Path,
     split_result: &DATA,
 ) -> Result<(), Box<dyn Error>> {
-    Ok(match get_ext(&output_path) {
+    info!("draw data into {:?}", output_path);
+    match get_ext(output_path) {
         Ext::Svg => {
             let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
             root.fill(&WHITE)?;
-            F::draw_apply(root, &split_result).unwrap_or_else(|err| {
+            F::draw_apply(root, split_result).unwrap_or_else(|err| {
                 eprintln!("error: {}", err);
                 std::process::exit(1);
             })
@@ -70,7 +71,7 @@ pub fn draw_data<DATA: ?Sized, F: DrawFn<DATA = DATA>>(
             let root = BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area();
             info!("draw png");
             root.fill(&WHITE)?;
-            F::draw_apply(root, &split_result).unwrap_or_else(|err| {
+            F::draw_apply(root, split_result).unwrap_or_else(|err| {
                 eprintln!("error: {}", err);
                 std::process::exit(1);
             })
@@ -81,12 +82,13 @@ pub fn draw_data<DATA: ?Sized, F: DrawFn<DATA = DATA>>(
             F::draw_apply(
                 TextDrawingBackend::new(terminal_size.0 .0 as u32, terminal_size.1 .0 as u32)
                     .into_drawing_area(),
-                &split_result,
+                split_result,
             )
             .unwrap_or_else(|err| {
                 eprintln!("error: {}", err);
                 std::process::exit(1);
             })
         }
-    })
+    };
+    Ok(())
 }

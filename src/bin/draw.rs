@@ -41,7 +41,7 @@ trait DrawFn {
     ) -> Result<(), Box<dyn Error + 'a>>;
 }
 
-type SpeedUp = (f32, f32, f32, f32);
+type SpeedUp = (f32, f32, f32, f32, f32, f32, f32);
 struct SpeedUpDrawer;
 
 impl DrawFn for SpeedUpDrawer {
@@ -530,9 +530,39 @@ fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
         let speed_up_tsv = gearbox_time_tsv as f32 / split_time as f32;
         let speed_up_ring = gearbox_time_ring as f32 / split_time as f32;
         let speed_up_comp = gearbox_time_comp as f32 / split_time as f32;
+
+        let speed_up_fix_empty_meta = gearbox_time as f32
+            / split
+                .graph_result
+                .iter()
+                .map(|x| x.total_cycle_fix_empty_meta)
+                .max()
+                .ok_or(eyre::format_err!("no max"))? as f32;
+        let speed_up_zero_empty_meta = gearbox_time as f32
+            / split
+                .graph_result
+                .iter()
+                .map(|x| x.total_cycle_ignore_empty_meta)
+                .max()
+                .ok_or(eyre::format_err!("no max"))? as f32;
+        let speed_up_no_meta = gearbox_time as f32
+            / split
+                .graph_result
+                .iter()
+                .map(|x| x.total_cycle_ignore_meta)
+                .max()
+                .ok_or(eyre::format_err!("no max"))? as f32;
         data.push((
             split.name,
-            (speed_up, speed_up_tsv, speed_up_ring, speed_up_comp),
+            (
+                speed_up,
+                speed_up_tsv,
+                speed_up_ring,
+                speed_up_comp,
+                speed_up_fix_empty_meta,
+                speed_up_zero_empty_meta,
+                speed_up_no_meta,
+            ),
         ));
     }
     // draw the speed up using plotters

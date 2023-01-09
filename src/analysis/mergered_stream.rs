@@ -68,7 +68,7 @@ impl<LevelType: LevelTrait> ResourceConstraint<LevelType> {
         task: RoundTasks<LevelType>,
         current_time: u64,
     ) -> Result<Vec<Event<LevelType>>, RoundTasks<LevelType>> {
-        let mut events = vec![];
+        // let mut events = vec![];
         // try to allocate the subarrays that are not occupied
         if task.tasks.iter().any(|task| {
             let sub_array_id = LevelType::get_flat_level_id(
@@ -94,9 +94,8 @@ impl<LevelType: LevelTrait> ResourceConstraint<LevelType> {
         let cycle: u64 = task.tasks.iter().map(|task| (task.size / 4) as u64).sum();
         let finished_time = current_time + cycle;
         todo!();
-        Ok(events)
     }
-    // free the resource for a task
+    /// free the resource for a task
     fn deallocate(&mut self, task: RoundTasks<LevelType>) {
         for task in task.tasks.iter() {
             let sub_array_id = LevelType::get_flat_level_id(

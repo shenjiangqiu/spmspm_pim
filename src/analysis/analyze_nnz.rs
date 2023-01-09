@@ -174,7 +174,7 @@ pub fn sparse_add<T>(v1: CsVecView<T>, v2: CsVecView<T>) -> CsVec<T>
 where
     T: Add<Output = T> + Copy,
 {
-    assert!(v1.dim() == v2.dim());
+    assert_eq!(v1.dim(), v2.dim());
     let mut v1_iter = v1.iter();
     let mut v2_iter = v2.iter();
     let mut v1_next = v1_iter.next();

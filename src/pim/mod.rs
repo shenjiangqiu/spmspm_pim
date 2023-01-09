@@ -76,7 +76,7 @@ impl<LevelType: LevelTrait> SimulationContext<LevelType> {
         to: TaskTo,
         idx: usize,
         generated_cycle: u64,
-    ) -> task::StreamMessage {
+    ) -> StreamMessage {
         self.message_builder.generate_msg(to, idx, generated_cycle)
     }
 

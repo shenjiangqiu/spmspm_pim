@@ -2,13 +2,14 @@ use std::{fs::File, path::PathBuf};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use spmspm_pim::analysis::analyze_gearbox::GearboxReslt;
+use spmspm_pim::analysis::analyze_gearbox::GearboxResult;
 use tracing::{info, metadata::LevelFilter};
 
 #[derive(Deserialize)]
 struct InputList {
     files: Vec<PathBuf>,
 }
+
 fn main() -> eyre::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -26,7 +27,7 @@ fn main() -> eyre::Result<()> {
 
     for file in input_list.files {
         info!("parsing file: {:?}", file);
-        let split_spmm_result: GearboxReslt = serde_json::from_reader(File::open(&file)?)?;
+        let split_spmm_result: GearboxResult = serde_json::from_reader(File::open(&file)?)?;
         let mut reports = vec![];
         for graph in split_spmm_result.results {
             info!("graph: {}", graph.name);
@@ -167,6 +168,7 @@ fn main() -> eyre::Result<()> {
 
     Ok(())
 }
+
 #[derive(Debug, Serialize, Deserialize)]
 struct Report {
     graph_name: String,

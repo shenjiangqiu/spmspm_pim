@@ -106,9 +106,9 @@ impl<'a, LevelType: LevelTrait + Debug> TaskReceiver for Provider<'a, LevelType>
 where
     LevelType::Storage: Clone + Debug,
 {
-    type LevelType = LevelType;
     type InputTask = Task<LevelType>;
     type SimContext = SimulationContext<LevelType>;
+    type LevelType = LevelType;
 
     fn receive_task(
         &mut self,
@@ -117,15 +117,15 @@ where
         _current_cycle: u64,
     ) -> Result<(), (Self::LevelType, Self::InputTask)> {
         if let Task::TaskData(data) = task {
-            if self.task_queue.len() < self.max_task_queue_size {
+            return if self.task_queue.len() < self.max_task_queue_size {
                 debug!(
                     ?self.level,
                     self.id, "provider receive task at level:{:?} : {:?}", self.level, data
                 );
                 self.task_queue.push_back(data);
-                return Ok(());
+                Ok(())
             } else {
-                return Err((self.level, Task::TaskData(data)));
+                Err((self.level, Task::TaskData(data)))
             }
         }
         // it's an end task, just ignore it

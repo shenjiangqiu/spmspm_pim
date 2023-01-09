@@ -15,31 +15,14 @@ use plotters::{
     style::full_palette::{BLUEGREY, GREY, PINK},
 };
 use plotters_text::TextDrawingBackend;
+use spmspm_pim::draw::{draw_data, get_ext, DrawFn, Ext, MIN_CONSOLE_HEIGHT, MIN_CONSOLE_WIDTH};
 use spmspm_pim::{
-    analysis::{analyze_gearbox::GearboxReslt, analyze_split_spmm::SplitAnalyzeResult},
+    analysis::{analyze_gearbox::GearboxResult, analyze_split_spmm::SplitAnalyzeResult},
     cli::{DrawCli, SpeedUpArgs, SplitArgs},
     init_logger_info,
 };
 use terminal_size::{Height, Width};
 use tracing::info;
-
-#[derive(Debug)]
-enum Ext {
-    Png,
-    Svg,
-    Console,
-}
-
-const MIN_CONSOLE_WIDTH: u16 = 320;
-const MIN_CONSOLE_HEIGHT: u16 = 60;
-
-trait DrawFn {
-    type DATA: ?Sized;
-    fn draw_apply<'a, DB: DrawingBackend + 'a>(
-        root: DrawingArea<DB, Shift>,
-        data: &Self::DATA,
-    ) -> Result<(), Box<dyn Error + 'a>>;
-}
 
 type SpeedUp = (f32, f32, f32, f32, f32, f32, f32);
 struct SpeedUpDrawer;
@@ -53,44 +36,7 @@ impl DrawFn for SpeedUpDrawer {
         draw(root, data)
     }
 }
-/// the generic fn to draw the data using the DrawFn
-fn draw_data<DATA: ?Sized, F: DrawFn<DATA = DATA>>(
-    output_path: &Path,
-    split_result: &DATA,
-) -> Result<(), Box<dyn Error>> {
-    Ok(match get_ext(&output_path) {
-        Ext::Svg => {
-            let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
-            root.fill(&WHITE)?;
-            F::draw_apply(root, &split_result).unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            })
-        }
-        Ext::Png => {
-            let root = BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area();
-            info!("draw png");
-            root.fill(&WHITE)?;
-            F::draw_apply(root, &split_result).unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            })
-        }
-        Ext::Console => {
-            let terminal_size = terminal_size::terminal_size().unwrap();
 
-            F::draw_apply(
-                TextDrawingBackend::new(terminal_size.0 .0 as u32, terminal_size.1 .0 as u32)
-                    .into_drawing_area(),
-                &split_result,
-            )
-            .unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            })
-        }
-    })
-}
 /// draw speedup
 fn draw<'a, DB: DrawingBackend + 'a>(
     root: DrawingArea<DB, Shift>,
@@ -171,7 +117,7 @@ fn draw<'a, DB: DrawingBackend + 'a>(
     // right_chart.configure_mesh().disable_mesh().draw()?;
 
     right_chart.draw_series(data.iter().enumerate().map(|(id, (name, speedup))| {
-        let name = std::path::Path::new(name);
+        let name = Path::new(name);
         let file_name = name.file_name().unwrap().to_str().unwrap();
         Text::new(
             format!("{}-{}-{:?}", id, file_name, speedup),
@@ -198,6 +144,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 struct CycleDrawer;
+
 impl DrawFn for CycleDrawer {
     type DATA = SplitAnalyzeResult;
 
@@ -405,6 +352,7 @@ fn draw_cycle_dist_rec<'a, DB: DrawingBackend + 'a>(
 }
 
 struct EmptyDrawer;
+
 impl DrawFn for EmptyDrawer {
     type DATA = SplitAnalyzeResult;
 
@@ -431,6 +379,7 @@ fn draw_empty(args: SplitArgs) -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
 fn draw_empty_rec<'a, DB: DrawingBackend + 'a>(
     root: DrawingArea<DB, Shift>,
     result: &SplitAnalyzeResult,
@@ -492,7 +441,7 @@ fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
     let split_result: SplitAnalyzeResult =
         serde_json::from_reader(BufReader::new(File::open(split_path)?))?;
     info!("finish parsing split");
-    let gearbox_result: GearboxReslt =
+    let gearbox_result: GearboxResult =
         serde_json::from_reader(BufReader::new(File::open(gearbox_path)?))?;
     info!("finish parsing gearbox");
     let mut data = vec![];
@@ -571,26 +520,6 @@ fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn get_ext(output_path: &Path) -> Ext {
-    let ext = match output_path.extension() {
-        Some(ext) => match ext.to_str().unwrap() {
-            "png" => Ext::Png,
-            "svg" => Ext::Svg,
-            _ => {
-                let terminal_size = terminal_size::terminal_size().unwrap();
-                check_terminal_size(terminal_size);
-                Ext::Console
-            }
-        },
-        None => {
-            let terminal_size = terminal_size::terminal_size().unwrap();
-            check_terminal_size(terminal_size);
-            Ext::Console
-        }
-    };
-    ext
-}
-
 fn check_terminal_size(terminal_size: (Width, Height)) {
     if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT {
         eprintln!(
@@ -602,6 +531,7 @@ fn check_terminal_size(terminal_size: (Width, Height)) {
 }
 
 struct SplitDrawer;
+
 impl DrawFn for SplitDrawer {
     type DATA = SplitAnalyzeResult;
 
@@ -612,6 +542,7 @@ impl DrawFn for SplitDrawer {
         draw_box(root, data)
     }
 }
+
 fn draw_split(args: SplitArgs) -> Result<(), Box<dyn Error>> {
     let SplitArgs {
         split_result,

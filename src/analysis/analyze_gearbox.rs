@@ -2,22 +2,29 @@
 //! # WARNING:
 //!
 //! !!! this module is derived from analyze_split_spmm.rs and the code and ***doc*** might not be accurate
-use hashbrown::HashSet;
-use itertools::Itertools;
 use std::{
     collections::BTreeMap,
     fmt::{Debug, Display},
 };
+use std::error::Error;
+use std::path::Path;
 
+use hashbrown::HashSet;
+use itertools::Itertools;
+use plotters::coord::Shift;
+use plotters::prelude::*;
+use rayon::iter::ParallelIterator;
+use rayon::prelude::IntoParallelRefIterator;
+use serde::{Deserialize, Serialize};
+use sprs::{CsMat, num_kinds::Pattern, TriMat};
+use tracing::{debug, error, info};
+
+use crate::draw;
+use crate::draw::DrawFn;
 use crate::pim::{
     config::Config,
     level::{ddr4, LevelTrait},
 };
-use rayon::iter::ParallelIterator;
-use rayon::prelude::IntoParallelRefIterator;
-use serde::{Deserialize, Serialize};
-use sprs::{num_kinds::Pattern, CsMat, TriMat};
-use tracing::{debug, info};
 
 /// the statistics of a single graph
 #[derive(Serialize, Deserialize)]
@@ -27,14 +34,15 @@ pub struct SingleResult {
     pub ring_result: Vec<RingResult>,
     pub tsv_result: Vec<TsvResult>,
 }
+
 #[derive(Serialize, Deserialize)]
 /// the statistics of all graphs
-pub struct GearboxReslt {
+pub struct GearboxResult {
     /// the statistics of all graphs
     pub results: Vec<SingleResult>,
 }
 
-impl GearboxReslt {
+impl GearboxResult {
     /// print out all the results
     #[allow(unused)]
     pub fn show_results(&self) {
@@ -42,20 +50,20 @@ impl GearboxReslt {
     }
 }
 
-impl Debug for GearboxReslt {
+impl Debug for GearboxResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&self, f)
     }
 }
 
-impl Display for GearboxReslt {
+impl Display for GearboxResult {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         unimplemented!();
     }
 }
 
 /// analyze the split spmm
-pub(crate) fn analyze_gearbox(config: &Config) -> GearboxReslt {
+pub(crate) fn analyze_gearbox(config: &Config) -> GearboxResult {
     match config.dram_type {
         crate::pim::config::DramType::DDR3 => unimplemented!(),
         crate::pim::config::DramType::DDR4 => {
@@ -84,6 +92,7 @@ pub struct GearboxConfig {
     pub stacks: usize,
     pub layers: usize,
 }
+
 #[derive(Clone)]
 struct SubArray {
     read_open: Option<usize>,
@@ -91,6 +100,7 @@ struct SubArray {
     local_read_rows: Vec<(PhysicRowId, usize)>,
     local_write_rows: Vec<(PhysicRowId, usize)>,
 }
+
 #[derive(Serialize, Deserialize)]
 pub struct SubArrayResult {
     pub cycle: usize,
@@ -99,6 +109,7 @@ pub struct SubArrayResult {
     pub row_write_cycle: usize,
     pub comp_cycle: usize,
 }
+
 impl SubArray {
     /// create a new subarray
     fn new() -> Self {
@@ -138,8 +149,7 @@ impl SubArray {
         for (row_id, read_times) in self.local_read_rows.iter() {
             match self.read_open {
                 Some(row) => {
-                    if row == row_id.0 {
-                    } else {
+                    if row == row_id.0 {} else {
                         cycle += 18;
                         row_open_cycle += 18;
                         row_read_cycle += 18;
@@ -157,8 +167,7 @@ impl SubArray {
         for (row_id, read_times) in self.local_write_rows.iter() {
             match self.write_open {
                 Some(row) => {
-                    if row == row_id.0 {
-                    } else {
+                    if row == row_id.0 {} else {
                         cycle += 18;
                         row_open_cycle += 18;
                         row_write_cycle += 18;
@@ -218,7 +227,7 @@ impl Ring {
 
     fn report(&self) -> RingResult {
         // simulate the ring process
-        let mut pathes = vec![0; self.ports as usize];
+        let mut paths = vec![0; self.ports as usize];
         for (source, target) in self.tasks.iter() {
             let forward_len = (target.0 + self.ports - source.0) % self.ports;
             let backward_len = (source.0 + self.ports - target.0) % self.ports;
@@ -228,12 +237,12 @@ impl Ring {
                 (target.0, source.0)
             };
             for i in from..to {
-                pathes[i as usize] += 1;
+                paths[i as usize] += 1;
             }
         }
 
         RingResult {
-            cycle: *pathes.iter().max().unwrap_or(&0),
+            cycle: *paths.iter().max().unwrap_or(&0),
             traffic: self.tasks.len(),
         }
     }
@@ -243,11 +252,13 @@ impl Ring {
 struct Tsv {
     traffic: usize,
 }
+
 #[derive(Serialize, Deserialize)]
 pub struct TsvResult {
     pub cycle: usize,
     pub traffic: usize,
 }
+
 impl Tsv {
     fn new() -> Self {
         Self { traffic: 0 }
@@ -263,6 +274,7 @@ impl Tsv {
         }
     }
 }
+
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 struct LogicRowId(usize);
 
@@ -279,6 +291,7 @@ struct SubarrayId(usize);
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 struct RingId(usize);
+
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 struct TsvId(usize);
 
@@ -292,10 +305,10 @@ struct Hardware {
     config: Config,
     /// the dimension of dense matrix in one subarray
     dense_dim: usize,
-    /// for normal rows, distrubute them to different subarrays
+    /// for normal rows, distribute them to different subarrays
     row_per_partition: usize,
-    /// for target rows, distrubute the cols to different subarrays
-    /// and for the evil row, distrubute them by column
+    /// for target rows, distribute the cols to different subarrays
+    /// and for the evil row, distribute them by column
     col_per_partition: usize,
 }
 
@@ -310,10 +323,7 @@ impl Hardware {
         col_per_partition: usize,
     ) -> Self {
         // each single layer should be a channel
-        assert!(
-            config.gearbox_config.stacks * config.gearbox_config.layers == config.channels.num,
-            "the number of stacks and layers should be equal to the number of channels"
-        );
+        assert_eq!(config.gearbox_config.stacks * config.gearbox_config.layers, config.channels.num, "the number of stacks and layers should be equal to the number of channels");
         Self {
             sub_array: vec![SubArray::new(); num_subarray],
             ring: vec![Ring::new(config.banks.num as u8); num_rings],
@@ -360,7 +370,7 @@ impl Hardware {
         &mut self,
         target_row_id: LogicRowId,
         mat_b_row_id: LogicRowId,
-        col_ids: impl IntoIterator<Item = LogicColId>,
+        col_ids: impl IntoIterator<Item=LogicColId>,
     ) {
         // evil row will always be local
         for col_id in col_ids {
@@ -371,7 +381,7 @@ impl Hardware {
     fn distribute_evil_col(
         &mut self,
         target_row_id: LogicRowId,
-        row_id_col_id: impl IntoIterator<Item = (LogicRowId, LogicColId)>,
+        row_id_col_id: impl IntoIterator<Item=(LogicRowId, LogicColId)>,
     ) {
         // write to local buffer then write to remote
         // step 1: write to local buffer
@@ -545,11 +555,12 @@ struct GearboxSim {
     matrix_b: CsMat<Pattern>,
     hardware: Hardware,
 }
+
 impl GearboxSim {
     fn new(
         num_partitions: usize,
-        evil_col_ids: impl IntoIterator<Item = usize>,
-        evil_row_ids: impl IntoIterator<Item = usize>,
+        evil_col_ids: impl IntoIterator<Item=usize>,
+        evil_row_ids: impl IntoIterator<Item=usize>,
         matrix_b: CsMat<Pattern>,
         config: &Config,
     ) -> Self {
@@ -659,6 +670,41 @@ impl GearboxSim {
         self.hardware.get_partition_id_col(col_id)
     }
 }
+
+struct DistributionDrawer;
+
+impl DrawFn for DistributionDrawer {
+    type DATA = [(usize, usize)];
+
+    fn draw_apply<'a, DB: DrawingBackend + 'a>(root: DrawingArea<DB, Shift>, data: &Self::DATA) -> Result<(), Box<dyn Error + 'a>> {
+        let size = data.len();
+        let max_nnz = data.into_iter().map(|(_, nnz)| *nnz).max().unwrap();
+
+        let mut chart = ChartBuilder::on(&root)
+            .set_all_label_area_size(10.percent())
+            .build_cartesian_2d(0..size + 100, 0..max_nnz)?;
+        chart
+            .configure_mesh()
+            .disable_x_mesh().disable_y_mesh()
+            .x_desc("rows")
+            .y_desc("nnzs")
+            .axis_desc_style(("sans-serif", 15).into_font())
+            .draw()?;
+        chart.draw_series(data.into_iter().enumerate().map(|(id, (row_id, nnz))| {
+            Rectangle::new([(id, 0), (id + 1, *nnz)], RED.mix(0.3).filled())
+        }))?;
+        Ok(())
+    }
+}
+
+/// draw the distribution of nnzs
+fn draw_distribution(nnzs: &[(usize, usize)], graph_name: &Path) {
+    draw::draw_data::<_, DistributionDrawer>(graph_name, nnzs).unwrap_or_else(|e| {
+        error!("cannot generate the distribution graph for path: {:?}",graph_name);
+        error!("error: {:?}",e);
+    })
+}
+
 fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
     let partitions = config.channels.num
         * config.ranks.num
@@ -666,6 +712,8 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
         * config.bank_groups.num
         * config.banks.num
         * config.subarrays;
+    info!(?partitions, "compute gearbox");
+    info!("reading mtx file: {}", path);
     let matrix_a: TriMat<Pattern> = sprs::io::read_matrix_market(path).unwrap();
     let (matrix_a, matrix_b): (CsMat<Pattern>, CsMat<Pattern>) =
         (matrix_a.to_csr(), matrix_a.transpose_view().to_csr());
@@ -674,20 +722,31 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
 
     info!(?mat_b_rows, ?mat_b_cols, "matrix b shape");
 
+    // the nnz of matrix b rows
     let mut mat_b_row_ids = (0..mat_b_rows)
         .zip(matrix_b.outer_iterator().map(|row| row.nnz()))
         .collect_vec();
+    // the nnz of matrix b cols
     let mut mat_b_col_ids = (0..mat_b_cols)
         .zip(matrix_a.outer_iterator().map(|row| row.nnz()))
         .collect_vec();
     mat_b_row_ids.sort_by_key(|(_index, nnz)| *nnz);
     mat_b_col_ids.sort_by_key(|(_index, nnz)| *nnz);
+
+    draw_distribution(&mat_b_row_ids, Path::new("mat_b_row_ids.png"));
+    draw_distribution(&mat_b_col_ids, Path::new("mat_b_col_ids.png"));
+
     let top_rows = (mat_b_row_ids.len() as f32 * config.gearbox_config.topk) as usize;
     let top_rows = if top_rows == 0 { 1 } else { top_rows };
-
+    info!(?top_rows, "top rows");
     let top_cols = (mat_b_col_ids.len() as f32 * config.gearbox_config.topk) as usize;
     let top_cols = if top_cols == 0 { 1 } else { top_cols };
+    info!(?top_cols, "top cols");
     assert!(top_cols > 0);
+    info!("the top 10 rows: {:?}",mat_b_row_ids.iter().take(10).collect_vec());
+    info!("the top 10 cols: {:?}",mat_b_col_ids.iter().take(10).collect_vec());
+
+
     let mut gearbox = GearboxSim::new(
         partitions,
         mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
@@ -699,13 +758,14 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
     gearbox.run(&matrix_a);
     gearbox.report(path.to_string())
 }
+
 fn analyze_gearbox_inner<LevelType: LevelTrait>(
     config: &Config,
     _total_size: &LevelType::Storage,
-) -> GearboxReslt
-where
-    LevelType::Storage: Debug + Sync,
-    LevelType::Mapping: Debug,
+) -> GearboxResult
+    where
+        LevelType::Storage: Debug + Sync,
+        LevelType::Mapping: Debug,
 {
     let total_graphs = config.graph_path.len();
     let results = config
@@ -718,7 +778,7 @@ where
         })
         .collect_vec();
 
-    GearboxReslt { results }
+    GearboxResult { results }
 }
 
 /// the stat result of the seq spmm
@@ -747,6 +807,7 @@ pub struct SeqResult {
     /// total input read times
     pub input_read_times: usize,
 }
+
 #[allow(unused)]
 #[derive(Default, Debug)]
 struct SubarrayStatus {
@@ -814,7 +875,6 @@ impl SubarrayStatus {
 
 #[cfg(test)]
 mod tests {
-
     use crate::{
         init_logger_debug,
         pim::config::{Config, LevelConfig},
@@ -913,5 +973,10 @@ mod tests {
         assert_eq!((10, 200, 0), result);
         assert_eq!(Some(5), subarray.opened_row);
         assert_eq!(12, subarray.last_read_col);
+    }
+
+    #[test]
+    fn test_gearbox_mapping() {
+        // get the number of remote rows, local rows, evil rows, evil cols
     }
 }

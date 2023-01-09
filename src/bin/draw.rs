@@ -1,6 +1,5 @@
 use std::{
     error::Error,
-    fmt::Debug,
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
@@ -14,14 +13,13 @@ use plotters::{
     prelude::*,
     style::full_palette::{BLUEGREY, GREY, PINK},
 };
-use plotters_text::TextDrawingBackend;
-use spmspm_pim::draw::{draw_data, get_ext, DrawFn, Ext, MIN_CONSOLE_HEIGHT, MIN_CONSOLE_WIDTH};
+use spmspm_pim::draw::{draw_data, get_ext, DrawFn};
 use spmspm_pim::{
     analysis::{analyze_gearbox::GearboxResult, analyze_split_spmm::SplitAnalyzeResult},
     cli::{DrawCli, SpeedUpArgs, SplitArgs},
     init_logger_info,
 };
-use terminal_size::{Height, Width};
+
 use tracing::info;
 
 type SpeedUp = (f32, f32, f32, f32, f32, f32, f32);
@@ -518,16 +516,6 @@ fn draw_speedup(args: SpeedUpArgs) -> Result<(), Box<dyn Error>> {
     draw_data::<_, SpeedUpDrawer>(&output_path, &data)?;
 
     Ok(())
-}
-
-fn check_terminal_size(terminal_size: (Width, Height)) {
-    if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT {
-        eprintln!(
-            "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
-            terminal_size.0.0, terminal_size.1.0
-        );
-        std::process::exit(1);
-    };
 }
 
 struct SplitDrawer;

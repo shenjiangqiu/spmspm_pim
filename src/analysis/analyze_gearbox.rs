@@ -2,12 +2,13 @@
 //! # WARNING:
 //!
 //! !!! this module is derived from analyze_split_spmm.rs and the code and ***doc*** might not be accurate
+use std::cmp::Reverse;
+use std::error::Error;
+use std::path::Path;
 use std::{
     collections::BTreeMap,
     fmt::{Debug, Display},
 };
-use std::error::Error;
-use std::path::Path;
 
 use hashbrown::HashSet;
 use itertools::Itertools;
@@ -16,7 +17,7 @@ use plotters::prelude::*;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
 use serde::{Deserialize, Serialize};
-use sprs::{CsMat, num_kinds::Pattern, TriMat};
+use sprs::{num_kinds::Pattern, CsMat, TriMat};
 use tracing::{debug, error, info};
 
 use crate::draw;
@@ -149,7 +150,8 @@ impl SubArray {
         for (row_id, read_times) in self.local_read_rows.iter() {
             match self.read_open {
                 Some(row) => {
-                    if row == row_id.0 {} else {
+                    if row == row_id.0 {
+                    } else {
                         cycle += 18;
                         row_open_cycle += 18;
                         row_read_cycle += 18;
@@ -167,7 +169,8 @@ impl SubArray {
         for (row_id, read_times) in self.local_write_rows.iter() {
             match self.write_open {
                 Some(row) => {
-                    if row == row_id.0 {} else {
+                    if row == row_id.0 {
+                    } else {
                         cycle += 18;
                         row_open_cycle += 18;
                         row_write_cycle += 18;
@@ -323,7 +326,11 @@ impl Hardware {
         col_per_partition: usize,
     ) -> Self {
         // each single layer should be a channel
-        assert_eq!(config.gearbox_config.stacks * config.gearbox_config.layers, config.channels.num, "the number of stacks and layers should be equal to the number of channels");
+        assert_eq!(
+            config.gearbox_config.stacks * config.gearbox_config.layers,
+            config.channels.num,
+            "the number of stacks and layers should be equal to the number of channels"
+        );
         Self {
             sub_array: vec![SubArray::new(); num_subarray],
             ring: vec![Ring::new(config.banks.num as u8); num_rings],
@@ -370,7 +377,7 @@ impl Hardware {
         &mut self,
         target_row_id: LogicRowId,
         mat_b_row_id: LogicRowId,
-        col_ids: impl IntoIterator<Item=LogicColId>,
+        col_ids: impl IntoIterator<Item = LogicColId>,
     ) {
         // evil row will always be local
         for col_id in col_ids {
@@ -381,7 +388,7 @@ impl Hardware {
     fn distribute_evil_col(
         &mut self,
         target_row_id: LogicRowId,
-        row_id_col_id: impl IntoIterator<Item=(LogicRowId, LogicColId)>,
+        row_id_col_id: impl IntoIterator<Item = (LogicRowId, LogicColId)>,
     ) {
         // write to local buffer then write to remote
         // step 1: write to local buffer
@@ -559,8 +566,8 @@ struct GearboxSim {
 impl GearboxSim {
     fn new(
         num_partitions: usize,
-        evil_col_ids: impl IntoIterator<Item=usize>,
-        evil_row_ids: impl IntoIterator<Item=usize>,
+        evil_col_ids: impl IntoIterator<Item = usize>,
+        evil_row_ids: impl IntoIterator<Item = usize>,
         matrix_b: CsMat<Pattern>,
         config: &Config,
     ) -> Self {
@@ -676,22 +683,29 @@ struct DistributionDrawer;
 impl DrawFn for DistributionDrawer {
     type DATA = [(usize, usize)];
 
-    fn draw_apply<'a, DB: DrawingBackend + 'a>(root: DrawingArea<DB, Shift>, data: &Self::DATA) -> Result<(), Box<dyn Error + 'a>> {
+    fn draw_apply<'a, DB: DrawingBackend + 'a>(
+        root: DrawingArea<DB, Shift>,
+        data: &Self::DATA,
+    ) -> Result<(), Box<dyn Error + 'a>> {
         let size = data.len();
         let max_nnz = data.into_iter().map(|(_, nnz)| *nnz).max().unwrap();
 
         let mut chart = ChartBuilder::on(&root)
             .set_all_label_area_size(10.percent())
-            .build_cartesian_2d(0..size + 100, 0..max_nnz)?;
+            .build_cartesian_2d(-100..(size + 100) as i32, 0..max_nnz)?;
         chart
             .configure_mesh()
-            .disable_x_mesh().disable_y_mesh()
+            .disable_x_mesh()
+            .disable_y_mesh()
             .x_desc("rows")
             .y_desc("nnzs")
             .axis_desc_style(("sans-serif", 15).into_font())
             .draw()?;
-        chart.draw_series(data.into_iter().enumerate().map(|(id, (row_id, nnz))| {
-            Rectangle::new([(id, 0), (id + 1, *nnz)], RED.mix(0.3).filled())
+        chart.draw_series(data.into_iter().enumerate().map(|(id, (_row_id, nnz))| {
+            Rectangle::new(
+                [(id as i32, 0), (id as i32 + 1, *nnz)],
+                RED.mix(0.3).filled(),
+            )
         }))?;
         Ok(())
     }
@@ -700,8 +714,11 @@ impl DrawFn for DistributionDrawer {
 /// draw the distribution of nnzs
 fn draw_distribution(nnzs: &[(usize, usize)], graph_name: &Path) {
     draw::draw_data::<_, DistributionDrawer>(graph_name, nnzs).unwrap_or_else(|e| {
-        error!("cannot generate the distribution graph for path: {:?}",graph_name);
-        error!("error: {:?}",e);
+        error!(
+            "cannot generate the distribution graph for path: {:?}",
+            graph_name
+        );
+        error!("error: {:?}", e);
     })
 }
 
@@ -730,8 +747,8 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
     let mut mat_b_col_ids = (0..mat_b_cols)
         .zip(matrix_a.outer_iterator().map(|row| row.nnz()))
         .collect_vec();
-    mat_b_row_ids.sort_by_key(|(_index, nnz)| *nnz);
-    mat_b_col_ids.sort_by_key(|(_index, nnz)| *nnz);
+    mat_b_row_ids.sort_by_key(|(_index, nnz)| Reverse(*nnz));
+    mat_b_col_ids.sort_by_key(|(_index, nnz)| Reverse(*nnz));
 
     draw_distribution(&mat_b_row_ids, Path::new("mat_b_row_ids.png"));
     draw_distribution(&mat_b_col_ids, Path::new("mat_b_col_ids.png"));
@@ -743,9 +760,14 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
     let top_cols = if top_cols == 0 { 1 } else { top_cols };
     info!(?top_cols, "top cols");
     assert!(top_cols > 0);
-    info!("the top 10 rows: {:?}",mat_b_row_ids.iter().take(10).collect_vec());
-    info!("the top 10 cols: {:?}",mat_b_col_ids.iter().take(10).collect_vec());
-
+    info!(
+        "the top 10 rows: {:?}",
+        mat_b_row_ids.iter().take(10).collect_vec()
+    );
+    info!(
+        "the top 10 cols: {:?}",
+        mat_b_col_ids.iter().take(10).collect_vec()
+    );
 
     let mut gearbox = GearboxSim::new(
         partitions,
@@ -763,9 +785,9 @@ fn analyze_gearbox_inner<LevelType: LevelTrait>(
     config: &Config,
     _total_size: &LevelType::Storage,
 ) -> GearboxResult
-    where
-        LevelType::Storage: Debug + Sync,
-        LevelType::Mapping: Debug,
+where
+    LevelType::Storage: Debug + Sync,
+    LevelType::Mapping: Debug,
 {
     let total_graphs = config.graph_path.len();
     let results = config

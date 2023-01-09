@@ -71,12 +71,7 @@ impl<LevelType: LevelTrait> SimulationContext<LevelType> {
         self.task_builder.gen_task(target_id, from, to, size)
     }
 
-    pub fn generate_msg(
-        &mut self,
-        to: TaskTo,
-        idx: usize,
-        generated_cycle: u64,
-    ) -> StreamMessage {
+    pub fn generate_msg(&mut self, to: TaskTo, idx: usize, generated_cycle: u64) -> StreamMessage {
         self.message_builder.generate_msg(to, idx, generated_cycle)
     }
 

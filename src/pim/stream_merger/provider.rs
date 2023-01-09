@@ -126,7 +126,7 @@ where
                 Ok(())
             } else {
                 Err((self.level, Task::TaskData(data)))
-            }
+            };
         }
         // it's an end task, just ignore it
         debug!(?self.level,self.id, "receive end task at level: {:?}", self.level);

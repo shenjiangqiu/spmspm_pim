@@ -61,6 +61,9 @@ pub enum AnalyzeType {
     Nnz,
     /// nnz using native algorithm
     NnzNative,
+
+    /// nnz and draw graph
+    NnzDraw,
 }
 
 #[derive(Debug, Subcommand)]

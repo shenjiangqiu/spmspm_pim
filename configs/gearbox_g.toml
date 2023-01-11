@@ -6,7 +6,9 @@ dram_type = 'DDR4'
 graph_path = [
   "mtx/gearbox/ca-hollywood-2009.mtx",
   "mtx/gearbox/soc-orkut.mtx",
-  # "mtx/gearbox/soc-twitter-2010.mtx",
+  "mtx/gearbox/soc-twitter-2010.mtx",
+  "mtx/gearbox/road_usa.mtx",
+  "mtx/gearbox/cit-Patents.mtx",
 ]
 output_path = 'output/gearbox_g.json'
 precharge_cycle = 22

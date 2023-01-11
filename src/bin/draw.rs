@@ -13,10 +13,13 @@ use plotters::{
     prelude::*,
     style::full_palette::{BLUEGREY, GREY, PINK},
 };
-use spmspm_pim::draw::{draw_data, get_ext, DrawFn};
+use spmspm_pim::{
+    analysis::analyze_gearbox_origin,
+    draw::{draw_data, get_ext, DrawFn},
+};
 use spmspm_pim::{
     analysis::{analyze_gearbox::GearboxResult, analyze_split_spmm::SplitAnalyzeResult},
-    cli::{DrawCli, SpeedUpArgs, SplitArgs},
+    cli::{DrawCli, ExecResult, SpeedUpArgs},
     init_logger_info,
 };
 
@@ -168,7 +171,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         spmspm_pim::cli::DrawType::Split(split_args) => draw_split(split_args)?,
         spmspm_pim::cli::DrawType::Empty(split_args) => draw_empty(split_args)?,
         spmspm_pim::cli::DrawType::Cycle(split_args) => draw_cycle_dist(split_args)?,
+        spmspm_pim::cli::DrawType::Gearbox(gearbox_result) => draw_gearbox(gearbox_result)?,
     }
+    Ok(())
+}
+
+/// draw gearbox cycle distribution
+fn draw_gearbox(gearbox_args: ExecResult) -> Result<(), Box<dyn Error>> {
+    let ExecResult {
+        result_file,
+        output,
+    } = gearbox_args;
+    let output_path = output.unwrap_or_else(|| "console.svg".into());
+    let split_result = result_file.unwrap_or_else(|| "output/gearbox_g_gearbox_origin.json".into());
+    let split_result: analyze_gearbox_origin::GearboxResult =
+        serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
+    // generate the box plot for each graph
+    draw_data::<_, GearboxDrawer>(&output_path, &split_result)?;
+
     Ok(())
 }
 
@@ -186,14 +206,14 @@ impl DrawFn for CycleDrawer {
 }
 
 /// draw the cycle distribution of the split result
-fn draw_cycle_dist(args: SplitArgs) -> Result<(), Box<dyn Error>> {
-    let SplitArgs {
-        split_result,
+fn draw_cycle_dist(args: ExecResult) -> Result<(), Box<dyn Error>> {
+    let ExecResult {
+        result_file,
         output,
     } = args;
     let output_path = output.unwrap_or_else(|| "output/cycle_dist.svg".into());
     let split_result =
-        split_result.unwrap_or_else(|| "output/gearbox_out_001_split_spmm.json".into());
+        result_file.unwrap_or_else(|| "output/gearbox_out_001_split_spmm.json".into());
     let split_result: SplitAnalyzeResult =
         serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
     // generate the box plot for each graph
@@ -393,14 +413,14 @@ impl DrawFn for EmptyDrawer {
     }
 }
 
-fn draw_empty(args: SplitArgs) -> Result<(), Box<dyn Error>> {
-    let SplitArgs {
-        split_result,
+fn draw_empty(args: ExecResult) -> Result<(), Box<dyn Error>> {
+    let ExecResult {
+        result_file,
         output,
     } = args;
     let output_path = output.unwrap_or_else(|| "empty.svg".into());
     let split_result =
-        split_result.unwrap_or_else(|| "output/gearbox_out_001_split_spmm.json".into());
+        result_file.unwrap_or_else(|| "output/gearbox_out_001_split_spmm.json".into());
     let split_result: SplitAnalyzeResult =
         serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
     // generate the box plot for each graph
@@ -573,14 +593,151 @@ impl DrawFn for SplitDrawer {
     }
 }
 
-fn draw_split(args: SplitArgs) -> Result<(), Box<dyn Error>> {
-    let SplitArgs {
-        split_result,
+struct GearboxDrawer;
+impl DrawFn for GearboxDrawer {
+    type DATA = analyze_gearbox_origin::GearboxResult;
+
+    fn draw_apply<'a, DB: DrawingBackend + 'a>(
+        root: DrawingArea<DB, Shift>,
+        data: &Self::DATA,
+    ) -> Result<(), Box<dyn Error + 'a>> {
+        let charts = root.split_evenly((2, 5));
+        for (graph, chart) in data.results.iter().zip(charts.iter()) {
+            info!("draw graph {}", graph.name);
+            // first get the min_max for the cycles for each bank
+            let local_acc_cycle_max = graph.subarray_result.iter().map(|x| x.cycle).max().unwrap();
+            let local_acc_cycle_mean = graph.subarray_result.iter().map(|x| x.cycle).sum::<usize>()
+                / graph.subarray_result.len();
+
+            let ring_cycle_max = graph.ring_result.iter().map(|x| x.cycle).max().unwrap();
+            let ring_cycle_mean =
+                graph.ring_result.iter().map(|x| x.cycle).sum::<usize>() / graph.ring_result.len();
+
+            let tsv_cycle_max = graph.tsv_result.iter().map(|x| x.cycle).max().unwrap();
+            let tsv_cycle_mean =
+                graph.tsv_result.iter().map(|x| x.cycle).sum::<usize>() / graph.tsv_result.len();
+
+            let remote_acc_cycle_max = graph
+                .subarray_result
+                .iter()
+                .map(|x| x.cycle_remote)
+                .max()
+                .unwrap();
+            let remote_acc_cycle_mean = graph
+                .subarray_result
+                .iter()
+                .map(|x| x.cycle_remote)
+                .sum::<usize>()
+                / graph.subarray_result.len();
+            let &max = [
+                local_acc_cycle_max,
+                ring_cycle_max,
+                tsv_cycle_max,
+                remote_acc_cycle_max,
+            ]
+            .iter()
+            .max()
+            .unwrap();
+
+            let name = Path::new(&graph.name);
+            let mut chart = ChartBuilder::on(&chart)
+                .caption(
+                    name.file_stem().unwrap().to_str().unwrap(),
+                    ("sans-serif", 20).into_font(),
+                )
+                .x_label_area_size(10.percent())
+                .y_label_area_size(10.percent())
+                .margin(5.percent())
+                .build_cartesian_2d(0usize..4, 0..max)?;
+            let data = [
+                (local_acc_cycle_max, local_acc_cycle_mean),
+                (ring_cycle_max, ring_cycle_mean),
+                (tsv_cycle_max, tsv_cycle_mean),
+                (remote_acc_cycle_max, remote_acc_cycle_mean),
+            ];
+            chart.configure_mesh().disable_mesh().draw()?;
+            chart.draw_series(data.into_iter().enumerate().map(|(index, (max, _mean))| {
+                Rectangle::new([(index, 0), (index + 1, max)], BLACK.mix(0.5).filled())
+            }))?;
+            chart.configure_series_labels().draw()?;
+        }
+        for (graph, chart) in data
+            .results
+            .iter()
+            .zip(charts.iter().skip(data.results.len()))
+        {
+            info!("draw graph {}", graph.name);
+            // first get the min_max for the cycles for each bank
+            let local_acc_cycle_max = graph.subarray_result.iter().map(|x| x.cycle).max().unwrap();
+            let local_acc_cycle_mean = graph.subarray_result.iter().map(|x| x.cycle).sum::<usize>()
+                / graph.subarray_result.len();
+
+            let ring_cycle_max = graph.ring_result.iter().map(|x| x.cycle).max().unwrap();
+            let ring_cycle_mean =
+                graph.ring_result.iter().map(|x| x.cycle).sum::<usize>() / graph.ring_result.len();
+
+            let tsv_cycle_max = graph.tsv_result.iter().map(|x| x.cycle).max().unwrap();
+            let tsv_cycle_mean =
+                graph.tsv_result.iter().map(|x| x.cycle).sum::<usize>() / graph.tsv_result.len();
+
+            let remote_acc_cycle_max = graph
+                .subarray_result
+                .iter()
+                .map(|x| x.cycle_remote)
+                .max()
+                .unwrap();
+            let remote_acc_cycle_mean = graph
+                .subarray_result
+                .iter()
+                .map(|x| x.cycle_remote)
+                .sum::<usize>()
+                / graph.subarray_result.len();
+            let &max_mean = [
+                local_acc_cycle_mean,
+                ring_cycle_mean,
+                tsv_cycle_mean,
+                remote_acc_cycle_mean,
+            ]
+            .iter()
+            .max()
+            .unwrap();
+
+            let name = Path::new(&graph.name);
+            let mut chart = ChartBuilder::on(&chart)
+                .caption(
+                    name.file_stem().unwrap().to_str().unwrap(),
+                    ("sans-serif", 20).into_font(),
+                )
+                .x_label_area_size(10.percent())
+                .y_label_area_size(10.percent())
+                .margin(5.percent())
+                .build_cartesian_2d(0usize..4, 0..max_mean)?;
+            let data = [
+                (local_acc_cycle_max, local_acc_cycle_mean),
+                (ring_cycle_max, ring_cycle_mean),
+                (tsv_cycle_max, tsv_cycle_mean),
+                (remote_acc_cycle_max, remote_acc_cycle_mean),
+            ];
+            chart.configure_mesh().disable_mesh().draw()?;
+            chart.draw_series(data.into_iter().enumerate().map(|(index, (_max, mean))| {
+                Rectangle::new([(index, 0), (index + 1, mean)], BLUE.mix(0.5).filled())
+            }))?;
+            chart.configure_series_labels().draw()?;
+        }
+
+        root.present()?;
+        Ok(())
+    }
+}
+
+fn draw_split(args: ExecResult) -> Result<(), Box<dyn Error>> {
+    let ExecResult {
+        result_file,
         output,
     } = args;
     let output_path = output.unwrap_or_else(|| "console.svg".into());
     let split_result =
-        split_result.unwrap_or_else(|| "output/gearbox_out_001_split_spmm.json".into());
+        result_file.unwrap_or_else(|| "output/gearbox_out_001_split_spmm.json".into());
     let split_result: SplitAnalyzeResult =
         serde_json::from_reader(BufReader::new(File::open(split_result)?))?;
     // generate the box plot for each graph
@@ -719,7 +876,7 @@ fn draw_box<'a, DB: DrawingBackend + 'a>(
 mod tests {
     use std::path::PathBuf;
 
-    use spmspm_pim::cli::SplitArgs;
+    use spmspm_pim::cli::ExecResult;
     use sprs::{num_kinds::Pattern, CsMat};
 
     use crate::draw_cycle_dist;
@@ -732,8 +889,8 @@ mod tests {
 
     #[test]
     fn test_draw_cycle_png() {
-        draw_cycle_dist(SplitArgs {
-            split_result: None,
+        draw_cycle_dist(ExecResult {
+            result_file: None,
             output: Some(PathBuf::from("test.png")),
         })
         .unwrap();

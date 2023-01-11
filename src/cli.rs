@@ -73,9 +73,10 @@ pub enum DrawType {
     /// draw the speed up of spmm and gearbox
     SpeedUp(SpeedUpArgs),
     ///
-    Split(SplitArgs),
-    Empty(SplitArgs),
-    Cycle(SplitArgs),
+    Split(ExecResult),
+    Empty(ExecResult),
+    Cycle(ExecResult),
+    Gearbox(ExecResult),
 }
 
 #[derive(Parser, Debug)]
@@ -99,10 +100,10 @@ pub struct SpeedUpArgs {
 }
 
 #[derive(Debug, Args)]
-pub struct SplitArgs {
+pub struct ExecResult {
     /// the path of the split spmm result
     #[clap(short, long)]
-    pub split_result: Option<PathBuf>,
+    pub result_file: Option<PathBuf>,
     /// the output path of png,
     #[clap(short, long)]
     pub output: Option<PathBuf>,

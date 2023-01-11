@@ -116,7 +116,7 @@ where
         // draw the graph
         draw::draw_data::<_, NnzDrawer>(
             Path::new(&format!(
-                "nnz_{}.png",
+                "nnz_{}.svg",
                 Path::new(path).file_stem().unwrap().to_string_lossy()
             )),
             &(nnzs, acc),

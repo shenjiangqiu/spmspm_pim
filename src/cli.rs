@@ -64,6 +64,8 @@ pub enum AnalyzeType {
 
     /// nnz and draw graph
     NnzDraw,
+    /// the original gearbox SPMV
+    GearboxOrigin,
 }
 
 #[derive(Debug, Subcommand)]

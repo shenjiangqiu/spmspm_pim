@@ -66,6 +66,8 @@ pub enum AnalyzeType {
     NnzDraw,
     /// the original gearbox SPMV
     GearboxOrigin,
+    /// usign gearbox to perform spmm
+    GearboxOriginAll,
 }
 
 #[derive(Debug, Subcommand)]
@@ -77,6 +79,7 @@ pub enum DrawType {
     Empty(ExecResult),
     Cycle(ExecResult),
     Gearbox(ExecResult),
+    GearboxOld(ExecResult),
 }
 
 #[derive(Parser, Debug)]

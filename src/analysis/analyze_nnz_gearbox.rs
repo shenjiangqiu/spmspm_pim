@@ -159,8 +159,7 @@ impl DrawFn for NnzDrawer {
         let ninety_percent = data_acc
             .iter()
             .enumerate()
-            .skip_while(|(_index, x)| **x < 0.9)
-            .next()
+            .find(|(_, x)| **x >= 0.9)
             .unwrap()
             .0;
         right_chart.draw_series(data.1.iter().enumerate().map(|(index, nnz)| {
@@ -171,7 +170,7 @@ impl DrawFn for NnzDrawer {
         }))?;
         let corss_lines = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
             .into_iter()
-            .map(|x| {
+            .flat_map(|x| {
                 [
                     LineSeries::new(
                         [
@@ -189,7 +188,6 @@ impl DrawFn for NnzDrawer {
                     ),
                 ]
             })
-            .flatten()
             .flatten();
         right_chart.draw_series(
             [

@@ -25,6 +25,14 @@ use crate::pim::{
     level::{ddr4, LevelTrait},
 };
 
+#[derive(Serialize, Deserialize)]
+pub struct TotalResult {
+    pub global_max_acc_cycle: usize,
+    pub global_max_acc_cycle_remote: usize,
+    pub gloabl_max_acc_ring: usize,
+    pub global_max_acc_tsv: usize,
+}
+
 /// the statistics of a single graph
 #[derive(Serialize, Deserialize)]
 pub struct SingleResult {
@@ -32,6 +40,7 @@ pub struct SingleResult {
     pub subarray_result: Vec<SubArrayResult>,
     pub ring_result: Vec<RingResult>,
     pub tsv_result: Vec<TsvResult>,
+    pub total_result: TotalResult,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -100,6 +109,7 @@ struct SubArray {
     remote_write: Option<usize>,
 
     sub_array_result: SubArrayResult,
+    final_subarry_result: SubArrayResult,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -123,6 +133,34 @@ pub struct SubArrayResult {
     pub remote_row_write_cycle: usize,
     pub cycle_remote: usize,
 }
+impl SubArrayResult {
+    fn accumulate(&self, other: &mut SubArrayResult) {
+        other.cycle += self.cycle;
+        other.local_row_open_cycle += self.local_row_open_cycle;
+        other.local_row_read_cycle += self.local_row_read_cycle;
+        other.local_row_write_cycle += self.local_row_write_cycle;
+        other.comp_cycle += self.comp_cycle;
+        other.local_row_open_cycle_evil += self.local_row_open_cycle_evil;
+        other.local_row_read_cycle_evil += self.local_row_read_cycle_evil;
+        other.local_row_write_cycle_evil += self.local_row_write_cycle_evil;
+        other.remote_row_read_cycle += self.remote_row_read_cycle;
+        other.remote_row_write_cycle += self.remote_row_write_cycle;
+        other.cycle_remote += self.cycle_remote;
+    }
+    fn reset(&mut self) {
+        self.cycle = 0;
+        self.local_row_open_cycle = 0;
+        self.local_row_read_cycle = 0;
+        self.local_row_write_cycle = 0;
+        self.comp_cycle = 0;
+        self.local_row_open_cycle_evil = 0;
+        self.local_row_read_cycle_evil = 0;
+        self.local_row_write_cycle_evil = 0;
+        self.remote_row_read_cycle = 0;
+        self.remote_row_write_cycle = 0;
+        self.cycle_remote = 0;
+    }
+}
 
 impl SubArray {
     /// create a new subarray
@@ -132,6 +170,7 @@ impl SubArray {
             write_open: None,
             remote_write: None,
             sub_array_result: Default::default(),
+            final_subarry_result: Default::default(),
         }
     }
 
@@ -251,7 +290,18 @@ impl SubArray {
     }
 
     fn report(&self) -> SubArrayResult {
-        self.sub_array_result.clone()
+        self.final_subarry_result.clone()
+    }
+    /// clear the current result and add them into the final result, return current local and remote
+    fn report_current_round(&mut self) -> (usize, usize) {
+        // first accumualte the result from sub_array_result to final_subarry_result
+        let local_cycle = self.sub_array_result.cycle;
+        let remote_cycle = self.sub_array_result.cycle_remote;
+        self.sub_array_result
+            .accumulate(&mut self.final_subarry_result);
+
+        self.sub_array_result.reset();
+        (local_cycle, remote_cycle)
     }
 }
 
@@ -259,9 +309,10 @@ impl SubArray {
 struct Ring {
     tasks: Vec<(RingPort, RingPort)>,
     ports: u8,
+    ring_result: RingResult,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct RingResult {
     pub cycle: usize,
     pub traffic: usize,
@@ -272,6 +323,7 @@ impl Ring {
         Self {
             tasks: Vec::new(),
             ports,
+            ring_result: Default::default(),
         }
     }
     fn add_task(&mut self, source: RingPort, target: RingPort) {
@@ -279,6 +331,10 @@ impl Ring {
     }
 
     fn report(&self) -> RingResult {
+        self.ring_result.clone()
+    }
+
+    fn report_current_round(&mut self) -> usize {
         // simulate the ring process
         let mut paths = vec![0; self.ports as usize];
         for (source, target) in self.tasks.iter() {
@@ -293,20 +349,21 @@ impl Ring {
                 paths[i as usize] += 1;
             }
         }
-
-        RingResult {
-            cycle: *paths.iter().max().unwrap_or(&0),
-            traffic: self.tasks.len(),
-        }
+        let current_round_cycle = *paths.iter().max().unwrap_or(&0);
+        self.ring_result.cycle += current_round_cycle;
+        self.ring_result.traffic += self.tasks.len();
+        self.tasks.clear();
+        return current_round_cycle;
     }
 }
 
 #[derive(Clone)]
 struct Tsv {
     traffic: usize,
+    tsv_result: TsvResult,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct TsvResult {
     pub cycle: usize,
     pub traffic: usize,
@@ -314,17 +371,24 @@ pub struct TsvResult {
 
 impl Tsv {
     fn new() -> Self {
-        Self { traffic: 0 }
+        Self {
+            traffic: 0,
+            tsv_result: Default::default(),
+        }
     }
     fn add_task(&mut self) {
         self.traffic += 1;
     }
 
     fn report(&self) -> TsvResult {
-        TsvResult {
-            cycle: self.traffic,
-            traffic: self.traffic,
-        }
+        self.tsv_result.clone()
+    }
+    fn report_current_round(&mut self) -> usize {
+        self.tsv_result.cycle += self.traffic;
+        self.tsv_result.traffic += self.traffic;
+        let cycle = self.traffic;
+        self.traffic = 0;
+        return cycle;
     }
 }
 
@@ -610,7 +674,7 @@ impl Hardware {
         SubarrayId(col_id.0 / self.col_per_partition)
     }
     /// reduce the result and return the result
-    fn report(&self, name: String) -> SingleResult {
+    fn report(&self, name: String, total_result: TotalResult) -> SingleResult {
         // reduce the result
         let subarray_result: Vec<_> = self
             .sub_array
@@ -624,6 +688,7 @@ impl Hardware {
             subarray_result,
             ring_result,
             tsv_result,
+            total_result,
         }
     }
 }
@@ -684,14 +749,33 @@ impl GearboxSim {
     }
 
     /// distribute the task to components
-    fn run(&mut self, input_vec: &CsMat<Pattern>) {
+    fn run(&mut self, input_vec: &CsMat<Pattern>) -> TotalResult {
+        let mut global_max_acc_cycle = 0;
+        let mut global_max_acc_cycle_remote = 0;
+        let mut gloabl_max_acc_ring = 0;
+        let mut global_max_acc_tsv = 0;
+        let now = std::time::Instant::now();
         debug!("run gearbox sim");
         let evil_rows = self.evil_row_ids.len();
         let evil_cols = self.evil_col_ids.len();
         debug!(?self.row_per_partition,?self.row_per_partition,  ?evil_rows, ?evil_cols, "run gearbox sim");
         debug!(?self.evil_row_ids, ?self.evil_col_ids, "run gearbox sim");
         // distribute the task to components
+        let total_rows = input_vec.rows();
+        let mut next_print_percent = total_rows / 100;
         for (target_id, row) in input_vec.outer_iterator().enumerate() {
+            if target_id >= next_print_percent {
+                let time = now.elapsed().as_secs_f32();
+                let min = time / 60.;
+                let remaining = time / target_id as f32 * (total_rows - target_id) as f32;
+                let min_r = remaining / 60.;
+                let speed = target_id as f32 / min;
+                info!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
+                next_print_percent += total_rows / 100;
+            }
+            // fix bug here, we should collect the evil col for each target id
+            let mut evil_col_row_id_col_id = vec![];
+
             // get the result for that line
             for &mat_b_row_id in row.indices() {
                 if self.evil_row_ids.contains(&mat_b_row_id) {
@@ -707,7 +791,6 @@ impl GearboxSim {
                             .map(|&x| LogicColId(x)),
                     );
                 } else {
-                    let mut evil_col_row_id_col_id = vec![];
                     // the row is not evil, need to access remote
                     for col in self.matrix_b.outer_view(mat_b_row_id).unwrap().indices() {
                         if self.evil_col_ids.contains(col) {
@@ -742,17 +825,56 @@ impl GearboxSim {
                             }
                         }
                     }
-                    self.hardware
-                        .distribute_evil_col(LogicRowId(target_id), evil_col_row_id_col_id);
                 }
             }
+            // fix bug here, we should collect the evil col for each target id
+            self.hardware
+                .distribute_evil_col(LogicRowId(target_id), evil_col_row_id_col_id);
+            // reduce the tasks and clear the tasks
+            // the cycle of this round
+            let ring_max_cycle = self
+                .hardware
+                .ring
+                .iter_mut()
+                .map(|ring| ring.report_current_round())
+                .max()
+                .unwrap();
+            let tsv_max_cycle = self
+                .hardware
+                .tsv
+                .iter_mut()
+                .map(|tsv| tsv.report_current_round())
+                .max()
+                .unwrap();
+            // the subarray max cycle for local
+            let (max_local, max_remote): (Vec<_>, Vec<_>) = self
+                .hardware
+                .sub_array
+                .iter_mut()
+                .map(|sub_array| {
+                    let (local, remote) = sub_array.report_current_round();
+                    (local, remote)
+                })
+                .unzip();
+            let max_local_cycle = max_local.iter().max().unwrap();
+            let max_remote_cycle = max_remote.iter().max().unwrap();
+            global_max_acc_cycle += max_local_cycle;
+            global_max_acc_cycle_remote += max_remote_cycle;
+            gloabl_max_acc_ring += ring_max_cycle;
+            global_max_acc_tsv += tsv_max_cycle;
             // add the result to the total result and continue to the next line
+        }
+        TotalResult {
+            global_max_acc_cycle,
+            global_max_acc_cycle_remote,
+            gloabl_max_acc_ring,
+            global_max_acc_tsv,
         }
     }
 
     /// reduce the result and return the result
-    fn report(&self, name: String) -> SingleResult {
-        self.hardware.report(name)
+    fn report(&self, name: String, total_result: TotalResult) -> SingleResult {
+        self.hardware.report(name, total_result)
     }
 
     fn get_partition_id_row(&self, row_id: LogicRowId) -> SubarrayId {
@@ -805,9 +927,18 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
         * config.subarrays;
     info!(?partitions, "compute gearbox");
     info!("reading mtx file: {}", path);
+    let read_time = std::time::Instant::now();
     let matrix_a: TriMat<Pattern> = sprs::io::read_matrix_market(path).unwrap();
+    info!(
+        "finished read the matrix: time:{:.2} secs",
+        read_time.elapsed().as_secs_f32()
+    );
     let (matrix_a, matrix_b): (CsMat<Pattern>, CsMat<Pattern>) =
         (matrix_a.to_csr(), matrix_a.transpose_view().to_csr());
+    info!(
+        "finished transpose the matrix: time:{:.2} secs",
+        read_time.elapsed().as_secs_f32()
+    );
     let mat_b_rows = matrix_b.rows();
     let mat_b_cols = matrix_b.cols();
 
@@ -855,9 +986,11 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
         matrix_b,
         config,
     );
+    info!("start running the sim");
+    let total_result = gearbox.run(&matrix_a);
+    info!("finished running the sim");
 
-    gearbox.run(&matrix_a);
-    gearbox.report(path.to_string())
+    gearbox.report(path.to_string(), total_result)
 }
 
 fn analyze_gearbox_inner<LevelType: LevelTrait>(
@@ -877,7 +1010,7 @@ where
             info!("analyzing graph {}/{}", index + 1, total_graphs);
             compute_gearbox(config, path)
         })
-        .collect_vec();
+        .collect();
 
     GearboxResult { results }
 }

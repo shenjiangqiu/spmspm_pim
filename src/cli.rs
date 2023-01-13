@@ -80,6 +80,7 @@ pub enum DrawType {
     Cycle(ExecResult),
     Gearbox(ExecResult),
     GearboxOld(ExecResult),
+    GearBoxAll(ExecResult),
 }
 
 #[derive(Parser, Debug)]

@@ -13,8 +13,7 @@ use hashbrown::HashSet;
 use itertools::Itertools;
 use plotters::coord::Shift;
 use plotters::prelude::*;
-use rayon::iter::ParallelIterator;
-use rayon::prelude::IntoParallelRefIterator;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sprs::{num_kinds::Pattern, CsMat, TriMat};
 use tracing::{debug, info};
@@ -1004,10 +1003,11 @@ where
     let total_graphs = config.graph_path.len();
     let results = config
         .graph_path
-        .iter()
+        .par_iter()
         .enumerate()
         .map(|(index, path)| {
             info!("analyzing graph {}/{}", index + 1, total_graphs);
+            let _span = tracing::info_span!("compute_gearbox", index).entered();
             compute_gearbox(config, path)
         })
         .collect();

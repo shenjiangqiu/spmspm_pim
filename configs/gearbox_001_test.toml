@@ -5,9 +5,7 @@ columns = 256
 dram_type = 'DDR4'
 graph_path = [
   "mtx/outerspace/2cubes_sphere/2cubes_sphere.mtx",
-  "mtx/outerspace/filter3D/filter3D_B.mtx",
-  # "mtx/outerspace/p2p-Gnutella31/p2p-Gnutella31.mtx",
-  # "mtx/outerspace/amazon0312/amazon0312.mtx",
+  "mtx/outerspace/filter3D/filter3D_B.mtx", # "mtx/outerspace/p2p-Gnutella31/p2p-Gnutella31.mtx",  # "mtx/outerspace/amazon0312/amazon0312.mtx",
   # "mtx/outerspace/filter3D/filter3D_C.mtx",
   # "mtx/outerspace/poisson3Da/poisson3Da.mtx",
   # "mtx/outerspace/ca-CondMat/ca-CondMat.mtx",
@@ -24,7 +22,7 @@ graph_path = [
   # "mtx/outerspace/email-Enron/email-Enron.mtx",
   # "mtx/outerspace/offshore/offshore.mtx",
 ]
-output_path = 'output/gearbox_out_001.json'
+output_path = 'output/gearbox_out_001_test.json'
 precharge_cycle = 22
 rows = 32768
 subarray_provider_size = 2

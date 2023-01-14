@@ -24,6 +24,8 @@ toml = "0.5.9"
 tracing = "0.1.37"
 tracing-subscriber = {version = "0.3.16", features = ["env-filter"]}
 terminal_size = "0.2.3"
+tracing-appender = "0.2.2"
+ctrlc = "3.2.4"
 [profile.release]
 lto = true
 opt-level = 3

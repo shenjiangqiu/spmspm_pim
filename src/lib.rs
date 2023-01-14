@@ -10,30 +10,52 @@ use eyre::Result;
 pub use pim::Simulator;
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::Write;
+use std::io::{self, BufWriter};
 use tracing::info;
 use tracing::metadata::LevelFilter;
+use tracing_subscriber::fmt::MakeWriter;
 pub mod cli;
 pub mod draw;
-
+pub static mut CTRL_C: bool = false;
 #[allow(dead_code)]
 pub fn init_logger_info() {
-    init_logger(LevelFilter::INFO);
+    init_logger(LevelFilter::INFO, io::stderr);
 }
 
 #[allow(dead_code)]
 pub fn init_logger_debug() {
-    init_logger(LevelFilter::DEBUG);
+    init_logger(LevelFilter::DEBUG, io::stderr);
 }
 
 #[allow(dead_code)]
-pub fn init_logger(filter: LevelFilter) {
+pub fn init_logger(
+    filter: LevelFilter,
+    writter: impl for<'writer> MakeWriter<'writer> + 'static + Send + Sync,
+) {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::builder()
                 .with_default_directive(filter.into())
                 .from_env_lossy(),
         )
+        .with_writer(writter)
+        .with_ansi(false)
+        .try_init()
+        .unwrap_or_else(|e| {
+            eprintln!("failed to init logger: {}", e);
+        });
+}
+
+#[allow(dead_code)]
+pub fn init_logger_stderr(filter: LevelFilter) {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::builder()
+                .with_default_directive(filter.into())
+                .from_env_lossy(),
+        )
+        .with_ansi(true)
         .try_init()
         .unwrap_or_else(|e| {
             eprintln!("failed to init logger: {}", e);
@@ -47,7 +69,24 @@ where
     T: Into<OsString> + Clone,
 {
     let cli = Cli::parse_from(args);
-    init_logger_info();
+
+    let file_appender = tracing_appender::rolling::hourly("output/", "spmm.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    init_logger(LevelFilter::INFO, non_blocking);
+    ctrlc::set_handler(move || unsafe {
+        writeln!(
+            io::stderr(),
+            "\n------\nCTRL-C received, exiting gracefully"
+        )
+        .unwrap();
+        writeln!(
+            io::stderr(),
+            "the simulator will stop after the current iteration or wthin 1 minute"
+        )
+        .unwrap();
+        CTRL_C = true;
+    })
+    .unwrap();
 
     match cli.subcmd {
         cli::Operation::Run(RunArgs { config }) => {

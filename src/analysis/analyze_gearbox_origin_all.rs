@@ -761,16 +761,22 @@ impl GearboxSim {
         debug!(?self.evil_row_ids, ?self.evil_col_ids, "run gearbox sim");
         // distribute the task to components
         let total_rows = input_vec.rows();
+        // print every 1% or every 60s
         let mut next_print_percent = total_rows / 100;
+        let mut next_print_time = 60;
         for (target_id, row) in input_vec.outer_iterator().enumerate() {
-            if target_id >= next_print_percent {
+            if target_id >= next_print_percent || now.elapsed().as_secs() >= next_print_time {
                 let time = now.elapsed().as_secs_f32();
                 let min = time / 60.;
                 let remaining = time / target_id as f32 * (total_rows - target_id) as f32;
                 let min_r = remaining / 60.;
                 let speed = target_id as f32 / min;
                 info!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
-                next_print_percent += total_rows / 100;
+                next_print_percent = target_id + total_rows / 100;
+                next_print_time = now.elapsed().as_secs() + 60;
+                if unsafe { crate::CTRL_C } == true {
+                    break;
+                }
             }
             // fix bug here, we should collect the evil col for each target id
             let mut evil_col_row_id_col_id = vec![];

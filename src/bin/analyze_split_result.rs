@@ -12,7 +12,6 @@ struct Report {
     min_cycle: u64,
     max_cycle: u64,
     mean_cycle: f64,
-
     mean_comp: f64,
     mean_open: f64,
     mean_open_no_overlap: f64,

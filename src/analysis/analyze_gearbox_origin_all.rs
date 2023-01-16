@@ -15,7 +15,9 @@ use plotters::coord::Shift;
 use plotters::prelude::*;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use sprs::{num_kinds::Pattern, CsMat, TriMat};
+use sprs::io::MatrixHead;
+use sprs::num_kinds::Pattern;
+use sprs::{CsMatI, TriMatI};
 use tracing::{debug, info};
 
 use crate::draw::DrawFn;
@@ -23,6 +25,7 @@ use crate::pim::{
     config::Config,
     level::{ddr4, LevelTrait},
 };
+use crate::TIME_TO_LOG;
 
 #[derive(Serialize, Deserialize)]
 pub struct TotalResult {
@@ -699,16 +702,15 @@ pub struct GearboxSim {
     pub evil_col_ids: HashSet<usize>,
     /// the id of evil row: the evil row will be partitioned into each components,there are no remote access needed.
     pub evil_row_ids: HashSet<usize>,
-    pub matrix_b: CsMat<Pattern>,
+    pub matrix_b: CsMatI<Pattern, u32>,
     pub hardware: Hardware,
 }
-
 impl GearboxSim {
     fn new(
         num_partitions: usize,
         evil_col_ids: impl IntoIterator<Item = usize>,
         evil_row_ids: impl IntoIterator<Item = usize>,
-        matrix_b: CsMat<Pattern>,
+        matrix_b: CsMatI<Pattern, u32>,
         config: &Config,
     ) -> Self {
         debug!(num_partitions, "new gearbox sim");
@@ -748,7 +750,7 @@ impl GearboxSim {
     }
 
     /// distribute the task to components
-    fn run(&mut self, input_vec: &CsMat<Pattern>) -> TotalResult {
+    fn run(&mut self, input_vec: &CsMatI<Pattern, u32>) -> TotalResult {
         let mut global_max_acc_cycle = 0;
         let mut global_max_acc_cycle_remote = 0;
         let mut gloabl_max_acc_ring = 0;
@@ -763,7 +765,7 @@ impl GearboxSim {
         let total_rows = input_vec.rows();
         // print every 1% or every 60s
         let mut next_print_percent = total_rows / 100;
-        let mut next_print_time = 60;
+        let mut next_print_time = TIME_TO_LOG as u64;
         for (target_id, row) in input_vec.outer_iterator().enumerate() {
             if target_id >= next_print_percent || now.elapsed().as_secs() >= next_print_time {
                 let time = now.elapsed().as_secs_f32();
@@ -773,7 +775,7 @@ impl GearboxSim {
                 let speed = target_id as f32 / min;
                 info!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
                 next_print_percent = target_id + total_rows / 100;
-                next_print_time = now.elapsed().as_secs() + 60;
+                next_print_time = now.elapsed().as_secs() + TIME_TO_LOG as u64;
                 if unsafe { crate::CTRL_C } == true {
                     break;
                 }
@@ -783,6 +785,7 @@ impl GearboxSim {
 
             // get the result for that line
             for &mat_b_row_id in row.indices() {
+                let mat_b_row_id = mat_b_row_id as usize;
                 if self.evil_row_ids.contains(&mat_b_row_id) {
                     // the row is evil, no need to access remote
                     self.hardware.distribute_evil_row(
@@ -793,27 +796,34 @@ impl GearboxSim {
                             .unwrap()
                             .indices()
                             .iter()
-                            .map(|&x| LogicColId(x)),
+                            .map(|&x| LogicColId(x as usize)),
                     );
                 } else {
                     // the row is not evil, need to access remote
-                    for col in self.matrix_b.outer_view(mat_b_row_id).unwrap().indices() {
-                        if self.evil_col_ids.contains(col) {
+                    for col in self
+                        .matrix_b
+                        .outer_view(mat_b_row_id)
+                        .unwrap()
+                        .indices()
+                        .into_iter()
+                        .map(|i| *i as usize)
+                    {
+                        if self.evil_col_ids.contains(&col) {
                             // the col is evil, no need to access remote
                             // self.hardware
                             //     .distribute_evil_col(target_id, *mat_b_row_id, *col);
                             evil_col_row_id_col_id
-                                .push((LogicRowId(mat_b_row_id), LogicColId(*col)));
+                                .push((LogicRowId(mat_b_row_id), LogicColId(col)));
                         } else {
                             // the col is not evil, need to access remote
-                            let target_partition = self.get_partition_id_col(LogicColId(*col));
+                            let target_partition = self.get_partition_id_col(LogicColId(col));
                             let source_partition =
                                 self.get_partition_id_row(LogicRowId(mat_b_row_id));
                             if target_partition == source_partition {
                                 self.hardware.distribute_local(
                                     LogicRowId(target_id),
                                     LogicRowId(mat_b_row_id),
-                                    LogicColId(*col),
+                                    LogicColId(col),
                                 );
                             } else {
                                 // the col is in different partition, need to access remote
@@ -825,7 +835,7 @@ impl GearboxSim {
                                     ),
                                     self.hardware.get_partition_id_row(LogicRowId(mat_b_row_id)),
                                     LogicRowId(mat_b_row_id),
-                                    LogicColId(*col),
+                                    LogicColId(col),
                                 );
                             }
                         }
@@ -933,12 +943,20 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
     info!(?partitions, "compute gearbox");
     info!("reading mtx file: {}", path);
     let read_time = std::time::Instant::now();
-    let matrix_a: TriMat<Pattern> = sprs::io::read_matrix_market(path).unwrap();
+    let matrix_head: MatrixHead<Pattern, u32> = sprs::io::read_matrix_market_head(path).unwrap();
+    let total_size = matrix_head.ind_ptr_size() + matrix_head.ind_size() + matrix_head.data_size();
+    let total_size = total_size * 3;
+    info!(
+        "info there will be {} bytes,start acquire the space",
+        total_size
+    );
+    let _guard = crate::acquire_memory(total_size);
+    let matrix_a: TriMatI<Pattern, u32> = sprs::io::read_matrix_market(path).unwrap();
     info!(
         "finished read the matrix: time:{:.2} secs",
         read_time.elapsed().as_secs_f32()
     );
-    let (matrix_a, matrix_b): (CsMat<Pattern>, CsMat<Pattern>) =
+    let (matrix_a, matrix_b): (CsMatI<Pattern, u32>, CsMatI<Pattern, u32>) =
         (matrix_a.to_csr(), matrix_a.transpose_view().to_csr());
     info!(
         "finished transpose the matrix: time:{:.2} secs",

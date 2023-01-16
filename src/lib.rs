@@ -7,11 +7,15 @@ use crate::pim::config::Config;
 use clap::Parser;
 use cli::{AnalyzeArgs, Cli, RunArgs};
 use eyre::Result;
+use once_cell::sync::Lazy;
 pub use pim::Simulator;
+use std::env;
 use std::ffi::OsString;
 use std::fs::File;
 use std::io::Write;
 use std::io::{self, BufWriter};
+use std::sync::{Condvar, Mutex};
+use sysinfo::SystemExt;
 use tracing::info;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::fmt::MakeWriter;
@@ -46,6 +50,53 @@ pub fn init_logger(
             eprintln!("failed to init logger: {}", e);
         });
 }
+static CURRENT_MEMORY_USAGE: Mutex<usize> = Mutex::new(0);
+static MEMORY_CONDVAR: Condvar = Condvar::new();
+fn get_memory_free() -> usize {
+    let mut sysinfo = sysinfo::System::new_all();
+    sysinfo.refresh_memory();
+    sysinfo.available_memory() as usize
+}
+/// parse the memory limit from the environment variable MEMORY_LIMIT, if error, return the current memory available
+fn parse_memory_limit() -> usize {
+    let limit = match env::var("MEMORY_LIMIT") {
+        Ok(limmit) => parse_size::parse_size(&limmit)
+            .map(|x| x as usize)
+            .unwrap_or_else(|e| {
+                eprintln!("failed to parse memory limit: {}", e);
+                get_memory_free()
+            }),
+        Err(_) => get_memory_free(),
+    };
+    info!("memory limit: {} bytes", limit);
+    limit
+}
+
+static TOTAL_MEMORY: Lazy<usize> = Lazy::new(|| parse_memory_limit());
+pub struct MemoryGuard(usize);
+#[must_use]
+pub fn acquire_memory(size: usize) -> MemoryGuard {
+    info!("acquire memory: {} bytes", size);
+    if size > *TOTAL_MEMORY {
+        panic!("memory limit exceeded");
+    }
+    let mut memory = CURRENT_MEMORY_USAGE.lock().unwrap();
+    while *memory + size > *TOTAL_MEMORY {
+        memory = MEMORY_CONDVAR.wait(memory).unwrap();
+    }
+    info!("memory acquired");
+    *memory += size;
+    MemoryGuard(size)
+}
+
+impl Drop for MemoryGuard {
+    fn drop(&mut self) {
+        let mut memory = CURRENT_MEMORY_USAGE.lock().unwrap();
+        *memory -= self.0;
+        drop(memory);
+        MEMORY_CONDVAR.notify_all();
+    }
+}
 
 #[allow(dead_code)]
 pub fn init_logger_stderr(filter: LevelFilter) {
@@ -61,6 +112,7 @@ pub fn init_logger_stderr(filter: LevelFilter) {
             eprintln!("failed to init logger: {}", e);
         });
 }
+pub const TIME_TO_LOG: u64 = 15;
 
 /// the main function of the simulator
 pub fn main_inner<A, T>(args: A) -> Result<()>
@@ -81,7 +133,7 @@ where
         .unwrap();
         writeln!(
             io::stderr(),
-            "the simulator will stop after the current iteration or wthin 1 minute"
+            "the simulator will stop after the current iteration or wthin {TIME_TO_LOG} secs",
         )
         .unwrap();
         CTRL_C = true;
@@ -261,9 +313,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use sprs::{num_kinds::Pattern, CsMat};
+    use std::sync::{Arc, Condvar, Mutex};
 
-    use crate::{main_inner, pim::config::Config, Simulator};
+    use sprs::{num_kinds::Pattern, CsMat};
+    use tracing::{info, metadata::LevelFilter};
+
+    use crate::{acquire_memory, init_logger_stderr, main_inner, pim::config::Config, Simulator};
 
     #[test]
     fn it_works() {
@@ -318,5 +373,53 @@ mod tests {
             "configs/gearbox_test.toml",
         ];
         main_inner(args)
+    }
+
+    #[test]
+    fn test_condvar() -> eyre::Result<()> {
+        let var = Arc::new(Mutex::new(0));
+        let cond = Arc::new(Condvar::new());
+        let threads = (0..10)
+            .into_iter()
+            .map(|i| {
+                let var = var.clone();
+                let cond = cond.clone();
+                std::thread::spawn(move || {
+                    let mut var = var.lock().unwrap();
+                    *var += 1;
+                    println!("thread {} is waiting", i);
+                    var = cond.wait(var).unwrap();
+                    println!("thread {} is notified", i);
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                    drop(var);
+                })
+            })
+            .collect::<Vec<_>>();
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        cond.notify_all();
+        threads.into_iter().for_each(|t| t.join().unwrap());
+        Ok(())
+    }
+
+    #[test]
+    fn test_memory_acquire() -> eyre::Result<()> {
+        init_logger_stderr(LevelFilter::INFO);
+        std::env::set_var("MEMORY_LIMIT", "100");
+        let threads = [40, 50, 60, 70, 80]
+            .into_iter()
+            .enumerate()
+            .map(|(i, size)| {
+                std::thread::spawn(move || {
+                    let _span = tracing::info_span!("thread", i).entered();
+                    info!("thread {} start running", i);
+                    let _memory = acquire_memory(size);
+                    info!("thread {} is runing!", i);
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+                    info!("thread {} finished", i);
+                })
+            })
+            .collect::<Vec<_>>();
+        threads.into_iter().for_each(|t| t.join().unwrap());
+        Ok(())
     }
 }

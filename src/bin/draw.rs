@@ -286,6 +286,22 @@ impl DrawFn for GearboxAllDrawer {
                 (global_max_acc_tsv, tsv_cycle_max),
                 (global_max_acc_cycle_remote, remote_acc_cycle_max),
             ];
+            // this is the real gearbox runtime cycle
+            let final_cycle = global_max_acc_cycle
+                + global_max_acc_cycle_remote
+                + gloabl_max_acc_ring
+                + global_max_acc_tsv;
+            let pipe_line_cycle = [
+                local_acc_cycle_max,
+                ring_cycle_max,
+                tsv_cycle_max,
+                remote_acc_cycle_max,
+            ]
+            .into_iter()
+            .max()
+            .unwrap();
+            let max_possible_speedup = final_cycle as f64 / pipe_line_cycle as f64;
+
             chart.configure_mesh().disable_mesh().draw()?;
             chart.draw_series(data.into_iter().enumerate().flat_map(
                 |(index, (global_max, acc_max))| {
@@ -302,6 +318,13 @@ impl DrawFn for GearboxAllDrawer {
                 .draw_series(["local", "ring", "tsv", "remote"].iter().enumerate().map(
                     |(index, &name)| Text::new(name, (index, 0), ("sans-serif", 20).into_font()),
                 ))
+                .unwrap();
+            chart
+                .draw_series([Text::new(
+                    format!("max possible speedup: {:.2}", max_possible_speedup),
+                    (4, max),
+                    ("sans-serif", 20).into_font(),
+                )])
                 .unwrap();
             chart.configure_series_labels().draw()?;
         }

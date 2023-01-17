@@ -95,6 +95,23 @@ pub fn acquire_memory(size: usize) -> MemoryGuard {
     MemoryGuard(size)
 }
 
+#[must_use]
+pub fn acquire_memory_sections(size: &[usize]) -> Vec<MemoryGuard> {
+    assert!(!size.is_empty());
+    let total_size = size.iter().sum::<usize>();
+    info!("trying to acquire memory: {} bytes", total_size);
+    if total_size > *TOTAL_MEMORY {
+        panic!("memory limit exceeded");
+    }
+    let mut memory = CURRENT_MEMORY_USAGE.lock().unwrap();
+    while *memory + total_size > *TOTAL_MEMORY {
+        memory = MEMORY_CONDVAR.wait(memory).unwrap();
+    }
+    info!("memory acquired");
+    *memory += total_size;
+    size.into_iter().map(|x| MemoryGuard(*x)).collect()
+}
+
 impl Drop for MemoryGuard {
     fn drop(&mut self) {
         let mut memory = CURRENT_MEMORY_USAGE.lock().unwrap();

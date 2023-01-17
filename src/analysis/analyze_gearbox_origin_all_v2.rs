@@ -961,22 +961,32 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
     let read_time = std::time::Instant::now();
     let matrix_head: MatrixHead<Pattern, u32> = sprs::io::read_matrix_market_head(path).unwrap();
     let matrix_size = matrix_head.ind_ptr_size() + matrix_head.ind_size() + matrix_head.data_size();
-    let matrix_size = matrix_size * 3;
+    // two csr csc matrix during runtime
+    let matrix_size = matrix_size * 2;
     let sim_size = partitions * (size_of::<SubArray>()) * 2;
-    let total_size = matrix_size + sim_size;
+    let sim_size = matrix_size + sim_size;
+
+    let temp_size = matrix_head.tri_size();
 
     info!(
         "info there will be {} bytes,start acquire the space",
-        total_size
+        sim_size + temp_size
     );
-    let _guard = crate::acquire_memory(total_size);
-    let matrix_a: TriMatI<Pattern, u32> = sprs::io::read_matrix_market(path).unwrap();
+    let mut _guard = crate::acquire_memory_sections(&[sim_size, temp_size]);
+    let _guard_temp = _guard.pop().unwrap();
+    let _guard_sim = _guard.pop().unwrap();
+
+    let tri_mat: TriMatI<Pattern, u32> = sprs::io::read_matrix_market(path).unwrap();
     info!(
         "finished read the matrix: time:{:.2} secs",
         read_time.elapsed().as_secs_f32()
     );
     let (matrix_a, matrix_b): (CsMatI<Pattern, u32>, CsMatI<Pattern, u32>) =
-        (matrix_a.to_csr(), matrix_a.transpose_view().to_csr());
+        (tri_mat.to_csr(), tri_mat.transpose_view().to_csr());
+
+    drop(tri_mat);
+    drop(_guard_temp);
+
     info!(
         "finished transpose the matrix: time:{:.2} secs",
         read_time.elapsed().as_secs_f32()
@@ -1037,7 +1047,9 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
             gearbox.report(path.to_string(), result, batch, top_k)
         })
         .collect();
-
+    drop(matrix_a);
+    drop(matrix_b);
+    drop(_guard_sim);
     results
 }
 fn transpose2<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {

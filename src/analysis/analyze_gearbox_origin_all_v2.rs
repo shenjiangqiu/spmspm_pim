@@ -2,8 +2,10 @@
 //! # WARNING:
 //!
 //! !!! this module is derived from analyze_split_spmm.rs and the code and ***doc*** might not be accurate
+//! - in this version, we can run multiple configs while using the same graph memory.
 use std::cmp::Reverse;
 use std::error::Error;
+use std::mem::size_of;
 use std::{
     collections::BTreeMap,
     fmt::{Debug, Display},
@@ -21,10 +23,8 @@ use sprs::{CsMatI, TriMatI};
 use tracing::{debug, info};
 
 use crate::draw::DrawFn;
-use crate::pim::{
-    config::Config,
-    level::{ddr4, LevelTrait},
-};
+use crate::pim::configv2::{ConfigV2, DramType};
+use crate::pim::level::{ddr4, LevelTrait};
 use crate::TIME_TO_LOG;
 
 #[derive(Serialize, Deserialize)]
@@ -39,6 +39,8 @@ pub struct TotalResult {
 #[derive(Serialize, Deserialize)]
 pub struct SingleResult {
     pub name: String,
+    pub batch: usize,
+    pub topk: f32,
     pub subarray_result: Vec<SubArrayResult>,
     pub ring_result: Vec<RingResult>,
     pub tsv_result: Vec<TsvResult>,
@@ -73,10 +75,10 @@ impl Display for GearboxResult {
 }
 
 /// analyze the split spmm
-pub(crate) fn analyze_gearbox(config: &Config) -> GearboxResult {
+pub(crate) fn analyze_gearbox(config: &ConfigV2) -> Vec<((usize, f32), Vec<SingleResult>)> {
     match config.dram_type {
-        crate::pim::config::DramType::DDR3 => unimplemented!(),
-        crate::pim::config::DramType::DDR4 => {
+        DramType::DDR3 => unimplemented!(),
+        DramType::DDR4 => {
             let total_size = ddr4::Storage::new(
                 config.channels.num,
                 config.ranks.num,
@@ -89,18 +91,11 @@ pub(crate) fn analyze_gearbox(config: &Config) -> GearboxResult {
             );
             analyze_gearbox_inner::<ddr4::Level>(config, &total_size)
         }
-        crate::pim::config::DramType::LPDDR3 => unimplemented!(),
-        crate::pim::config::DramType::LPDDR4 => unimplemented!(),
-        crate::pim::config::DramType::HBM => unimplemented!(),
-        crate::pim::config::DramType::HBM2 => unimplemented!(),
+        DramType::LPDDR3 => unimplemented!(),
+        DramType::LPDDR4 => unimplemented!(),
+        DramType::HBM => unimplemented!(),
+        DramType::HBM2 => unimplemented!(),
     }
-}
-
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-pub struct GearboxConfig {
-    pub topk: f32,
-    pub stacks: usize,
-    pub layers: usize,
 }
 
 #[derive(Clone)]
@@ -421,7 +416,7 @@ pub struct Hardware {
     sub_array: Vec<SubArray>,
     ring: Vec<Ring>,
     tsv: Vec<Tsv>,
-    config: Config,
+    config: ConfigV2,
     /// the dimension of dense matrix in one subarray
     dense_dim: usize,
     /// for normal rows, distribute them to different subarrays
@@ -437,7 +432,7 @@ impl Hardware {
         num_rings: usize,
         num_tsvs: usize,
         dense_dim: usize,
-        config: Config,
+        config: ConfigV2,
         row_per_partition: usize,
         col_per_partition: usize,
     ) -> Self {
@@ -676,7 +671,13 @@ impl Hardware {
         SubarrayId(col_id.0 / self.col_per_partition)
     }
     /// reduce the result and return the result
-    fn report(&self, name: String, total_result: TotalResult) -> SingleResult {
+    fn report(
+        &self,
+        name: String,
+        total_result: TotalResult,
+        batch: usize,
+        topk: f32,
+    ) -> SingleResult {
         // reduce the result
         let subarray_result: Vec<_> = self
             .sub_array
@@ -691,10 +692,12 @@ impl Hardware {
             ring_result,
             tsv_result,
             total_result,
+            batch,
+            topk,
         }
     }
 }
-pub struct GearboxSim {
+pub struct GearboxSim<'a> {
     pub row_per_partition: usize,
     #[allow(unused)]
     pub col_per_partition: usize,
@@ -702,16 +705,16 @@ pub struct GearboxSim {
     pub evil_col_ids: HashSet<usize>,
     /// the id of evil row: the evil row will be partitioned into each components,there are no remote access needed.
     pub evil_row_ids: HashSet<usize>,
-    pub matrix_b: CsMatI<Pattern, u32>,
+    pub matrix_b: &'a CsMatI<Pattern, u32>,
     pub hardware: Hardware,
 }
-impl GearboxSim {
+impl<'a> GearboxSim<'a> {
     fn new(
         num_partitions: usize,
         evil_col_ids: impl IntoIterator<Item = usize>,
         evil_row_ids: impl IntoIterator<Item = usize>,
-        matrix_b: CsMatI<Pattern, u32>,
-        config: &Config,
+        matrix_b: &'a CsMatI<Pattern, u32>,
+        config: &ConfigV2,
     ) -> Self {
         debug!(num_partitions, "new gearbox sim");
         let num_rows = matrix_b.rows();
@@ -750,7 +753,12 @@ impl GearboxSim {
     }
 
     /// distribute the task to components
-    fn run(&mut self, input_vec: &CsMatI<Pattern, u32>) -> TotalResult {
+    fn run(
+        &mut self,
+        input_vec: &CsMatI<Pattern, u32>,
+        current_batch: usize,
+        _current_topk: f32,
+    ) -> TotalResult {
         let mut global_max_acc_cycle = 0;
         let mut global_max_acc_cycle_remote = 0;
         let mut gloabl_max_acc_ring = 0;
@@ -847,8 +855,7 @@ impl GearboxSim {
                 .distribute_evil_col(LogicRowId(target_id), evil_col_row_id_col_id);
             // reduce the tasks and clear the tasks
             // the cycle of this round
-            // only accumulate the result when the target_id is the last one in the batch
-            if target_id % self.hardware.config.gearbox_config.batch == 0 {
+            if target_id % current_batch == 0 {
                 let ring_max_cycle = self
                     .hardware
                     .ring
@@ -891,8 +898,14 @@ impl GearboxSim {
     }
 
     /// reduce the result and return the result
-    fn report(&self, name: String, total_result: TotalResult) -> SingleResult {
-        self.hardware.report(name, total_result)
+    fn report(
+        &self,
+        name: String,
+        total_result: TotalResult,
+        batch: usize,
+        topk: f32,
+    ) -> SingleResult {
+        self.hardware.report(name, total_result, batch, topk)
     }
 
     fn get_partition_id_row(&self, row_id: LogicRowId) -> SubarrayId {
@@ -936,7 +949,7 @@ impl DrawFn for DistributionDrawer {
     }
 }
 
-fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
+fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
     let partitions = config.channels.num
         * config.ranks.num
         * config.chips.num
@@ -947,8 +960,11 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
     info!("reading mtx file: {}", path);
     let read_time = std::time::Instant::now();
     let matrix_head: MatrixHead<Pattern, u32> = sprs::io::read_matrix_market_head(path).unwrap();
-    let total_size = matrix_head.ind_ptr_size() + matrix_head.ind_size() + matrix_head.data_size();
-    let total_size = total_size * 3;
+    let matrix_size = matrix_head.ind_ptr_size() + matrix_head.ind_size() + matrix_head.data_size();
+    let matrix_size = matrix_size * 3;
+    let sim_size = partitions * (size_of::<SubArray>()) * 2;
+    let total_size = matrix_size + sim_size;
+
     info!(
         "info there will be {} bytes,start acquire the space",
         total_size
@@ -989,46 +1005,64 @@ fn compute_gearbox(config: &Config, path: &str) -> SingleResult {
     //     Path::new(&format!("output/{}-{}", file_name, "mat_b_col_ids.png")),
     // );
 
-    let top_rows = (mat_b_row_ids.len() as f32 * config.gearbox_config.topk) as usize;
-    let top_rows = if top_rows == 0 { 1 } else { top_rows };
-    info!(?top_rows, "top rows");
-    let top_cols = (mat_b_col_ids.len() as f32 * config.gearbox_config.topk) as usize;
-    let top_cols = if top_cols == 0 { 1 } else { top_cols };
-    info!(?top_cols, "top cols");
-    assert!(top_cols > 0);
-    info!(
-        "the top 10 rows: {:?}",
-        mat_b_row_ids.iter().take(10).collect_vec()
-    );
-    info!(
-        "the top 10 cols: {:?}",
-        mat_b_col_ids.iter().take(10).collect_vec()
-    );
+    let batchs = &config.gearbox_config.batch;
+    let topks = &config.gearbox_config.topk;
+    let configs = batchs
+        .into_iter()
+        .cartesian_product(topks.into_iter())
+        .collect_vec();
+    let results = configs
+        .par_iter()
+        .map(|(batch, top_k)| {
+            let batch = **batch;
+            let top_k = **top_k;
+            let top_rows = (mat_b_row_ids.len() as f32 * top_k) as usize;
+            let top_rows = if top_rows == 0 { 1 } else { top_rows };
+            info!(?top_rows, "top rows");
+            let top_cols = (mat_b_col_ids.len() as f32 * top_k) as usize;
+            let top_cols = if top_cols == 0 { 1 } else { top_cols };
+            info!(?top_cols, "top cols");
+            assert!(top_cols > 0);
 
-    let mut gearbox = GearboxSim::new(
-        partitions,
-        mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
-        mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
-        matrix_b,
-        config,
-    );
-    info!("start running the sim");
-    let total_result = gearbox.run(&matrix_a);
-    info!("finished running the sim");
+            let mut gearbox = GearboxSim::new(
+                partitions,
+                mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
+                mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
+                &matrix_b,
+                config,
+            );
+            info!("start running the sim");
+            let _span = tracing::info_span!("run config", batch, top_k).entered();
+            let result = gearbox.run(&matrix_a, batch, top_k);
+            gearbox.report(path.to_string(), result, batch, top_k)
+        })
+        .collect();
 
-    gearbox.report(path.to_string(), total_result)
+    results
 }
-
+fn transpose2<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
+    assert!(!v.is_empty());
+    let len = v[0].len();
+    let mut iters: Vec<_> = v.into_iter().map(|n| n.into_iter()).collect();
+    (0..len)
+        .map(|_| {
+            iters
+                .iter_mut()
+                .map(|n| n.next().unwrap())
+                .collect::<Vec<T>>()
+        })
+        .collect()
+}
 fn analyze_gearbox_inner<LevelType: LevelTrait>(
-    config: &Config,
+    config: &ConfigV2,
     _total_size: &LevelType::Storage,
-) -> GearboxResult
+) -> Vec<((usize, f32), Vec<SingleResult>)>
 where
     LevelType::Storage: Debug + Sync,
     LevelType::Mapping: Debug,
 {
     let total_graphs = config.graph_path.len();
-    let results = config
+    let results: Vec<_> = config
         .graph_path
         .par_iter()
         .enumerate()
@@ -1038,8 +1072,18 @@ where
             compute_gearbox(config, path)
         })
         .collect();
-
-    GearboxResult { results }
+    let results = transpose2(results);
+    let configs = config
+        .gearbox_config
+        .batch
+        .iter()
+        .cloned()
+        .cartesian_product(config.gearbox_config.topk.iter().cloned())
+        .collect_vec();
+    info!(?configs, "configs");
+    assert_eq!(configs.len(), results.len());
+    configs.into_iter().zip(results).collect()
+    // GearboxResult { results }
 }
 
 /// the stat result of the seq spmm
@@ -1131,113 +1175,5 @@ impl SubarrayStatus {
             remaining_cycle,
             total_rows_activated + remaining_rows,
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        init_logger_debug,
-        pim::config::{Config, LevelConfig},
-    };
-
-    use super::*;
-
-    #[test]
-    fn test_split_spmm() {
-        init_logger_debug();
-        let config = Config {
-            channels: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            ranks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            chips: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            bank_groups: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            banks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            graph_path: vec!["mtx/test.mtx".to_string()],
-            ..Config::from_ddr4_3200(
-                LevelConfig {
-                    num: 1,
-                    ..Default::default()
-                },
-                LevelConfig {
-                    num: 1,
-                    ..Default::default()
-                },
-            )
-        };
-        let result = analyze_gearbox(&config);
-        result.show_results();
-    }
-
-    #[test]
-    fn test_split_spmm_long_vec() {
-        init_logger_debug();
-        let config = Config {
-            channels: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            ranks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            chips: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            bank_groups: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            banks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            graph_path: vec!["mtx/test.mtx".to_string()],
-            columns: 8,
-
-            ..Config::from_ddr4_3200(
-                LevelConfig {
-                    num: 1,
-                    ..Default::default()
-                },
-                LevelConfig {
-                    num: 1,
-                    ..Default::default()
-                },
-            )
-        };
-
-        let result = analyze_gearbox(&config);
-        result.show_results();
-    }
-
-    #[test]
-    fn test_open_row() {
-        init_logger_debug();
-        let mut subarray = SubarrayStatus::default();
-        let result = subarray.open_row((0, 13), 100, 10, 30, 20);
-        assert_eq!((10, 200, 0), result);
-        assert_eq!(Some(5), subarray.opened_row);
-        assert_eq!(12, subarray.last_read_col);
-    }
-
-    #[test]
-    fn test_gearbox_mapping() {
-        // get the number of remote rows, local rows, evil rows, evil cols
     }
 }

@@ -8,6 +8,7 @@ use clap::Parser;
 use cli::{AnalyzeArgs, Cli, RunArgs};
 use eyre::Result;
 use once_cell::sync::Lazy;
+use pim::configv2::ConfigV2;
 pub use pim::Simulator;
 use std::env;
 use std::ffi::OsString;
@@ -74,9 +75,14 @@ fn parse_memory_limit() -> usize {
 
 static TOTAL_MEMORY: Lazy<usize> = Lazy::new(|| parse_memory_limit());
 pub struct MemoryGuard(usize);
+
+///acquire memory, if the memory limit is exceeded, wait until the memory is released
+///
+///
+///  the returned value is a guard, when the guard is dropped, the memory is released
 #[must_use]
 pub fn acquire_memory(size: usize) -> MemoryGuard {
-    info!("acquire memory: {} bytes", size);
+    info!("trying to acquire memory: {} bytes", size);
     if size > *TOTAL_MEMORY {
         panic!("memory limit exceeded");
     }
@@ -304,6 +310,32 @@ where
 
                 let gearbox_result = analysis::analyze_gearbox_origin_all::analyze_gearbox(&config);
                 serde_json::to_writer(BufWriter::new(File::create(new_path)?), &gearbox_result)?;
+                info!("time elapsed: {:?}", current_time.elapsed());
+            }
+            cli::AnalyzeType::GearboxOriginAllV2 => {
+                let current_time = std::time::Instant::now();
+                info!("analyze with config: {:?}", config);
+                let config = ConfigV2::new(config);
+
+                let stem = config.output_path.file_stem().unwrap();
+                let externsion = config.output_path.extension().unwrap();
+
+                let dir_name = config.output_path.parent().unwrap();
+
+                let gearbox_result =
+                    analysis::analyze_gearbox_origin_all_v2::analyze_gearbox(&config);
+                for ((batch, topk), result) in gearbox_result {
+                    assert_eq!(batch, result[0].batch);
+                    assert_eq!(topk, result[0].topk);
+                    let new_file_name = format!(
+                        "{}_gearbox_origin_all_{batch}_{topk}.{}",
+                        stem.to_str().unwrap(),
+                        externsion.to_str().unwrap()
+                    );
+                    let new_path = dir_name.join(new_file_name);
+                    info!("the result will be written to {:?}", new_path);
+                    serde_json::to_writer(BufWriter::new(File::create(new_path)?), &result)?;
+                }
                 info!("time elapsed: {:?}", current_time.elapsed());
             }
         },

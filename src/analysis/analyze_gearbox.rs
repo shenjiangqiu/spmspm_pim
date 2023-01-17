@@ -89,7 +89,16 @@ pub(crate) fn analyze_gearbox(config: &Config) -> GearboxResult {
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct GearboxConfig {
+    pub batch: usize,
     pub topk: f32,
+    pub stacks: usize,
+    pub layers: usize,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct GearboxConfigV2 {
+    pub batch: Vec<usize>,
+    pub topk: Vec<f32>,
     pub stacks: usize,
     pub layers: usize,
 }

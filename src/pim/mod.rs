@@ -15,6 +15,7 @@ use self::{
 };
 
 pub mod config;
+pub mod configv2;
 pub mod level;
 pub mod row_buffer;
 pub mod stream_merger;

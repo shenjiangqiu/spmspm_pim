@@ -68,6 +68,8 @@ pub enum AnalyzeType {
     GearboxOrigin,
     /// usign gearbox to perform spmm
     GearboxOriginAll,
+    /// usign gearbox to perform spmm
+    GearboxOriginAllV2,
 }
 
 #[derive(Debug, Subcommand)]

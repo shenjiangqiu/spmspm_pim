@@ -6,6 +6,8 @@
 use std::cmp::Reverse;
 use std::error::Error;
 use std::mem::size_of;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::RwLock;
 use std::{
     collections::BTreeMap,
     fmt::{Debug, Display},
@@ -781,7 +783,7 @@ impl<'a> GearboxSim<'a> {
                 let remaining = time / target_id as f32 * (total_rows - target_id) as f32;
                 let min_r = remaining / 60.;
                 let speed = target_id as f32 / min;
-                info!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
+                tracing::trace!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
                 next_print_percent = target_id + total_rows / 100;
                 next_print_time = now.elapsed().as_secs() + TIME_TO_LOG as u64;
                 if unsafe { crate::CTRL_C } == true {
@@ -1021,6 +1023,7 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
         .into_iter()
         .cartesian_product(topks.into_iter())
         .collect_vec();
+    info!(?configs, "configs");
     let results = configs
         .par_iter()
         .map(|(batch, top_k)| {
@@ -1042,8 +1045,13 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
                 config,
             );
             info!("start running the sim");
-            let _span = tracing::info_span!("run config", batch, top_k).entered();
             let result = gearbox.run(&matrix_a, batch, top_k);
+            TOTAL_FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
+            info!(
+                "finished task: {}/{}",
+                TOTAL_FINISHED_TASKS.load(Ordering::Relaxed),
+                *TOTAL_TASKS.read().unwrap()
+            );
             gearbox.report(path.to_string(), result, batch, top_k)
         })
         .collect();
@@ -1065,6 +1073,10 @@ fn transpose2<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
         })
         .collect()
 }
+
+static TOTAL_FINISHED_TASKS: AtomicUsize = AtomicUsize::new(0);
+static TOTAL_TASKS: RwLock<usize> = RwLock::new(0);
+
 fn analyze_gearbox_inner<LevelType: LevelTrait>(
     config: &ConfigV2,
     _total_size: &LevelType::Storage,
@@ -1074,14 +1086,19 @@ where
     LevelType::Mapping: Debug,
 {
     let total_graphs = config.graph_path.len();
+    let total_configs = config.gearbox_config.batch.len() * config.gearbox_config.topk.len();
+    let total_tasks = total_graphs * total_configs;
+    info!(?total_graphs, ?total_configs, ?total_tasks, "total tasks");
+    *TOTAL_TASKS.write().unwrap() = total_tasks;
+
     let results: Vec<_> = config
         .graph_path
         .par_iter()
         .enumerate()
         .map(|(index, path)| {
             info!("analyzing graph {}/{}", index + 1, total_graphs);
-            let _span = tracing::info_span!("compute_gearbox", index).entered();
-            compute_gearbox(config, path)
+            let span = tracing::info_span!("compute_gearbox", index);
+            span.in_scope(|| compute_gearbox(config, path))
         })
         .collect();
     let results = transpose2(results);

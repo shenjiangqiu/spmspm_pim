@@ -10,19 +10,20 @@ use eyre::Result;
 use once_cell::sync::Lazy;
 use pim::configv2::ConfigV2;
 pub use pim::Simulator;
-use std::env;
-use std::ffi::OsString;
-use std::fs::File;
-use std::io::Write;
-use std::io::{self, BufWriter};
-use std::sync::{Condvar, Mutex};
+use std::{
+    env,
+    ffi::OsString,
+    fs::{self, File},
+    io::{self, BufWriter, Read},
+    net::TcpListener,
+    sync::{Condvar, Mutex},
+};
 use sysinfo::SystemExt;
-use tracing::info;
-use tracing::metadata::LevelFilter;
+use tracing::{error, info, metadata::LevelFilter};
 use tracing_subscriber::fmt::MakeWriter;
 pub mod cli;
 pub mod draw;
-pub static mut CTRL_C: bool = false;
+pub static mut STOP_NOW: bool = false;
 #[allow(dead_code)]
 pub fn init_logger_info() {
     init_logger(LevelFilter::INFO, io::stderr);
@@ -143,25 +144,57 @@ where
     A: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    let cli = Cli::parse_from(args);
-
     let file_appender = tracing_appender::rolling::hourly("output/", "spmm.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
     init_logger(LevelFilter::INFO, non_blocking);
-    ctrlc::set_handler(move || unsafe {
-        writeln!(
-            io::stderr(),
-            "\n------\nCTRL-C received, exiting gracefully"
-        )
-        .unwrap();
-        writeln!(
-            io::stderr(),
-            "the simulator will stop after the current iteration or wthin {TIME_TO_LOG} secs",
-        )
-        .unwrap();
-        CTRL_C = true;
-    })
-    .unwrap();
+    // ctrlc::set_handler(move || unsafe {
+    //     writeln!(
+    //         io::stderr(),
+    //         "\n------\nCTRL-C received, exiting gracefully"
+    //     )
+    //     .unwrap();
+    //     writeln!(
+    //         io::stderr(),
+    //         "the simulator will stop after the current iteration or wthin {TIME_TO_LOG} secs",
+    //     )
+    //     .unwrap();
+    //     CTRL_C = true;
+    // })
+    // .unwrap();
+    std::thread::spawn(|| {
+        // listen to port 10023
+        let listener = TcpListener::bind(":::0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        info!("listening on port {}", port);
+        println!("listening on port {}", port);
+        fs::write("port", port.to_string()).unwrap();
+        for stream in listener.incoming() {
+            match stream {
+                Ok(mut stream) => {
+                    let mut buffer = 0u32.to_le_bytes();
+                    match stream.read_exact(&mut buffer) {
+                        Err(e) => {
+                            error!("failed to read command: {}", e);
+                        }
+                        Ok(_) => {
+                            let cmd = u32::from_le_bytes(buffer);
+                            if cmd == 33 {
+                                unsafe {
+                                    info!("received ctrl-c command");
+                                    STOP_NOW = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("failed to accept connection: {}", e);
+                }
+            }
+        }
+    });
+
+    let cli = Cli::parse_from(args);
 
     match cli.subcmd {
         cli::Operation::Run(RunArgs { config }) => {

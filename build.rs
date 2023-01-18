@@ -23,4 +23,6 @@ fn main() {
     generate_complete_scripts(&mut cmd);
     let mut cmd = cli::DrawCli::command();
     generate_complete_scripts(&mut cmd);
+    let mut cmd = cli::StopCli::command();
+    generate_complete_scripts(&mut cmd);
 }

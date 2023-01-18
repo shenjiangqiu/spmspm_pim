@@ -92,6 +92,15 @@ pub struct DrawCli {
     pub subcmd: DrawType,
 }
 
+#[derive(Parser, Debug)]
+#[command(name = "stopspm", about = "stop spmm experiment")]
+pub struct StopCli {
+    #[clap(short, long)]
+    pub port: Option<u16>,
+    #[clap(short, long)]
+    pub file_path: Option<PathBuf>,
+}
+
 #[derive(Args, Debug)]
 pub struct SpeedUpArgs {
     /// the path of the split spmm result

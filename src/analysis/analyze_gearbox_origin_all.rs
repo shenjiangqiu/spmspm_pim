@@ -776,7 +776,7 @@ impl GearboxSim {
                 info!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
                 next_print_percent = target_id + total_rows / 100;
                 next_print_time = now.elapsed().as_secs() + TIME_TO_LOG as u64;
-                if unsafe { crate::CTRL_C } == true {
+                if unsafe { crate::STOP_NOW } == true {
                     break;
                 }
             }

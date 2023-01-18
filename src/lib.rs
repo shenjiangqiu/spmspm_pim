@@ -389,6 +389,7 @@ where
                 info!("time elapsed: {:?}", current_time.elapsed());
             }
         },
+        cli::Operation::Draw(draw_args) => draw::draw_with_type(draw_args.subcmd)?,
     };
     Ok(())
 }

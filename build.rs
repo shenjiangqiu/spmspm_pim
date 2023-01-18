@@ -21,8 +21,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/cli.rs");
     let mut cmd = cli::Cli::command();
     generate_complete_scripts(&mut cmd);
-    let mut cmd = cli::DrawCli::command();
-    generate_complete_scripts(&mut cmd);
+
     let mut cmd = cli::StopCli::command();
     generate_complete_scripts(&mut cmd);
 }

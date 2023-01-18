@@ -20,6 +20,8 @@ pub enum Operation {
     Run(RunArgs),
     /// analyze the result
     Analyze(AnalyzeArgs),
+    /// draw the graphs
+    Draw(DrawCli),
 }
 
 /// the arguments of the run subcommand
@@ -85,8 +87,7 @@ pub enum DrawType {
     GearBoxAll(ExecResult),
 }
 
-#[derive(Parser, Debug)]
-#[command(name = "draw", about = "draw the speed up of spmm and gearbox")]
+#[derive(Debug, Args)]
 pub struct DrawCli {
     #[clap(subcommand)]
     pub subcmd: DrawType,

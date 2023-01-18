@@ -14,3 +14,30 @@ fn main() {
     let mut stream = TcpStream::connect(&addr).unwrap();
     stream.write_all(&33u32.to_le_bytes()).unwrap();
 }
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_endian() {
+        let array: [u8; 4] = unsafe { std::mem::transmute(1u32) };
+        println!("{:?}", array);
+        println!("{:?}", 1u32.to_le_bytes());
+        println!("{:?}", 1u32.to_be_bytes());
+    }
+
+    struct A(String, usize);
+    impl Drop for A {
+        fn drop(&mut self) {
+            println!("drop A");
+            self.1 = 0;
+        }
+    }
+    #[derive(Debug)]
+    struct B(usize, usize, usize, usize);
+    #[test]
+    fn test_transmute() {
+        let a = A("hello".into(), 1);
+        // will not drop a
+        let b = unsafe { std::mem::transmute::<A, B>(a) };
+        println!("{:?}", b);
+    }
+}

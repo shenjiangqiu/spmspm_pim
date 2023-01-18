@@ -95,8 +95,10 @@ pub struct DrawCli {
 #[derive(Parser, Debug)]
 #[command(name = "stopspm", about = "stop spmm experiment")]
 pub struct StopCli {
+    /// the port of the server
     #[clap(short, long)]
     pub port: Option<u16>,
+    /// the path of the file storing the port
     #[clap(short, long)]
     pub file_path: Option<PathBuf>,
 }

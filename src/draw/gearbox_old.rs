@@ -50,7 +50,7 @@ impl DrawFn for GearboxOldDrawer {
                 .max()
                 .unwrap();
             let name = path::Path::new(&graph.name);
-            let mut chart = ChartBuilder::on(&chart)
+            let mut chart = ChartBuilder::on(chart)
                 .caption(
                     name.file_stem().unwrap().to_str().unwrap(),
                     ("sans-serif", 20).into_font(),
@@ -95,7 +95,7 @@ impl DrawFn for GearboxOldDrawer {
                 .unwrap();
 
             let name = path::Path::new(&graph.name);
-            let mut chart = ChartBuilder::on(&chart)
+            let mut chart = ChartBuilder::on(chart)
                 .caption(
                     name.file_stem().unwrap().to_str().unwrap(),
                     ("sans-serif", 20).into_font(),

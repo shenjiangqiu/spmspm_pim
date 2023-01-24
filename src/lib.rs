@@ -74,7 +74,7 @@ fn parse_memory_limit() -> usize {
     limit
 }
 
-static TOTAL_MEMORY: Lazy<usize> = Lazy::new(|| parse_memory_limit());
+static TOTAL_MEMORY: Lazy<usize> = Lazy::new(parse_memory_limit);
 pub struct MemoryGuard(usize);
 
 ///acquire memory, if the memory limit is exceeded, wait until the memory is released
@@ -110,7 +110,7 @@ pub fn acquire_memory_sections(size: &[usize]) -> Vec<MemoryGuard> {
     }
     info!("memory acquired");
     *memory += total_size;
-    size.into_iter().map(|x| MemoryGuard(*x)).collect()
+    size.iter().map(|x| MemoryGuard(*x)).collect()
 }
 
 impl Drop for MemoryGuard {
@@ -183,7 +183,6 @@ where
 {
     let file_appender = tracing_appender::rolling::hourly("output/", "spmm.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    init_logger(LevelFilter::INFO, non_blocking);
     setup_exit_receiver();
     let cli = Cli::parse_from(args);
 
@@ -471,6 +470,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_collect)]
     fn test_condvar() -> eyre::Result<()> {
         let var = Arc::new(Mutex::new(0));
         let cond = Arc::new(Condvar::new());
@@ -497,6 +497,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_collect)]
     fn test_memory_acquire() -> eyre::Result<()> {
         init_logger_stderr(LevelFilter::INFO);
         std::env::set_var("MEMORY_LIMIT", "100");

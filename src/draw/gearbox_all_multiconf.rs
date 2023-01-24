@@ -47,7 +47,7 @@ pub fn draw_gearbox_all(gearbox_args: ExecResult) -> eyre::Result<()> {
                 let topk = captures.get(2).unwrap().as_str().parse::<f32>()?;
                 Ok((batch, topk, file_name))
             } else {
-                return Err(eyre::eyre!("failed to parse file name"));
+                Err(eyre::eyre!("failed to parse file name"))
             }
         };
 
@@ -85,9 +85,15 @@ pub fn draw_gearbox_all(gearbox_args: ExecResult) -> eyre::Result<()> {
     Ok(())
 }
 
-#[derive(PartialEq, PartialOrd)]
+#[derive(PartialEq)]
 struct TopK(f32);
 impl Eq for TopK {}
+
+impl PartialOrd for TopK {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.0.partial_cmp(&other.0).unwrap())
+    }
+}
 impl Ord for TopK {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.0.partial_cmp(&other.0).unwrap()

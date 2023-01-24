@@ -352,7 +352,7 @@ impl Ring {
         self.ring_result.cycle += current_round_cycle;
         self.ring_result.traffic += self.tasks.len();
         self.tasks.clear();
-        return current_round_cycle;
+        current_round_cycle
     }
 }
 
@@ -387,7 +387,7 @@ impl Tsv {
         self.tsv_result.traffic += self.traffic;
         let cycle = self.traffic;
         self.traffic = 0;
-        return cycle;
+        cycle
     }
 }
 
@@ -786,7 +786,7 @@ impl<'a> GearboxSim<'a> {
                 tracing::trace!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
                 next_print_percent = target_id + total_rows / 100;
                 next_print_time = now.elapsed().as_secs() + TIME_TO_LOG as u64;
-                if unsafe { crate::STOP_NOW } == true {
+                if unsafe { crate::STOP_NOW } {
                     break;
                 }
             }
@@ -815,7 +815,7 @@ impl<'a> GearboxSim<'a> {
                         .outer_view(mat_b_row_id)
                         .unwrap()
                         .indices()
-                        .into_iter()
+                        .iter()
                         .map(|i| *i as usize)
                     {
                         if self.evil_col_ids.contains(&col) {
@@ -1019,10 +1019,7 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
 
     let batchs = &config.gearbox_config.batch;
     let topks = &config.gearbox_config.topk;
-    let configs = batchs
-        .into_iter()
-        .cartesian_product(topks.into_iter())
-        .collect_vec();
+    let configs = batchs.iter().cartesian_product(topks.iter()).collect_vec();
     info!(?configs, "configs");
     let results = configs
         .par_iter()

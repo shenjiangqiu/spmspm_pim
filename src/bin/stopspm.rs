@@ -6,9 +6,9 @@ use spmspm_pim::cli::StopCli;
 fn main() {
     let cli = StopCli::parse();
     let port = cli.port.unwrap_or_else(|| {
-        let path = cli.file_path.unwrap_or("port".into());
-        let port = fs::read_to_string(path).unwrap().parse().unwrap();
-        port
+        let path = cli.file_path.unwrap_or_else(|| "port".into());
+
+        fs::read_to_string(path).unwrap().parse().unwrap()
     });
     let addr = format!("127.0.0.1:{}", port);
     let mut stream = TcpStream::connect(&addr).unwrap();
@@ -18,7 +18,7 @@ fn main() {
 mod tests {
     #[test]
     fn test_endian() {
-        let array: [u8; 4] = unsafe { std::mem::transmute(1u32) };
+        let array: [u8; 4] = 1u32.to_ne_bytes();
         println!("{:?}", array);
         println!("{:?}", 1u32.to_le_bytes());
         println!("{:?}", 1u32.to_be_bytes());

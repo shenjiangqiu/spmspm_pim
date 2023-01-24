@@ -1060,7 +1060,7 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
     drop(_guard_sim);
     results
 }
-fn transpose2<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
+pub fn transpose2<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
     assert!(!v.is_empty());
     let len = v[0].len();
     let mut iters: Vec<_> = v.into_iter().map(|n| n.into_iter()).collect();

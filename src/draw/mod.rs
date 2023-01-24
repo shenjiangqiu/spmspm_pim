@@ -9,6 +9,7 @@ mod draw_split;
 mod empty;
 mod gearbox;
 mod gearbox_all;
+mod gearbox_all_multiconf;
 mod gearbox_old;
 mod speedup;
 #[derive(Debug)]
@@ -57,16 +58,22 @@ pub fn get_ext(output_path: &Path) -> Ext {
     };
     ext
 }
-
-/// the generic fn to draw the data using the DrawFn
 pub fn draw_data<DATA: ?Sized, F: DrawFn<DATA = DATA>>(
     output_path: &Path,
     split_result: &DATA,
 ) -> eyre::Result<()> {
+    draw_data_with_size::<DATA, F>(output_path, split_result, (1920, 1080))
+}
+/// the generic fn to draw the data using the DrawFn
+pub fn draw_data_with_size<DATA: ?Sized, F: DrawFn<DATA = DATA>>(
+    output_path: &Path,
+    split_result: &DATA,
+    size: (u32, u32),
+) -> eyre::Result<()> {
     info!("draw data into {:?}", output_path);
     match get_ext(output_path) {
         Ext::Svg => {
-            let root = SVGBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+            let root = SVGBackend::new(&output_path, (size.0, size.0)).into_drawing_area();
             root.fill(&WHITE)?;
             F::draw_apply(root, split_result).unwrap_or_else(|err| {
                 eprintln!("error: {}", err);
@@ -74,7 +81,7 @@ pub fn draw_data<DATA: ?Sized, F: DrawFn<DATA = DATA>>(
             })
         }
         Ext::Png => {
-            let root = BitMapBackend::new(&output_path, (1920, 1080)).into_drawing_area();
+            let root = BitMapBackend::new(&output_path, (size.0, size.0)).into_drawing_area();
             info!("draw png");
             root.fill(&WHITE)?;
             F::draw_apply(root, split_result).unwrap_or_else(|err| {
@@ -109,6 +116,9 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
         DrawType::Gearbox(gearbox_result) => gearbox::draw_gearbox(gearbox_result)?,
         DrawType::GearboxOld(gearbox_result) => gearbox_old::draw_gearbox_old(gearbox_result)?,
         DrawType::GearBoxAll(gearbox_result) => gearbox_all::draw_gearbox_all(gearbox_result)?,
+        DrawType::GearBoxAllMultiConf(gearbox_result) => {
+            gearbox_all_multiconf::draw_gearbox_all(gearbox_result)?
+        }
     }
     Ok(())
 }

@@ -85,6 +85,7 @@ pub enum DrawType {
     Gearbox(ExecResult),
     GearboxOld(ExecResult),
     GearBoxAll(ExecResult),
+    GearBoxAllMultiConf(ExecResult),
 }
 
 #[derive(Debug, Args)]

@@ -146,7 +146,7 @@ where
 {
     let file_appender = tracing_appender::rolling::hourly("output/", "spmm.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    init_logger(LevelFilter::INFO, non_blocking);
+
     // ctrlc::set_handler(move || unsafe {
     //     writeln!(
     //         io::stderr(),
@@ -198,6 +198,7 @@ where
 
     match cli.subcmd {
         cli::Operation::Run(RunArgs { config }) => {
+            init_logger(LevelFilter::INFO, non_blocking);
             println!("run with config: {:?}", config);
             let config = Config::new(config);
             info!("building simulator");
@@ -207,189 +208,209 @@ where
             simulator.run(&config);
         }
 
-        cli::Operation::Analyze(AnalyzeArgs { analyze, config }) => match analyze {
-            cli::AnalyzeType::All => {
-                println!("analyze with config: {:?}", config);
-                let config = Config::new(config);
-                analysis::print_all_stats(&config);
-            }
-            cli::AnalyzeType::Overlap => todo!(),
-            cli::AnalyzeType::Sequential => todo!(),
-            cli::AnalyzeType::Window => todo!(),
-            cli::AnalyzeType::SplitSpmm => {
-                let current_time = std::time::Instant::now();
-                println!("analyze with config: {:?}", config);
-                let config = Config::new(config);
+        cli::Operation::Analyze(AnalyzeArgs { analyze, config }) => {
+            init_logger(LevelFilter::INFO, non_blocking);
+            match analyze {
+                cli::AnalyzeType::All => {
+                    println!("analyze with config: {:?}", config);
+                    let config = Config::new(config);
+                    analysis::print_all_stats(&config);
+                }
+                cli::AnalyzeType::Overlap => todo!(),
+                cli::AnalyzeType::Sequential => todo!(),
+                cli::AnalyzeType::Window => todo!(),
+                cli::AnalyzeType::SplitSpmm => {
+                    let current_time = std::time::Instant::now();
+                    println!("analyze with config: {:?}", config);
+                    let config = Config::new(config);
 
-                let stem = config.output_path.file_stem().unwrap();
-                let externsion = config.output_path.extension().unwrap();
-                let new_file_name = format!(
-                    "{}_split_spmm.{}",
-                    stem.to_str().unwrap(),
-                    externsion.to_str().unwrap()
-                );
-                let dir_name = config.output_path.parent().unwrap();
-                let new_path = dir_name.join(new_file_name);
-                info!("the result will be written to {:?}", new_path);
-
-                let split_result = analysis::analyze_split_spmm::analyze_split_spmm(&config);
-                split_result.show_results();
-
-                serde_json::to_writer(BufWriter::new(File::create(new_path)?), &split_result)?;
-                info!("time elapsed: {:?}", current_time.elapsed());
-            }
-            cli::AnalyzeType::Gearbox => {
-                let current_time = std::time::Instant::now();
-                info!("analyze with config: {:?}", config);
-                let config = Config::new(config);
-
-                let stem = config.output_path.file_stem().unwrap();
-                let externsion = config.output_path.extension().unwrap();
-                let new_file_name = format!(
-                    "{}_gearbox.{}",
-                    stem.to_str().unwrap(),
-                    externsion.to_str().unwrap()
-                );
-                let dir_name = config.output_path.parent().unwrap();
-                let new_path = dir_name.join(new_file_name);
-                info!("the result will be written to {:?}", new_path);
-
-                let gearbox_result = analysis::analyze_gearbox::analyze_gearbox(&config);
-                serde_json::to_writer(BufWriter::new(File::create(new_path)?), &gearbox_result)?;
-                info!("time elapsed: {:?}", current_time.elapsed());
-            }
-            cli::AnalyzeType::Nnz => {
-                let current_time = std::time::Instant::now();
-                info!("analyze with config: {:?}", config);
-                let config = Config::new(config);
-                let nnz_result = analysis::analyze_nnz::analyze_nnz_spmm(&config);
-                nnz_result.show_results();
-
-                serde_json::to_writer(
-                    BufWriter::new(File::create(config.output_path)?),
-                    &nnz_result,
-                )?;
-                info!("time elapsed: {:?}", current_time.elapsed());
-            }
-            cli::AnalyzeType::NnzNative => {
-                let current_time = std::time::Instant::now();
-                info!("analyze with config: {:?}", config);
-                let config = Config::new(config);
-                let nnz_result = analysis::analyze_nnz_native::analyze_nnz_spmm(&config);
-                nnz_result.show_results();
-                serde_json::to_writer(
-                    BufWriter::new(File::create(config.output_path)?),
-                    &nnz_result,
-                )?;
-                info!("time elapsed: {:?}", current_time.elapsed());
-            }
-            cli::AnalyzeType::GearboxParallel => {
-                let current_time = std::time::Instant::now();
-                info!("analyze with config: {:?}", config);
-                let config = Config::new(config);
-
-                let stem = config.output_path.file_stem().unwrap();
-                let externsion = config.output_path.extension().unwrap();
-                let new_file_name = format!(
-                    "{}_gearbox.{}",
-                    stem.to_str().unwrap(),
-                    externsion.to_str().unwrap()
-                );
-                let dir_name = config.output_path.parent().unwrap();
-                let new_path = dir_name.join(new_file_name);
-                info!("the result will be written to {:?}", new_path);
-
-                let gearbox_result = analysis::analyze_gearbox_parallel::analyze_gearbox(&config);
-                serde_json::to_writer(BufWriter::new(File::create(new_path)?), &gearbox_result)?;
-                info!("time elapsed: {:?}", current_time.elapsed());
-            }
-            cli::AnalyzeType::NnzDraw => {
-                let current_time = std::time::Instant::now();
-                info!("analyze with config: {:?}", config);
-                let config = Config::new(config);
-
-                let stem = config.output_path.file_stem().unwrap();
-                let externsion = config.output_path.extension().unwrap();
-                let new_file_name = format!(
-                    "{}_gearbox.{}",
-                    stem.to_str().unwrap(),
-                    externsion.to_str().unwrap()
-                );
-                let dir_name = config.output_path.parent().unwrap();
-                let new_path = dir_name.join(new_file_name);
-                info!("the result will be written to {:?}", new_path);
-
-                analysis::analyze_nnz_gearbox::analyze_nnz_spmm(&config);
-                info!("time elapsed: {:?}", current_time.elapsed());
-            }
-            cli::AnalyzeType::GearboxOrigin => {
-                let current_time = std::time::Instant::now();
-                info!("analyze with config: {:?}", config);
-                let config = Config::new(config);
-
-                let stem = config.output_path.file_stem().unwrap();
-                let externsion = config.output_path.extension().unwrap();
-                let new_file_name = format!(
-                    "{}_gearbox_origin.{}",
-                    stem.to_str().unwrap(),
-                    externsion.to_str().unwrap()
-                );
-                let dir_name = config.output_path.parent().unwrap();
-                let new_path = dir_name.join(new_file_name);
-                info!("the result will be written to {:?}", new_path);
-
-                let gearbox_result = analysis::analyze_gearbox_origin::analyze_gearbox(&config);
-                serde_json::to_writer(BufWriter::new(File::create(new_path)?), &gearbox_result)?;
-                info!("time elapsed: {:?}", current_time.elapsed());
-            }
-            cli::AnalyzeType::GearboxOriginAll => {
-                let current_time = std::time::Instant::now();
-                info!("analyze with config: {:?}", config);
-                let config = Config::new(config);
-
-                let stem = config.output_path.file_stem().unwrap();
-                let externsion = config.output_path.extension().unwrap();
-                let new_file_name = format!(
-                    "{}_gearbox_origin_all.{}",
-                    stem.to_str().unwrap(),
-                    externsion.to_str().unwrap()
-                );
-                let dir_name = config.output_path.parent().unwrap();
-                let new_path = dir_name.join(new_file_name);
-                info!("the result will be written to {:?}", new_path);
-
-                let gearbox_result = analysis::analyze_gearbox_origin_all::analyze_gearbox(&config);
-                serde_json::to_writer(BufWriter::new(File::create(new_path)?), &gearbox_result)?;
-                info!("time elapsed: {:?}", current_time.elapsed());
-            }
-            cli::AnalyzeType::GearboxOriginAllV2 => {
-                let current_time = std::time::Instant::now();
-                info!("analyze with config: {:?}", config);
-                let config = ConfigV2::new(config);
-
-                let stem = config.output_path.file_stem().unwrap();
-                let externsion = config.output_path.extension().unwrap();
-
-                let dir_name = config.output_path.parent().unwrap();
-
-                let gearbox_result =
-                    analysis::analyze_gearbox_origin_all_v2::analyze_gearbox(&config);
-                for ((batch, topk), result) in gearbox_result {
-                    assert_eq!(batch, result[0].batch);
-                    assert_eq!(topk, result[0].topk);
+                    let stem = config.output_path.file_stem().unwrap();
+                    let externsion = config.output_path.extension().unwrap();
                     let new_file_name = format!(
-                        "{}_gearbox_origin_all_{batch}_{topk}.{}",
+                        "{}_split_spmm.{}",
                         stem.to_str().unwrap(),
                         externsion.to_str().unwrap()
                     );
+                    let dir_name = config.output_path.parent().unwrap();
                     let new_path = dir_name.join(new_file_name);
                     info!("the result will be written to {:?}", new_path);
-                    serde_json::to_writer(BufWriter::new(File::create(new_path)?), &result)?;
+
+                    let split_result = analysis::analyze_split_spmm::analyze_split_spmm(&config);
+                    split_result.show_results();
+
+                    serde_json::to_writer(BufWriter::new(File::create(new_path)?), &split_result)?;
+                    info!("time elapsed: {:?}", current_time.elapsed());
                 }
-                info!("time elapsed: {:?}", current_time.elapsed());
+                cli::AnalyzeType::Gearbox => {
+                    let current_time = std::time::Instant::now();
+                    info!("analyze with config: {:?}", config);
+                    let config = Config::new(config);
+
+                    let stem = config.output_path.file_stem().unwrap();
+                    let externsion = config.output_path.extension().unwrap();
+                    let new_file_name = format!(
+                        "{}_gearbox.{}",
+                        stem.to_str().unwrap(),
+                        externsion.to_str().unwrap()
+                    );
+                    let dir_name = config.output_path.parent().unwrap();
+                    let new_path = dir_name.join(new_file_name);
+                    info!("the result will be written to {:?}", new_path);
+
+                    let gearbox_result = analysis::analyze_gearbox::analyze_gearbox(&config);
+                    serde_json::to_writer(
+                        BufWriter::new(File::create(new_path)?),
+                        &gearbox_result,
+                    )?;
+                    info!("time elapsed: {:?}", current_time.elapsed());
+                }
+                cli::AnalyzeType::Nnz => {
+                    let current_time = std::time::Instant::now();
+                    info!("analyze with config: {:?}", config);
+                    let config = Config::new(config);
+                    let nnz_result = analysis::analyze_nnz::analyze_nnz_spmm(&config);
+                    nnz_result.show_results();
+
+                    serde_json::to_writer(
+                        BufWriter::new(File::create(config.output_path)?),
+                        &nnz_result,
+                    )?;
+                    info!("time elapsed: {:?}", current_time.elapsed());
+                }
+                cli::AnalyzeType::NnzNative => {
+                    let current_time = std::time::Instant::now();
+                    info!("analyze with config: {:?}", config);
+                    let config = Config::new(config);
+                    let nnz_result = analysis::analyze_nnz_native::analyze_nnz_spmm(&config);
+                    nnz_result.show_results();
+                    serde_json::to_writer(
+                        BufWriter::new(File::create(config.output_path)?),
+                        &nnz_result,
+                    )?;
+                    info!("time elapsed: {:?}", current_time.elapsed());
+                }
+                cli::AnalyzeType::GearboxParallel => {
+                    let current_time = std::time::Instant::now();
+                    info!("analyze with config: {:?}", config);
+                    let config = Config::new(config);
+
+                    let stem = config.output_path.file_stem().unwrap();
+                    let externsion = config.output_path.extension().unwrap();
+                    let new_file_name = format!(
+                        "{}_gearbox.{}",
+                        stem.to_str().unwrap(),
+                        externsion.to_str().unwrap()
+                    );
+                    let dir_name = config.output_path.parent().unwrap();
+                    let new_path = dir_name.join(new_file_name);
+                    info!("the result will be written to {:?}", new_path);
+
+                    let gearbox_result =
+                        analysis::analyze_gearbox_parallel::analyze_gearbox(&config);
+                    serde_json::to_writer(
+                        BufWriter::new(File::create(new_path)?),
+                        &gearbox_result,
+                    )?;
+                    info!("time elapsed: {:?}", current_time.elapsed());
+                }
+                cli::AnalyzeType::NnzDraw => {
+                    let current_time = std::time::Instant::now();
+                    info!("analyze with config: {:?}", config);
+                    let config = Config::new(config);
+
+                    let stem = config.output_path.file_stem().unwrap();
+                    let externsion = config.output_path.extension().unwrap();
+                    let new_file_name = format!(
+                        "{}_gearbox.{}",
+                        stem.to_str().unwrap(),
+                        externsion.to_str().unwrap()
+                    );
+                    let dir_name = config.output_path.parent().unwrap();
+                    let new_path = dir_name.join(new_file_name);
+                    info!("the result will be written to {:?}", new_path);
+
+                    analysis::analyze_nnz_gearbox::analyze_nnz_spmm(&config);
+                    info!("time elapsed: {:?}", current_time.elapsed());
+                }
+                cli::AnalyzeType::GearboxOrigin => {
+                    let current_time = std::time::Instant::now();
+                    info!("analyze with config: {:?}", config);
+                    let config = Config::new(config);
+
+                    let stem = config.output_path.file_stem().unwrap();
+                    let externsion = config.output_path.extension().unwrap();
+                    let new_file_name = format!(
+                        "{}_gearbox_origin.{}",
+                        stem.to_str().unwrap(),
+                        externsion.to_str().unwrap()
+                    );
+                    let dir_name = config.output_path.parent().unwrap();
+                    let new_path = dir_name.join(new_file_name);
+                    info!("the result will be written to {:?}", new_path);
+
+                    let gearbox_result = analysis::analyze_gearbox_origin::analyze_gearbox(&config);
+                    serde_json::to_writer(
+                        BufWriter::new(File::create(new_path)?),
+                        &gearbox_result,
+                    )?;
+                    info!("time elapsed: {:?}", current_time.elapsed());
+                }
+                cli::AnalyzeType::GearboxOriginAll => {
+                    let current_time = std::time::Instant::now();
+                    info!("analyze with config: {:?}", config);
+                    let config = Config::new(config);
+
+                    let stem = config.output_path.file_stem().unwrap();
+                    let externsion = config.output_path.extension().unwrap();
+                    let new_file_name = format!(
+                        "{}_gearbox_origin_all.{}",
+                        stem.to_str().unwrap(),
+                        externsion.to_str().unwrap()
+                    );
+                    let dir_name = config.output_path.parent().unwrap();
+                    let new_path = dir_name.join(new_file_name);
+                    info!("the result will be written to {:?}", new_path);
+
+                    let gearbox_result =
+                        analysis::analyze_gearbox_origin_all::analyze_gearbox(&config);
+                    serde_json::to_writer(
+                        BufWriter::new(File::create(new_path)?),
+                        &gearbox_result,
+                    )?;
+                    info!("time elapsed: {:?}", current_time.elapsed());
+                }
+                cli::AnalyzeType::GearboxOriginAllV2 => {
+                    let current_time = std::time::Instant::now();
+                    info!("analyze with config: {:?}", config);
+                    let config = ConfigV2::new(config);
+
+                    let stem = config.output_path.file_stem().unwrap();
+                    let externsion = config.output_path.extension().unwrap();
+
+                    let dir_name = config.output_path.parent().unwrap();
+
+                    let gearbox_result =
+                        analysis::analyze_gearbox_origin_all_v2::analyze_gearbox(&config);
+                    for ((batch, topk), result) in gearbox_result {
+                        assert_eq!(batch, result[0].batch);
+                        assert_eq!(topk, result[0].topk);
+                        let new_file_name = format!(
+                            "{}_gearbox_origin_all_{batch}_{topk}.{}",
+                            stem.to_str().unwrap(),
+                            externsion.to_str().unwrap()
+                        );
+                        let new_path = dir_name.join(new_file_name);
+                        info!("the result will be written to {:?}", new_path);
+                        serde_json::to_writer(BufWriter::new(File::create(new_path)?), &result)?;
+                    }
+                    info!("time elapsed: {:?}", current_time.elapsed());
+                }
             }
-        },
-        cli::Operation::Draw(draw_args) => draw::draw_with_type(draw_args.subcmd)?,
+        }
+        cli::Operation::Draw(draw_args) => {
+            init_logger_stderr(LevelFilter::INFO);
+            draw::draw_with_type(draw_args.subcmd)?
+        }
     };
     Ok(())
 }
@@ -504,5 +525,16 @@ mod tests {
             .collect::<Vec<_>>();
         threads.into_iter().for_each(|t| t.join().unwrap());
         Ok(())
+    }
+
+    #[test]
+    fn test_drain() {
+        let mut data = vec![1, 2, 3, 4, 5, 6];
+        let mut drain_iter = data.drain(1..3);
+        for i in &mut drain_iter {
+            println!("{}", i);
+        }
+        drop(drain_iter);
+        println!("{:?}", data);
     }
 }

@@ -138,31 +138,11 @@ pub fn init_logger_stderr(filter: LevelFilter) {
 }
 pub const TIME_TO_LOG: u64 = 15;
 
-/// the main function of the simulator
-pub fn main_inner<A, T>(args: A) -> Result<()>
-where
-    A: IntoIterator<Item = T>,
-    T: Into<OsString> + Clone,
-{
-    let file_appender = tracing_appender::rolling::hourly("output/", "spmm.log");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-
-    // ctrlc::set_handler(move || unsafe {
-    //     writeln!(
-    //         io::stderr(),
-    //         "\n------\nCTRL-C received, exiting gracefully"
-    //     )
-    //     .unwrap();
-    //     writeln!(
-    //         io::stderr(),
-    //         "the simulator will stop after the current iteration or wthin {TIME_TO_LOG} secs",
-    //     )
-    //     .unwrap();
-    //     CTRL_C = true;
-    // })
-    // .unwrap();
+/// listen to the port and wait for the command to stop
+/// - the port is written to the file "port"
+/// - it will pannic when no port is available or unable to write to the file "port"
+fn setup_exit_receiver() {
     std::thread::spawn(|| {
-        // listen to port 10023
         let listener = TcpListener::bind(":::0").unwrap();
         let port = listener.local_addr().unwrap().port();
         info!("listening on port {}", port);
@@ -193,7 +173,18 @@ where
             }
         }
     });
+}
 
+/// the main function of the simulator
+pub fn main_inner<A, T>(args: A) -> Result<()>
+where
+    A: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    let file_appender = tracing_appender::rolling::hourly("output/", "spmm.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    init_logger(LevelFilter::INFO, non_blocking);
+    setup_exit_receiver();
     let cli = Cli::parse_from(args);
 
     match cli.subcmd {

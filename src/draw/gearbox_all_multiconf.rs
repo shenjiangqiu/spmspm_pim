@@ -157,6 +157,10 @@ impl DrawFn for GearboxAllDrawer {
                     let result = &graph[*maped_results.get(&(batch, TopK(topk))).unwrap()];
                     let total_cycle = result.total_result.global_max_acc_cycle;
                     chart.draw_series(rec_bar((i, j), (i + 1, j + 1), total_cycle))?;
+                    chart.draw_series(LineSeries::new(
+                        [(i, total_cycle, j), (i, total_cycle, 0)],
+                        BLACK.mix(0.5),
+                    ))?;
                 }
             }
         }
@@ -170,26 +174,80 @@ fn rec_bar(
     x1: (usize, usize),
     x2: (usize, usize),
     height: usize,
-) -> Vec<Rectangle<(usize, usize, usize)>> {
-    // let x3 = (x1.0, x2.1);
-    // let x4 = (x2.0, x1.1);
-    // let rec1 = Rectangle::new(
-    //     [(x1.0, 0, x1.1), (x4.0, height, x4.1)],
-    //     RED.mix(0.2).filled(),
-    // );
-    // let rec2 = Rectangle::new(
-    //     [(x2.0, 0, x2.1), (x3.0, height, x3.1)],
-    //     RED.mix(0.2).filled(),
-    // );
-    // let rec3 = Rectangle::new(
-    //     [(x1.0, 0, x1.1), (x3.0, height, x3.1)],
-    //     RED.mix(0.2).filled(),
-    // );
-    // let rec4 = Rectangle::new(
-    //     [(x4.0, 0, x4.1), (x2.0, height, x2.1)],
-    //     RED.mix(0.2).filled(),
-    // );
-    let rec_top = Rectangle::new([(x1.0, height, x1.1), (x2.0, height, x2.1)], RED.filled());
-    // [rec1, rec2, rec3, rec4, rec_top].into()
-    [rec_top].into()
+) -> Vec<Polygon<(usize, usize, usize)>> {
+    let x3 = (x1.0, x2.1);
+    let x4 = (x2.0, x1.1);
+    let rec1 = Polygon::new(
+        [
+            (x1.0, 0, x1.1),
+            (x4.0, 0, x4.1),
+            (x4.0, height, x4.1),
+            (x1.0, height, x1.1),
+        ],
+        RED.mix(0.2).filled(),
+    );
+    let rec2 = Polygon::new(
+        [
+            (x2.0, 0, x2.1),
+            (x3.0, 0, x3.1),
+            (x3.0, height, x3.1),
+            (x2.0, height, x2.1),
+        ],
+        RED.mix(0.2).filled(),
+    );
+    let rec3 = Polygon::new(
+        [
+            (x1.0, 0, x1.1),
+            (x3.0, 0, x3.1),
+            (x3.0, height, x3.1),
+            (x1.0, height, x1.1),
+        ],
+        RED.mix(0.2).filled(),
+    );
+    let rec4 = Polygon::new(
+        [
+            (x2.0, 0, x2.1),
+            (x4.0, 0, x4.1),
+            (x4.0, height, x4.1),
+            (x2.0, height, x2.1),
+        ],
+        RED.mix(0.2).filled(),
+    );
+    let rec_top = Polygon::new(
+        [
+            (x1.0, height, x1.1),
+            (x4.0, height, x4.1),
+            (x2.0, height, x2.1),
+            (x3.0, height, x3.1),
+        ],
+        RED.filled(),
+    );
+    [rec1, rec2, rec3, rec4, rec_top].into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_draw_area() -> eyre::Result<()> {
+        let root = BitMapBackend::new("test.png", (1920, 1080)).into_drawing_area();
+        root.fill(&WHITE)?;
+        let mut chart = ChartBuilder::on(&root)
+            .caption("test", ("sans-serif", 10).into_font())
+            .build_cartesian_3d(0..10usize, 0..10usize, 0..10usize)
+            .unwrap();
+        chart.with_projection(|mut pd| {
+            pd.yaw = 0.5;
+            pd.scale = 0.9;
+            pd.into_matrix()
+        });
+        chart
+            .configure_axes()
+            .light_grid_style(BLACK.mix(0.15))
+            .max_light_lines(3)
+            .draw()?;
+        chart.draw_series(rec_bar((5, 5), (6, 6), 6)).unwrap();
+
+        Ok(())
+    }
 }

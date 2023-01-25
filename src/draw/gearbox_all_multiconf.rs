@@ -8,7 +8,7 @@ use std::{
 };
 
 use eyre::Context;
-use plotters::{coord::Shift, prelude::*};
+use plotters::{coord::Shift, prelude::*, style::full_palette::GREY};
 use rayon::prelude::*;
 use tracing::info;
 
@@ -127,8 +127,8 @@ impl DrawFn for GearboxAllDrawer {
                 .collect::<BTreeMap<_, _>>();
 
             info!("draw graph {}", graph[0].name);
-            let x_spec = 0..topks.len();
-            let z_spec = 0..batches.len();
+            let x_spec = 0f32..topks.len() as f32;
+            let z_spec = 0f32..batches.len() as f32;
             let max_cycle = graph
                 .iter()
                 .map(|x| x.total_result.global_max_acc_cycle)
@@ -158,8 +158,11 @@ impl DrawFn for GearboxAllDrawer {
                     let total_cycle = result.total_result.global_max_acc_cycle;
                     chart.draw_series(rec_bar((i, j), (i + 1, j + 1), total_cycle))?;
                     chart.draw_series(LineSeries::new(
-                        [(i, total_cycle, j), (i, total_cycle, 0)],
-                        BLACK.mix(0.5),
+                        [
+                            (i as f32 + 0.5, total_cycle, j as f32 + 0.5),
+                            (0., total_cycle, j as f32 + 0.5),
+                        ],
+                        BLACK,
                     ))?;
                 }
             }
@@ -174,7 +177,9 @@ fn rec_bar(
     x1: (usize, usize),
     x2: (usize, usize),
     height: usize,
-) -> Vec<Polygon<(usize, usize, usize)>> {
+) -> Vec<Polygon<(f32, usize, f32)>> {
+    let x1 = (x1.0 as f32 + 0.1, x1.1 as f32 - 0.1);
+    let x2 = (x2.0 as f32 - 0.1, x2.1 as f32 + 0.1);
     let x3 = (x1.0, x2.1);
     let x4 = (x2.0, x1.1);
     let rec1 = Polygon::new(
@@ -184,7 +189,7 @@ fn rec_bar(
             (x4.0, height, x4.1),
             (x1.0, height, x1.1),
         ],
-        RED.mix(0.2).filled(),
+        GREY,
     );
     let rec2 = Polygon::new(
         [
@@ -193,7 +198,7 @@ fn rec_bar(
             (x3.0, height, x3.1),
             (x2.0, height, x2.1),
         ],
-        RED.mix(0.2).filled(),
+        GREY,
     );
     let rec3 = Polygon::new(
         [
@@ -202,7 +207,7 @@ fn rec_bar(
             (x3.0, height, x3.1),
             (x1.0, height, x1.1),
         ],
-        RED.mix(0.2).filled(),
+        GREY,
     );
     let rec4 = Polygon::new(
         [
@@ -211,7 +216,7 @@ fn rec_bar(
             (x4.0, height, x4.1),
             (x2.0, height, x2.1),
         ],
-        RED.mix(0.2).filled(),
+        GREY,
     );
     let rec_top = Polygon::new(
         [
@@ -220,7 +225,7 @@ fn rec_bar(
             (x2.0, height, x2.1),
             (x3.0, height, x3.1),
         ],
-        RED.filled(),
+        BLACK.filled(),
     );
     [rec1, rec2, rec3, rec4, rec_top].into()
 }
@@ -234,7 +239,7 @@ mod tests {
         root.fill(&WHITE)?;
         let mut chart = ChartBuilder::on(&root)
             .caption("test", ("sans-serif", 10).into_font())
-            .build_cartesian_3d(0..10usize, 0..10usize, 0..10usize)
+            .build_cartesian_3d(0f32..10f32, 0..10usize, 0f32..10f32)
             .unwrap();
         chart.with_projection(|mut pd| {
             pd.yaw = 0.5;

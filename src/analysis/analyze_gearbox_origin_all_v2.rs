@@ -100,6 +100,21 @@ pub(crate) fn analyze_gearbox(config: &ConfigV2) -> Vec<((usize, f32), Vec<Singl
     }
 }
 
+#[derive(Default)]
+struct RingBuffer {
+    tasks: usize,
+}
+impl RingBuffer {
+    fn add_remote_task(&mut self) {
+        self.tasks += 1;
+    }
+    fn report_and_reset(&mut self) -> usize {
+        let ret = self.tasks;
+        self.tasks = 0;
+        ret
+    }
+}
+
 #[derive(Clone)]
 struct SubArray {
     read_open: Option<usize>,
@@ -407,6 +422,8 @@ struct SubarrayId(usize);
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 struct RingId(usize);
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+struct RingBufferId(usize);
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 struct TsvId(usize);
@@ -418,6 +435,7 @@ pub struct Hardware {
     sub_array: Vec<SubArray>,
     ring: Vec<Ring>,
     tsv: Vec<Tsv>,
+    ring_buffer: Vec<RingBuffer>,
     config: ConfigV2,
     /// the dimension of dense matrix in one subarray
     dense_dim: usize,
@@ -431,6 +449,7 @@ pub struct Hardware {
 impl Hardware {
     fn new(
         num_subarray: usize,
+        banks: usize,
         num_rings: usize,
         num_tsvs: usize,
         dense_dim: usize,
@@ -448,6 +467,7 @@ impl Hardware {
             sub_array: vec![SubArray::new(); num_subarray],
             ring: vec![Ring::new(config.banks.num as u8); num_rings],
             tsv: vec![Tsv::new(); num_tsvs],
+            ring_buffer: (0..banks).map(|_| RingBuffer::default()).collect(),
             dense_dim,
             config,
             row_per_partition,
@@ -603,7 +623,10 @@ impl Hardware {
         self.sub_array[local_subarray.0].add_remote_read_task(local_read_row_id);
         self.distribute_remote(target_row_id, dispatcher_id, col_id);
     }
-
+    /// get the ring_buffer_id(bank id) from subarray id
+    fn ring_buffer_id(&self, subarray_id: SubarrayId) -> RingBufferId {
+        RingBufferId(subarray_id.0 / self.config.subarrays)
+    }
     /// this task will have to write the result to a remote subarray
     fn distribute_remote(
         &mut self,
@@ -611,8 +634,13 @@ impl Hardware {
         dispatcher_id: SubarrayId,
         col_id: LogicColId,
     ) {
+        // write the the dispatcher
         //  write to the rings
+        let ring_buffer_id = self.ring_buffer_id(dispatcher_id);
+        self.ring_buffer[ring_buffer_id.0].add_remote_task();
+
         let source_layer = self.ring_id_from_subarray(dispatcher_id);
+
         let target_partition_id = self.get_partition_id_col(col_id);
         let target_layer = self.ring_id_from_subarray(target_partition_id);
         if source_layer == target_layer {
@@ -713,6 +741,7 @@ pub struct GearboxSim<'a> {
 impl<'a> GearboxSim<'a> {
     fn new(
         num_partitions: usize,
+        banks: usize,
         evil_col_ids: impl IntoIterator<Item = usize>,
         evil_row_ids: impl IntoIterator<Item = usize>,
         matrix_b: &'a CsMatI<Pattern, u32>,
@@ -744,6 +773,7 @@ impl<'a> GearboxSim<'a> {
             matrix_b,
             hardware: Hardware::new(
                 num_partitions,
+                banks,
                 num_rings,
                 num_rings,
                 dense_dim,
@@ -857,7 +887,9 @@ impl<'a> GearboxSim<'a> {
                 .distribute_evil_col(LogicRowId(target_id), evil_col_row_id_col_id);
             // reduce the tasks and clear the tasks
             // the cycle of this round
-            if target_id % current_batch == 0 {
+            if target_id + 1 % current_batch == 0 {
+                // test if the size is overflow!
+
                 let ring_max_cycle = self
                     .hardware
                     .ring
@@ -958,6 +990,11 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
         * config.bank_groups.num
         * config.banks.num
         * config.subarrays;
+    let banks = config.channels.num
+        * config.ranks.num
+        * config.chips.num
+        * config.bank_groups.num
+        * config.banks.num;
     info!(?partitions, "compute gearbox");
     info!("reading mtx file: {}", path);
     let read_time = std::time::Instant::now();
@@ -1036,6 +1073,7 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
 
             let mut gearbox = GearboxSim::new(
                 partitions,
+                banks,
                 mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
                 mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
                 &matrix_b,

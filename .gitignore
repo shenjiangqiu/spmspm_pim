@@ -25,3 +25,5 @@ nnz.json
 output
 completion_scripts/*
 /port
+*.png
+*.svg

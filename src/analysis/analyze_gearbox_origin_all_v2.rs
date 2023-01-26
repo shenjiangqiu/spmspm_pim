@@ -35,6 +35,8 @@ pub struct TotalResult {
     pub global_max_acc_cycle_remote: usize,
     pub gloabl_max_acc_ring: usize,
     pub global_max_acc_tsv: usize,
+    pub global_max_real_local: usize,
+    pub global_max_ring_buffer: usize,
 }
 
 /// the statistics of a single graph
@@ -406,29 +408,29 @@ impl Tsv {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
 struct LogicRowId(usize);
 
 /// the col id in matrix(0..matrix_cols)
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
 struct LogicColId(usize);
 
 /// the row id in a subarray(0..subarray_rows)
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
 struct PhysicRowId(usize);
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
 struct SubarrayId(usize);
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
 struct RingId(usize);
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
 struct RingBufferId(usize);
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
 struct TsvId(usize);
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
 struct RingPort(u8);
 
 pub struct Hardware {
@@ -448,21 +450,16 @@ pub struct Hardware {
 
 impl Hardware {
     fn new(
-        num_subarray: usize,
-        banks: usize,
-        num_rings: usize,
-        num_tsvs: usize,
         dense_dim: usize,
         config: ConfigV2,
         row_per_partition: usize,
         col_per_partition: usize,
     ) -> Self {
         // each single layer should be a channel
-        assert_eq!(
-            config.gearbox_config.stacks * config.gearbox_config.layers,
-            config.channels.num,
-            "the number of stacks and layers should be equal to the number of channels"
-        );
+        let banks = config.channels.num * config.banks.num;
+        let num_subarray = banks * config.subarrays;
+        let num_rings = config.channels.num;
+        let num_tsvs = config.channels.num;
         Self {
             sub_array: vec![SubArray::new(); num_subarray],
             ring: vec![Ring::new(config.banks.num as u8); num_rings],
@@ -486,17 +483,7 @@ impl Hardware {
             * self.config.bank_groups.num
             * self.config.banks.num
     }
-    /// num of logic layers
-    #[allow(unused)]
-    fn layers(&self) -> usize {
-        self.config.gearbox_config.layers
-    }
 
-    /// num of stacks
-    #[allow(unused)]
-    fn stacks(&self) -> usize {
-        self.config.gearbox_config.stacks
-    }
     #[allow(unused)]
     fn rings(&self) -> usize {
         self.ring.len()
@@ -625,6 +612,7 @@ impl Hardware {
     }
     /// get the ring_buffer_id(bank id) from subarray id
     fn ring_buffer_id(&self, subarray_id: SubarrayId) -> RingBufferId {
+        // return the global bank id
         RingBufferId(subarray_id.0 / self.config.subarrays)
     }
     /// this task will have to write the result to a remote subarray
@@ -635,9 +623,9 @@ impl Hardware {
         col_id: LogicColId,
     ) {
         // write the the dispatcher
-        //  write to the rings
         let ring_buffer_id = self.ring_buffer_id(dispatcher_id);
         self.ring_buffer[ring_buffer_id.0].add_remote_task();
+        //  write to the rings
 
         let source_layer = self.ring_id_from_subarray(dispatcher_id);
 
@@ -740,13 +728,12 @@ pub struct GearboxSim<'a> {
 }
 impl<'a> GearboxSim<'a> {
     fn new(
-        num_partitions: usize,
-        banks: usize,
         evil_col_ids: impl IntoIterator<Item = usize>,
         evil_row_ids: impl IntoIterator<Item = usize>,
         matrix_b: &'a CsMatI<Pattern, u32>,
         config: &ConfigV2,
     ) -> Self {
+        let num_partitions = config.channels.num * config.banks.num * config.subarrays;
         debug!(num_partitions, "new gearbox sim");
         let num_rows = matrix_b.rows();
         let num_cols = matrix_b.cols();
@@ -760,7 +747,6 @@ impl<'a> GearboxSim<'a> {
         }
         assert!(row_per_partition > 0);
         assert!(col_per_partition > 0);
-        let num_rings = config.gearbox_config.stacks * config.gearbox_config.layers;
         let mut dense_dim = matrix_b.cols() / num_partitions;
         if dense_dim == 0 {
             dense_dim = 1;
@@ -772,10 +758,6 @@ impl<'a> GearboxSim<'a> {
             evil_row_ids: evil_row_ids.into_iter().collect(),
             matrix_b,
             hardware: Hardware::new(
-                num_partitions,
-                banks,
-                num_rings,
-                num_rings,
                 dense_dim,
                 config.clone(),
                 row_per_partition,
@@ -795,6 +777,8 @@ impl<'a> GearboxSim<'a> {
         let mut global_max_acc_cycle_remote = 0;
         let mut gloabl_max_acc_ring = 0;
         let mut global_max_acc_tsv = 0;
+        let mut global_max_real_local = 0;
+        let mut global_max_ring_buffer = 0;
         let now = std::time::Instant::now();
         debug!("run gearbox sim");
         let evil_rows = self.evil_row_ids.len();
@@ -887,7 +871,7 @@ impl<'a> GearboxSim<'a> {
                 .distribute_evil_col(LogicRowId(target_id), evil_col_row_id_col_id);
             // reduce the tasks and clear the tasks
             // the cycle of this round
-            if target_id + 1 % current_batch == 0 {
+            if (target_id + 1) % current_batch == 0 {
                 // test if the size is overflow!
 
                 let ring_max_cycle = self
@@ -904,6 +888,13 @@ impl<'a> GearboxSim<'a> {
                     .map(|tsv| tsv.report_current_round())
                     .max()
                     .unwrap();
+                let ring_buffer_max = self
+                    .hardware
+                    .ring_buffer
+                    .iter_mut()
+                    .map(|ring_buffer| ring_buffer.report_and_reset())
+                    .max()
+                    .unwrap();
                 // the subarray max cycle for local
                 let (max_local, max_remote): (Vec<_>, Vec<_>) = self
                     .hardware
@@ -916,10 +907,14 @@ impl<'a> GearboxSim<'a> {
                     .unzip();
                 let max_local_cycle = max_local.iter().max().unwrap();
                 let max_remote_cycle = max_remote.iter().max().unwrap();
+                let max_real_local_cycle = max_local_cycle.max(&ring_buffer_max);
+
                 global_max_acc_cycle += max_local_cycle;
                 global_max_acc_cycle_remote += max_remote_cycle;
                 gloabl_max_acc_ring += ring_max_cycle;
                 global_max_acc_tsv += tsv_max_cycle;
+                global_max_real_local += max_real_local_cycle;
+                global_max_ring_buffer += ring_buffer_max;
             }
             // add the result to the total result and continue to the next line
         }
@@ -928,6 +923,8 @@ impl<'a> GearboxSim<'a> {
             global_max_acc_cycle_remote,
             gloabl_max_acc_ring,
             global_max_acc_tsv,
+            global_max_real_local,
+            global_max_ring_buffer,
         }
     }
 
@@ -984,17 +981,17 @@ impl DrawFn for DistributionDrawer {
 }
 
 fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
+    // for hbm config, they should be 1!
+    assert!(config.ranks.num == 1);
+    assert!(config.chips.num == 1);
+    assert!(config.bank_groups.num == 1);
     let partitions = config.channels.num
         * config.ranks.num
         * config.chips.num
         * config.bank_groups.num
         * config.banks.num
         * config.subarrays;
-    let banks = config.channels.num
-        * config.ranks.num
-        * config.chips.num
-        * config.bank_groups.num
-        * config.banks.num;
+
     info!(?partitions, "compute gearbox");
     info!("reading mtx file: {}", path);
     let read_time = std::time::Instant::now();
@@ -1072,8 +1069,6 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
             assert!(top_cols > 0);
 
             let mut gearbox = GearboxSim::new(
-                partitions,
-                banks,
                 mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
                 mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
                 &matrix_b,
@@ -1239,5 +1234,98 @@ impl SubarrayStatus {
             remaining_cycle,
             total_rows_activated + remaining_rows,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::pim::configv2::LevelConfig;
+
+    use super::*;
+
+    #[test]
+    fn test_id_translate() {
+        let config = ConfigV2 {
+            channels: LevelConfig {
+                num: 16,
+                ..Default::default()
+            },
+            chips: LevelConfig {
+                num: 1,
+                ..Default::default()
+            },
+            ranks: LevelConfig {
+                num: 1,
+                ..Default::default()
+            },
+            bank_groups: LevelConfig {
+                num: 1,
+                ..Default::default()
+            },
+            banks: LevelConfig {
+                num: 16,
+                ..Default::default()
+            },
+            subarrays: 16,
+            ..Default::default()
+        };
+        let hard_ware = Hardware::new(1024, config, 100, 100);
+        assert_eq!(hard_ware.tsvs(), 16);
+        assert_eq!(hard_ware.subarrays(), 4096);
+        assert_eq!(hard_ware.banks(), 256);
+        assert_eq!(hard_ware.get_dispatcher_id(SubarrayId(0)), SubarrayId(0));
+        assert_eq!(hard_ware.get_dispatcher_id(SubarrayId(16)), SubarrayId(16));
+        assert_eq!(hard_ware.get_dispatcher_id(SubarrayId(19)), SubarrayId(16));
+
+        assert_eq!(hard_ware.get_partition_id_col(LogicColId(0)), SubarrayId(0));
+        assert_eq!(
+            hard_ware.get_partition_id_col(LogicColId(1001)),
+            SubarrayId(10)
+        );
+        assert_eq!(
+            hard_ware.get_partition_id_row(LogicRowId(4095)),
+            SubarrayId(40)
+        );
+        // assert_eq!(hard_ware.get_row_id(LogicRowId(12), col_id(0)), RowId(12));
+        assert_eq!(hard_ware.get_tsv_id_from_ring(RingId(0)), TsvId(0));
+        assert_eq!(hard_ware.get_tsv_id_from_subarray(SubarrayId(1)), TsvId(0));
+        assert_eq!(hard_ware.get_tsv_id_from_subarray(SubarrayId(16)), TsvId(0));
+        assert_eq!(
+            hard_ware.get_tsv_id_from_subarray(SubarrayId(255)),
+            TsvId(0)
+        );
+        assert_eq!(
+            hard_ware.get_tsv_id_from_subarray(SubarrayId(256)),
+            TsvId(1)
+        );
+        assert_eq!(hard_ware.ring_buffer_id(SubarrayId(17)), RingBufferId(1));
+        assert_eq!(hard_ware.ring_buffer_id(SubarrayId(15)), RingBufferId(0));
+        assert_eq!(hard_ware.ring_id_from_subarray(SubarrayId(0)), RingId(0));
+        assert_eq!(hard_ware.ring_id_from_subarray(SubarrayId(255)), RingId(0));
+        assert_eq!(hard_ware.ring_id_from_subarray(SubarrayId(256)), RingId(1));
+        assert_eq!(
+            hard_ware.ring_port_from_subarray(SubarrayId(255)),
+            RingPort(15)
+        );
+        assert_eq!(
+            hard_ware.ring_port_from_subarray(SubarrayId(256)),
+            RingPort(0)
+        );
+        assert_eq!(
+            hard_ware.ring_port_from_subarray(SubarrayId(16)),
+            RingPort(1)
+        );
+
+        assert_eq!(hard_ware.rings(), 16);
+        for i in 0..100 {
+            assert_eq!(
+                hard_ware.ring_id_from_subarray(SubarrayId(i)),
+                hard_ware.ring_id_from_subarray(hard_ware.get_dispatcher_id(SubarrayId(i)))
+            );
+            assert_eq!(
+                hard_ware.ring_port_from_subarray(SubarrayId(i)),
+                hard_ware.ring_port_from_subarray(hard_ware.get_dispatcher_id(SubarrayId(i)))
+            );
+        }
     }
 }

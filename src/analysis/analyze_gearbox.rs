@@ -99,8 +99,7 @@ pub struct GearboxConfig {
 pub struct GearboxConfigV2 {
     pub batch: Vec<usize>,
     pub topk: Vec<f32>,
-    pub stacks: usize,
-    pub layers: usize,
+    // fix bugs here, we should not rely on the stacks and layers because they are already set in channels
 }
 
 #[derive(Clone)]

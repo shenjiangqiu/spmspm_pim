@@ -37,6 +37,10 @@ pub struct TotalResult {
     pub global_max_acc_tsv: usize,
     pub global_max_real_local: usize,
     pub global_max_ring_buffer: usize,
+    pub overflow_count_12_256: usize,
+    pub overflow_count_12_512: usize,
+    pub overflow_count_8_256: usize,
+    pub overflow_count_8_512: usize,
 }
 
 /// the statistics of a single graph
@@ -790,6 +794,12 @@ impl<'a> GearboxSim<'a> {
         // print every 1% or every 60s
         let mut next_print_percent = total_rows / 100;
         let mut next_print_time = TIME_TO_LOG as u64;
+        //each data size if 8 bytes and there are 512 rows in a subarray
+        let mut overflow_count_8_512 = 0;
+        let mut overflow_count_8_256 = 0;
+        let mut overflow_count_12_256 = 0;
+        let mut overflow_count_12_512 = 0;
+        let mut total_counts = 0;
         for (target_id, row) in input_vec.outer_iterator().enumerate() {
             if target_id >= next_print_percent || now.elapsed().as_secs() >= next_print_time {
                 let time = now.elapsed().as_secs_f32();
@@ -888,11 +898,28 @@ impl<'a> GearboxSim<'a> {
                     .map(|tsv| tsv.report_current_round())
                     .max()
                     .unwrap();
+                // get the max ring buffer cycle and count for the overflow
                 let ring_buffer_max = self
                     .hardware
                     .ring_buffer
                     .iter_mut()
-                    .map(|ring_buffer| ring_buffer.report_and_reset())
+                    .map(|ring_buffer| {
+                        let ring_buffer_cycle = ring_buffer.report_and_reset();
+                        if ring_max_cycle * 8 > 256 * 256 {
+                            overflow_count_8_256 += 1;
+                        }
+                        if ring_max_cycle * 8 > 512 * 256 {
+                            overflow_count_8_512 += 1;
+                        }
+                        if ring_max_cycle * 12 > 256 * 256 {
+                            overflow_count_12_256 += 1;
+                        }
+                        if ring_max_cycle * 12 > 512 * 256 {
+                            overflow_count_12_512 += 1;
+                        }
+                        total_counts += 1;
+                        ring_buffer_cycle
+                    })
                     .max()
                     .unwrap();
                 // the subarray max cycle for local
@@ -915,6 +942,7 @@ impl<'a> GearboxSim<'a> {
                 global_max_acc_tsv += tsv_max_cycle;
                 global_max_real_local += max_real_local_cycle;
                 global_max_ring_buffer += ring_buffer_max;
+                // the data for overflow:
             }
             // add the result to the total result and continue to the next line
         }
@@ -925,6 +953,10 @@ impl<'a> GearboxSim<'a> {
             global_max_acc_tsv,
             global_max_real_local,
             global_max_ring_buffer,
+            overflow_count_12_256,
+            overflow_count_12_512,
+            overflow_count_8_256,
+            overflow_count_8_512,
         }
     }
 

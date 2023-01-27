@@ -5,6 +5,7 @@ use plotters_text::TextDrawingBackend;
 use terminal_size::{Height, Width};
 use tracing::info;
 mod cycle_dist;
+mod draw_overflow;
 mod draw_split;
 mod draw_v2;
 mod empty;
@@ -121,6 +122,7 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
             gearbox_all_multiconf::draw_gearbox_all(gearbox_result)?
         }
         DrawType::GearBoxV2(gearbox_result) => draw_v2::draw(gearbox_result)?,
+        DrawType::GearBoxOverflow(gearbox_result) => draw_overflow::draw(gearbox_result)?,
     }
     Ok(())
 }

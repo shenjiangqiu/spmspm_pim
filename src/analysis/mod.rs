@@ -7,6 +7,7 @@ pub mod analyze_gearbox;
 pub mod analyze_gearbox_origin;
 pub mod analyze_gearbox_origin_all;
 pub mod analyze_gearbox_origin_all_v2;
+pub mod analyze_gearbox_origin_all_v2_overflow;
 pub mod analyze_gearbox_parallel;
 pub(crate) mod analyze_nnz;
 pub mod analyze_nnz_gearbox;

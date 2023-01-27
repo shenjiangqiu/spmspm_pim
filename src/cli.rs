@@ -72,6 +72,7 @@ pub enum AnalyzeType {
     GearboxOriginAll,
     /// usign gearbox to perform spmm
     GearboxOriginAllV2,
+    GearboxOriginAllV2OverFlow,
 }
 
 #[derive(Debug, Subcommand)]
@@ -86,6 +87,7 @@ pub enum DrawType {
     GearboxOld(ExecResult),
     GearBoxAll(ExecResult),
     GearBoxAllMultiConf(ExecResult),
+    GearBoxV2(ExecResult),
 }
 
 #[derive(Debug, Args)]

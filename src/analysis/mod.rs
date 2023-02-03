@@ -22,6 +22,7 @@ pub mod schedule_window;
 pub mod sequential_event_sim;
 pub mod split;
 
+pub mod analyze_gearbox_overflow_and_traffic;
 pub fn print_all_stats(config: &Config) {
     let single_task_overlap_stat = overlap::compute_single_task_overlap_stat(config);
     for stat in single_task_overlap_stat {

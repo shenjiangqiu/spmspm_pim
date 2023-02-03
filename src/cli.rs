@@ -72,7 +72,10 @@ pub enum AnalyzeType {
     GearboxOriginAll,
     /// usign gearbox to perform spmm
     GearboxOriginAllV2,
+    /// count the overflow
     GearboxOriginAllV2OverFlow,
+    /// analyze the overflow overhead and tsv traffic
+    GearboxOverflowTraffic,
 }
 
 #[derive(Debug, Subcommand)]

@@ -536,7 +536,7 @@ impl Hardware {
         }
     }
     fn calculate_tsv_traffic(&self) -> TsvReport {
-        let mut tsv_traffic = vec![vec![]];
+        let mut tsv_traffic = vec![vec![]; self.rings()];
         for (ring_id, ring) in self.ring.iter().enumerate() {
             let banks = ring.ports;
             let mut traffic_per_bank = vec![vec![]; banks as usize];

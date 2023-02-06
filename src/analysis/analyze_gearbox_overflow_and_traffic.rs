@@ -8,7 +8,7 @@
 //!  w
 use std::{
     cmp::Reverse,
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet, VecDeque},
     error::Error,
     fmt::{Debug, Display},
     mem::size_of,
@@ -51,6 +51,9 @@ pub struct TotalResult {
     pub overflow_count_12_512_overhead: usize,
     pub overflow_count_8_256_overhead: usize,
     pub overflow_count_8_512_overhead: usize,
+    pub global_tsv_base_total: usize,
+    pub global_tsv_base_real: usize,
+    pub global_tsv_base_cycle: usize,
 }
 
 /// the statistics of a single graph
@@ -337,7 +340,8 @@ impl SubArray {
 
 #[derive(Clone)]
 struct Ring {
-    tasks: Vec<(RingPort, RingPort)>,
+    /// from port, next port, target (layer port)
+    tasks: Vec<(RingPort, RingPort, (RingId, RingPort))>,
     ports: u8,
     ring_result: RingResult,
 }
@@ -356,8 +360,8 @@ impl Ring {
             ring_result: Default::default(),
         }
     }
-    fn add_task(&mut self, source: RingPort, target: RingPort) {
-        self.tasks.push((source, target));
+    fn add_task(&mut self, source: RingPort, next_port: RingPort, target: (RingId, RingPort)) {
+        self.tasks.push((source, next_port, target));
     }
 
     fn report(&self) -> RingResult {
@@ -367,13 +371,13 @@ impl Ring {
     fn report_current_round(&mut self) -> usize {
         // simulate the ring process
         let mut paths = vec![0; self.ports as usize];
-        for (source, target) in self.tasks.iter() {
-            let forward_len = (target.0 + self.ports - source.0) % self.ports;
-            let backward_len = (source.0 + self.ports - target.0) % self.ports;
+        for (source, next_port, (_target_layer, _target_port)) in self.tasks.iter() {
+            let forward_len = (next_port.0 + self.ports - source.0) % self.ports;
+            let backward_len = (source.0 + self.ports - next_port.0) % self.ports;
             let (from, to) = if forward_len < backward_len {
-                (source.0, target.0)
+                (source.0, next_port.0)
             } else {
-                (target.0, source.0)
+                (next_port.0, source.0)
             };
             for i in from..to {
                 paths[i as usize] += 1;
@@ -461,6 +465,52 @@ pub struct Hardware {
     /// and for the evil row, distribute them by column
     col_per_partition: usize,
 }
+struct TsvReport {
+    pub cycle: usize,
+    pub max_use: usize,
+    pub real_use: usize,
+}
+struct TsvResultBase {
+    tsv_traffic: Vec<Vec<(RingId, RingPort)>>,
+}
+impl TsvResultBase {
+    fn compute_result(self) -> TsvReport {
+        let mut tsv_traffic: Vec<VecDeque<_>> =
+            self.tsv_traffic.into_iter().map(Vec::into).collect();
+        let ports = tsv_traffic.len();
+        let mut cycle = 0;
+        let mut max_use = 0;
+        let mut real_use = 0;
+        // a cross bar net work
+        loop {
+            let mut busy = false;
+
+            let mut current_round_target = BTreeSet::new();
+            for port in &mut tsv_traffic {
+                if let Some(target) = port.pop_front() {
+                    busy = true;
+                    if current_round_target.contains(&target) {
+                        port.push_front(target);
+                    } else {
+                        current_round_target.insert(target);
+                    }
+                }
+            }
+            cycle += 1;
+            if !busy {
+                break;
+            } else {
+                max_use += ports;
+                real_use += current_round_target.len();
+            }
+        }
+        TsvReport {
+            cycle,
+            max_use,
+            real_use: real_use,
+        }
+    }
+}
 
 impl Hardware {
     fn new(
@@ -485,6 +535,36 @@ impl Hardware {
             col_per_partition,
         }
     }
+    fn calculate_tsv_traffic(&self) -> TsvReport {
+        let mut tsv_traffic = vec![vec![]];
+        for (ring_id, ring) in self.ring.iter().enumerate() {
+            let banks = ring.ports;
+            let mut traffic_per_bank = vec![vec![]; banks as usize];
+            for task in ring.tasks.iter() {
+                let (source, _next_port, (target_layer, target_port)) = task;
+                traffic_per_bank[source.0 as usize].push((target_layer, target_port));
+            }
+            let max_len = traffic_per_bank
+                .iter()
+                .map(|v| v.len())
+                .max()
+                .unwrap_or_default();
+            for i in 0..max_len {
+                for j in 0..banks {
+                    if let Some(&(&target_layer, &target_port)) =
+                        traffic_per_bank.get(j as usize).unwrap().get(i)
+                    {
+                        if ring_id != target_layer.0 {
+                            tsv_traffic[ring_id].push((target_layer, target_port));
+                        }
+                    }
+                }
+            }
+        }
+        // now we got the remote traffic from ring to base layer, then we should make a detailed simulation to calculate the cycle
+        TsvResultBase { tsv_traffic }.compute_result()
+    }
+
     #[allow(unused)]
     fn subarrays(&self) -> usize {
         self.sub_array.len()
@@ -644,18 +724,18 @@ impl Hardware {
         let source_layer = self.ring_id_from_subarray(dispatcher_id);
 
         let target_partition_id = self.get_partition_id_col(col_id);
+        let target = self.ring_port_from_subarray(target_partition_id);
         let target_layer = self.ring_id_from_subarray(target_partition_id);
         if source_layer == target_layer {
             // no need to write to the csv
             let source = self.ring_port_from_subarray(dispatcher_id);
 
-            let target = self.ring_port_from_subarray(target_partition_id);
-            self.ring[source_layer.0].add_task(source, target);
+            self.ring[source_layer.0].add_task(source, target, (target_layer, target));
         } else {
             // write to source ring
             let source_bank = self.ring_port_from_subarray(dispatcher_id);
             let target_bank = RingPort(0);
-            self.ring[source_layer.0].add_task(source_bank, target_bank);
+            self.ring[source_layer.0].add_task(source_bank, target_bank, (target_layer, target));
 
             // write to tsv from source ring to base ring
             let tsv_id = self.get_tsv_id_from_subarray(dispatcher_id);
@@ -671,7 +751,7 @@ impl Hardware {
             // write to target ring
             let source_bank = RingPort(0);
             let target_bank = self.ring_port_from_subarray(target_partition_id);
-            self.ring[target_layer.0].add_task(source_bank, target_bank);
+            self.ring[target_layer.0].add_task(source_bank, target_bank, (target_layer, target));
 
             // target subarray distribute local task
             let remote_dense_row_write = self.get_row_id_dense(target_row_id, col_id);
@@ -795,6 +875,10 @@ impl<'a> GearboxSim<'a> {
         let mut global_max_acc_tsv = 0;
         let mut global_max_real_local = 0;
         let mut global_max_ring_buffer = 0;
+        let mut global_tsv_base_real = 0;
+        let mut global_tsv_base_total = 0;
+        let mut global_tsv_base_cycle = 0;
+
         let now = std::time::Instant::now();
         debug!("run gearbox sim");
         let evil_rows = self.evil_row_ids.len();
@@ -828,6 +912,9 @@ impl<'a> GearboxSim<'a> {
                 tracing::trace!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
                 next_print_percent = target_id + total_rows / 100;
                 next_print_time = now.elapsed().as_secs() + TIME_TO_LOG as u64;
+                if next_print_time > 300 {
+                    break;
+                }
                 if unsafe { crate::STOP_NOW } {
                     info!("received stop signal, start write results");
                     break;
@@ -902,7 +989,10 @@ impl<'a> GearboxSim<'a> {
             // the cycle of this round
             if (target_id + 1) % current_batch == 0 {
                 // test if the size is overflow!
-
+                let tsv_report_base = self.hardware.calculate_tsv_traffic();
+                global_tsv_base_total += tsv_report_base.max_use;
+                global_tsv_base_real += tsv_report_base.real_use;
+                global_tsv_base_cycle += tsv_report_base.cycle;
                 let ring_max_cycle = self
                     .hardware
                     .ring
@@ -991,6 +1081,9 @@ impl<'a> GearboxSim<'a> {
             overflow_count_8_256_overhead,
             overflow_count_8_512,
             overflow_count_8_512_overhead,
+            global_tsv_base_total,
+            global_tsv_base_real,
+            global_tsv_base_cycle,
         }
     }
 

@@ -92,6 +92,7 @@ pub enum DrawType {
     GearBoxAllMultiConf(ExecResult),
     GearBoxV2(ExecResult),
     GearBoxOverflow(ExecResult),
+    GearBoxTsvTraffic(ExecResult),
 }
 
 #[derive(Debug, Args)]

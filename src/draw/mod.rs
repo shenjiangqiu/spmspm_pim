@@ -7,6 +7,7 @@ use tracing::info;
 mod cycle_dist;
 mod draw_overflow;
 mod draw_split;
+mod draw_tsv_traffic;
 mod draw_v2;
 mod empty;
 mod gearbox;
@@ -123,6 +124,7 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
         }
         DrawType::GearBoxV2(gearbox_result) => draw_v2::draw(gearbox_result)?,
         DrawType::GearBoxOverflow(gearbox_result) => draw_overflow::draw(gearbox_result)?,
+        DrawType::GearBoxTsvTraffic(gearbox_result) => draw_tsv_traffic::draw(gearbox_result)?,
     }
     Ok(())
 }

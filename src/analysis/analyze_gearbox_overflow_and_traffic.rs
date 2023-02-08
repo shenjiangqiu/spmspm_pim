@@ -535,9 +535,19 @@ impl Hardware {
             col_per_partition,
         }
     }
+    /// # situation
+    /// - when a round is finished, all traffic from each input port are ready to route to the other port
+    /// - the traffic is routed by a crossbar network in the base layer
+    /// # inbanlance reason
+    /// - the input traffic is not balanced
+    /// - the output traffic is not balanced
+    /// # solution
+    /// - need a score to represent the reason why usage is low
+    /// - the input reason
+    /// - the output reason
     fn calculate_tsv_traffic(&self) -> TsvReport {
-        let mut tsv_traffic = vec![vec![]; self.rings()];
-        for (ring_id, ring) in self.ring.iter().enumerate() {
+        // the input traffic from each bank in the layer
+        let mut tsv_traffic = self.ring.iter().enumerate().map(|(ring_id, ring)| {
             let banks = ring.ports;
             let mut traffic_per_bank = vec![vec![]; banks as usize];
             for task in ring.tasks.iter() {
@@ -555,14 +565,18 @@ impl Hardware {
                         traffic_per_bank.get(j as usize).unwrap().get(i)
                     {
                         if ring_id != target_layer.0 {
-                            tsv_traffic[ring_id].push((target_layer, target_port));
+                            todo!()
+                            // tsv_t.push((target_layer, target_port));
                         }
                     }
                 }
             }
-        }
+        });
         // now we got the remote traffic from ring to base layer, then we should make a detailed simulation to calculate the cycle
-        TsvResultBase { tsv_traffic }.compute_result()
+        TsvResultBase {
+            tsv_traffic: todo!(),
+        }
+        .compute_result()
     }
 
     #[allow(unused)]
@@ -861,6 +875,7 @@ impl<'a> GearboxSim<'a> {
     }
 
     /// distribute the task to components
+    ///
     /// we should analyze the gearbox overflow overhead and the icnt unbanlance traffic in this
     /// version
     fn run(

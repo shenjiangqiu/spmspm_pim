@@ -2,22 +2,19 @@
 //! # WARNING:
 //!
 //! !!! this module is derived from analyze_split_spmm.rs and the code and ***doc*** might not be accurate
-use std::cmp::Reverse;
-use std::error::Error;
 use std::{
+    cmp::Reverse,
     collections::BTreeMap,
+    error::Error,
     fmt::{Debug, Display},
 };
 
 use hashbrown::HashSet;
 use itertools::Itertools;
-use plotters::coord::Shift;
-use plotters::prelude::*;
+use plotters::{coord::Shift, prelude::*};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use sprs::io::MatrixHead;
-use sprs::num_kinds::Pattern;
-use sprs::{CsMatI, TriMatI};
+use sprs::{io::MatrixHead, num_kinds::Pattern, CsMatI, TriMatI};
 use tracing::{debug, info};
 
 use crate::draw::DrawFn;

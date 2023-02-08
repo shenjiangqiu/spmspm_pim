@@ -10,6 +10,7 @@ use eyre::Result;
 use once_cell::sync::Lazy;
 use pim::configv2::ConfigV2;
 pub use pim::Simulator;
+mod tools;
 use std::{
     env,
     ffi::OsString,

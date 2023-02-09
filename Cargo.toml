@@ -38,4 +38,4 @@ opt-level = 3
 
 [build-dependencies]
 clap = {version = "4.0.15", features = ["derive", "color"]}
-clap_complete = "4.0.2"
+clap_complete = "4.1.1"

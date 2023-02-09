@@ -492,7 +492,9 @@ pub struct Hardware {
 }
 struct TsvReport {
     pub cycle: usize,
+    pub cycle_no_conflict: usize,
     pub max_use: usize,
+    pub max_use_valid: usize,
     pub real_use: usize,
 }
 
@@ -504,20 +506,32 @@ fn compute_result<'a>(
     let mut max_use = 0;
     let mut real_use = 0;
     // a cross bar net work
+    let cycle_no_conflict = tsv_traffic.iter().map(|a| a.len()).max().unwrap_or(0);
+    let mut shift = 0;
+    let mut max_use_valid = 0;
     loop {
         let mut busy = false;
 
         let mut current_round_target = BTreeSet::new();
-        for port in &mut tsv_traffic {
-            if let Some(traffic) = port.pop_front() {
+        let mut total_valid_ports = 0;
+        let mut new_shift = shift;
+        for i in 0..ports {
+            let index = (i + shift) % ports;
+            if let Some(traffic) = tsv_traffic[index].pop_front() {
+                // valid one, select this one for next shift if it's not the current one
+                if new_shift == shift {
+                    new_shift = index;
+                }
+                total_valid_ports += 1;
                 busy = true;
                 if current_round_target.contains(&traffic.2 .0) {
-                    port.push_front(traffic);
+                    tsv_traffic[index].push_front(traffic);
                 } else {
                     current_round_target.insert(traffic.2 .0);
                 }
             }
         }
+        shift = new_shift;
 
         if !busy {
             break;
@@ -525,12 +539,16 @@ fn compute_result<'a>(
             cycle += 1;
             max_use += ports;
             real_use += current_round_target.len();
+            max_use_valid += total_valid_ports;
         }
     }
+
     TsvReport {
         cycle,
         max_use,
         real_use: real_use,
+        cycle_no_conflict,
+        max_use_valid,
     }
 }
 
@@ -1044,6 +1062,8 @@ pub struct GlobalStat {
     pub global_tsv_base_total: usize,
     pub global_tsv_base_real: usize,
     pub global_tsv_base_cycle: usize,
+    pub global_tsv_base_cycle_no_conflict: usize,
+    pub global_tsv_base_max_use_validt: usize,
     pub overflow_count_8_256: usize,
     pub overflow_count_8_256_overhead: usize,
     pub overflow_count_8_512: usize,
@@ -1067,6 +1087,8 @@ fn update_stats(hardware: &mut Hardware, global_stats: &mut GlobalStat) {
     global_stats.global_tsv_base_total += tsv_report_base.max_use;
     global_stats.global_tsv_base_real += tsv_report_base.real_use;
     global_stats.global_tsv_base_cycle += tsv_report_base.cycle;
+    global_stats.global_tsv_base_cycle_no_conflict += tsv_report_base.cycle_no_conflict;
+    global_stats.global_tsv_base_max_use_validt += tsv_report_base.max_use_valid;
     let ring_max_cycle = hardware
         .ring
         .iter_mut()
@@ -1713,5 +1735,9 @@ mod tests {
         let result = compute_result(tsv_traffic);
         // all conflict , so the cycle is 1024
         assert_eq!(result.cycle, 1024);
+        assert_eq!(result.cycle_no_conflict, 256);
+        assert_eq!(result.max_use, 1024 * 16);
+        assert_eq!(result.real_use, 1024);
+        assert_eq!(result.max_use_valid, 4 * 1020 + 4 + 3 + 2 + 1);
     }
 }

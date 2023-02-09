@@ -6,6 +6,7 @@
 //! - in this version, we can calculate the overhead of the overflow and the overhead of traffic
 //! inbanlace
 //!  w
+use crate::tools::FlatInterleaveTrait;
 use std::{
     cmp::Reverse,
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -35,29 +36,29 @@ use crate::{
     TIME_TO_LOG,
 };
 
-#[derive(Serialize, Deserialize)]
-pub struct TotalResult {
-    pub global_max_acc_cycle: usize,
-    pub global_max_acc_cycle_remote: usize,
-    pub gloabl_max_acc_ring: usize,
-    pub global_max_acc_tsv: usize,
-    pub global_max_real_local: usize,
-    pub global_max_ring_buffer: usize,
-    pub overflow_count_12_256: usize,
-    pub overflow_count_12_512: usize,
-    pub overflow_count_8_256: usize,
-    pub overflow_count_8_512: usize,
-    pub overflow_count_12_256_overhead: usize,
-    pub overflow_count_12_512_overhead: usize,
-    pub overflow_count_8_256_overhead: usize,
-    pub overflow_count_8_512_overhead: usize,
-    pub global_tsv_base_total: usize,
-    pub global_tsv_base_real: usize,
-    pub global_tsv_base_cycle: usize,
-}
+// #[derive(Serialize, Deserialize, Default, Debug)]
+// pub struct TotalResult {
+//     pub global_max_acc_cycle: usize,
+//     pub global_max_acc_cycle_remote: usize,
+//     pub gloabl_max_acc_ring: usize,
+//     pub global_max_acc_tsv: usize,
+//     pub global_max_real_local: usize,
+//     pub global_max_ring_buffer: usize,
+//     pub overflow_count_12_256: usize,
+//     pub overflow_count_12_512: usize,
+//     pub overflow_count_8_256: usize,
+//     pub overflow_count_8_512: usize,
+//     pub overflow_count_12_256_overhead: usize,
+//     pub overflow_count_12_512_overhead: usize,
+//     pub overflow_count_8_256_overhead: usize,
+//     pub overflow_count_8_512_overhead: usize,
+//     pub global_tsv_base_total: usize,
+//     pub global_tsv_base_real: usize,
+//     pub global_tsv_base_cycle: usize,
+// }
 
 /// the statistics of a single graph
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SingleResult {
     pub name: String,
     pub batch: usize,
@@ -65,7 +66,7 @@ pub struct SingleResult {
     pub subarray_result: Vec<SubArrayResult>,
     pub ring_result: Vec<RingResult>,
     pub tsv_result: Vec<TsvResult>,
-    pub total_result: TotalResult,
+    pub total_result: GlobalStat,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -145,25 +146,32 @@ struct SubArray {
     final_subarry_result: SubArrayResult,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct SubArrayResult {
+    /// total local cycle
     pub cycle: usize,
-    // for normal rows
+    /// for normal rows
     pub local_row_open_cycle: usize,
+    /// row hit for read
     pub local_row_read_cycle: usize,
+    /// row hit for write
     pub local_row_write_cycle: usize,
-
+    /// cycle for compuation
     pub comp_cycle: usize,
 
-    // for evil row
+    /// for evil row read/write miss
     pub local_row_open_cycle_evil: usize,
+    /// row hit for read
     pub local_row_read_cycle_evil: usize,
+    /// row hit for write
     pub local_row_write_cycle_evil: usize,
+
     // for remote rows that read by local subarray
     pub remote_row_read_cycle: usize,
 
     // remote result write by target subarray
     pub remote_row_write_cycle: usize,
+    /// remote total cycle
     pub cycle_remote: usize,
 }
 impl SubArrayResult {
@@ -308,6 +316,7 @@ impl SubArray {
             Some(last_write) => {
                 if last_write == local_write.0 {
                     self.sub_array_result.remote_row_write_cycle += 1;
+                    self.sub_array_result.cycle_remote += 1;
                 } else {
                     self.sub_array_result.remote_row_write_cycle += 19;
                     self.sub_array_result.cycle_remote += 19;
@@ -338,30 +347,44 @@ impl SubArray {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 struct Ring {
     /// from port, next port, target (layer port)
-    tasks: Vec<(RingPort, RingPort, (RingId, RingPort))>,
-    ports: u8,
+    /// each port repersent a bank
+    /// each bank have multiple subarrays
+    /// Vec: Bank,Subarray,Tasks
+    tasks: Vec<Vec<Vec<(RingPort, RingPort, (RingId, RingPort))>>>,
+    banks: usize,
+    subarrays: usize,
     ring_result: RingResult,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct RingResult {
     pub cycle: usize,
     pub traffic: usize,
 }
 
 impl Ring {
-    fn new(ports: u8) -> Self {
+    fn new(banks: usize, subarrays: usize) -> Self {
         Self {
-            tasks: Vec::new(),
-            ports,
+            tasks: vec![vec![vec![]; subarrays]; banks],
+            banks,
+            subarrays,
             ring_result: Default::default(),
         }
     }
-    fn add_task(&mut self, source: RingPort, next_port: RingPort, target: (RingId, RingPort)) {
-        self.tasks.push((source, next_port, target));
+    /// add a task to the ring
+    /// # The `local_subarray_id` is the subarray id of the local bank, not the global subarray id
+    fn add_task(
+        &mut self,
+        local_subarray_id: usize,
+        source: RingPort,
+        next_port: RingPort,
+        target: (RingId, RingPort),
+    ) {
+        self.tasks[source.0 as usize][local_subarray_id].push((source, next_port, target));
     }
 
     fn report(&self) -> RingResult {
@@ -370,10 +393,12 @@ impl Ring {
 
     fn report_current_round(&mut self) -> usize {
         // simulate the ring process
-        let mut paths = vec![0; self.ports as usize];
-        for (source, next_port, (_target_layer, _target_port)) in self.tasks.iter() {
-            let forward_len = (next_port.0 + self.ports - source.0) % self.ports;
-            let backward_len = (source.0 + self.ports - next_port.0) % self.ports;
+        let mut paths = vec![0; self.banks as usize];
+        for (source, next_port, (_target_layer, _target_port)) in
+            self.tasks.iter().flatten().flatten()
+        {
+            let forward_len = (next_port.0 + self.banks as u8 - source.0) % self.banks as u8;
+            let backward_len = (source.0 + self.banks as u8 - next_port.0) % self.banks as u8;
             let (from, to) = if forward_len < backward_len {
                 (source.0, next_port.0)
             } else {
@@ -386,7 +411,7 @@ impl Ring {
         let current_round_cycle = *paths.iter().max().unwrap_or(&0);
         self.ring_result.cycle += current_round_cycle;
         self.ring_result.traffic += self.tasks.len();
-        self.tasks.clear();
+        self.tasks.iter_mut().flatten().for_each(|x| x.clear());
         current_round_cycle
     }
 }
@@ -397,7 +422,7 @@ struct Tsv {
     tsv_result: TsvResult,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct TsvResult {
     pub cycle: usize,
     pub traffic: usize,
@@ -470,45 +495,42 @@ struct TsvReport {
     pub max_use: usize,
     pub real_use: usize,
 }
-struct TsvResultBase {
-    tsv_traffic: Vec<Vec<(RingId, RingPort)>>,
-}
-impl TsvResultBase {
-    fn compute_result(self) -> TsvReport {
-        let mut tsv_traffic: Vec<VecDeque<_>> =
-            self.tsv_traffic.into_iter().map(Vec::into).collect();
-        let ports = tsv_traffic.len();
-        let mut cycle = 0;
-        let mut max_use = 0;
-        let mut real_use = 0;
-        // a cross bar net work
-        loop {
-            let mut busy = false;
 
-            let mut current_round_target = BTreeSet::new();
-            for port in &mut tsv_traffic {
-                if let Some(target) = port.pop_front() {
-                    busy = true;
-                    if current_round_target.contains(&target) {
-                        port.push_front(target);
-                    } else {
-                        current_round_target.insert(target);
-                    }
+fn compute_result<'a>(
+    mut tsv_traffic: Vec<VecDeque<&'a (RingPort, RingPort, (RingId, RingPort))>>,
+) -> TsvReport {
+    let ports = tsv_traffic.len();
+    let mut cycle = 0;
+    let mut max_use = 0;
+    let mut real_use = 0;
+    // a cross bar net work
+    loop {
+        let mut busy = false;
+
+        let mut current_round_target = BTreeSet::new();
+        for port in &mut tsv_traffic {
+            if let Some(traffic) = port.pop_front() {
+                busy = true;
+                if current_round_target.contains(&traffic.2 .0) {
+                    port.push_front(traffic);
+                } else {
+                    current_round_target.insert(traffic.2 .0);
                 }
             }
+        }
+
+        if !busy {
+            break;
+        } else {
             cycle += 1;
-            if !busy {
-                break;
-            } else {
-                max_use += ports;
-                real_use += current_round_target.len();
-            }
+            max_use += ports;
+            real_use += current_round_target.len();
         }
-        TsvReport {
-            cycle,
-            max_use,
-            real_use: real_use,
-        }
+    }
+    TsvReport {
+        cycle,
+        max_use,
+        real_use: real_use,
     }
 }
 
@@ -526,7 +548,7 @@ impl Hardware {
         let num_tsvs = config.channels.num;
         Self {
             sub_array: vec![SubArray::new(); num_subarray],
-            ring: vec![Ring::new(config.banks.num as u8); num_rings],
+            ring: vec![Ring::new(config.banks.num, config.subarrays); num_rings],
             tsv: vec![Tsv::new(); num_tsvs],
             ring_buffer: (0..banks).map(|_| RingBuffer::default()).collect(),
             dense_dim,
@@ -534,6 +556,20 @@ impl Hardware {
             row_per_partition,
             col_per_partition,
         }
+    }
+    fn get_tsv_interleave<'a>(
+        &'a self,
+    ) -> Vec<VecDeque<&'a (RingPort, RingPort, (RingId, RingPort))>> {
+        let tsv_traffic = self.ring.iter().enumerate().map(|(ring_id, r)| {
+            r.tasks
+                .iter()
+                .flat_interleave()
+                .flat_interleave()
+                .filter(move |d| d.2 .0 .0 as usize != ring_id)
+        });
+        // now we got the remote traffic from ring to base layer, then we should make a detailed simulation to calculate the cycle
+        let tsv_traffic: Vec<VecDeque<_>> = tsv_traffic.map(|t| t.collect()).collect();
+        tsv_traffic
     }
     /// # situation
     /// - when a round is finished, all traffic from each input port are ready to route to the other port
@@ -545,38 +581,13 @@ impl Hardware {
     /// - need a score to represent the reason why usage is low
     /// - the input reason
     /// - the output reason
+    /// # TODO
+    /// - redesign the buffer to store the traffic from each subarray. then use the [flat_interleave] to
+    ///  route the traffic
     fn calculate_tsv_traffic(&self) -> TsvReport {
         // the input traffic from each bank in the layer
-        let mut tsv_traffic = self.ring.iter().enumerate().map(|(ring_id, ring)| {
-            let banks = ring.ports;
-            let mut traffic_per_bank = vec![vec![]; banks as usize];
-            for task in ring.tasks.iter() {
-                let (source, _next_port, (target_layer, target_port)) = task;
-                traffic_per_bank[source.0 as usize].push((target_layer, target_port));
-            }
-            let max_len = traffic_per_bank
-                .iter()
-                .map(|v| v.len())
-                .max()
-                .unwrap_or_default();
-            for i in 0..max_len {
-                for j in 0..banks {
-                    if let Some(&(&target_layer, &target_port)) =
-                        traffic_per_bank.get(j as usize).unwrap().get(i)
-                    {
-                        if ring_id != target_layer.0 {
-                            todo!()
-                            // tsv_t.push((target_layer, target_port));
-                        }
-                    }
-                }
-            }
-        });
-        // now we got the remote traffic from ring to base layer, then we should make a detailed simulation to calculate the cycle
-        TsvResultBase {
-            tsv_traffic: todo!(),
-        }
-        .compute_result()
+
+        compute_result(self.get_tsv_interleave())
     }
 
     #[allow(unused)]
@@ -613,6 +624,8 @@ impl Hardware {
         }
     }
     /// the total evil cols belongs to this target
+    /// - if the target is the same, just distribute the local
+    /// - if the target is different, read the local and write merged data to the remote
     fn distribute_evil_col(
         &mut self,
         target_row_id: LogicRowId,
@@ -629,9 +642,9 @@ impl Hardware {
         // step 2: write to remote once the whole column is finished
 
         let mut remote_tasks = BTreeMap::new();
-        let mut local_subarray_id = None;
         for (mat_b_row_id, col_id) in row_id_col_id {
-            let partition_id = self.get_partition_id_row(target_row_id);
+            // noticed here, the evil col
+            let partition_id = self.get_partition_id_row(mat_b_row_id);
             let target_partition_id = self.get_partition_id_col(col_id);
             if partition_id == target_partition_id {
                 self.distribute_local(target_row_id, mat_b_row_id, col_id);
@@ -641,22 +654,22 @@ impl Hardware {
                 let physic_row_id = self.get_row_id(mat_b_row_id, col_id);
                 self.sub_array[partition_id.0].add_remote_read_task(physic_row_id);
                 // then store the temporary result for the remote dense
-                *remote_tasks.entry(col_id).or_insert(0usize) += 1;
-                match local_subarray_id {
-                    Some(_id) => {}
-                    _ => {
-                        local_subarray_id = Some(partition_id);
-                    }
-                }
+                *remote_tasks
+                    .entry(partition_id)
+                    .or_insert(BTreeMap::new())
+                    .entry(col_id)
+                    .or_insert(0) += 1;
             }
         }
-        let dispatcher_id =
-            local_subarray_id.map(|subarray_id| self.get_dispatcher_id(subarray_id));
-        // send the remote to ring, tsv and remote subarray
-        for entry in remote_tasks {
-            let col_id = entry.0;
-            // let count = entry.1;
-            self.distribute_remote(target_row_id, dispatcher_id.unwrap(), col_id);
+
+        // send the remote to ring, tsv and remote subarray,
+        // for each col id, there should only be one remote task(redundent remote col task are merged)
+        for (subarray_id, subarray_entry) in remote_tasks {
+            for (col_id, _entry) in subarray_entry {
+                // let count = entry.1;
+                assert_ne!(subarray_id, self.get_partition_id_col(col_id));
+                self.distribute_remote(target_row_id, subarray_id, col_id);
+            }
         }
     }
 
@@ -676,10 +689,13 @@ impl Hardware {
     fn get_row_id_evil(&self, mat_b_row_id: LogicRowId, _col_id: LogicColId) -> PhysicRowId {
         PhysicRowId(mat_b_row_id.0)
     }
+    #[allow(unused)]
+    #[deprecated = "use the subarray_id directly"]
     fn get_dispatcher_id(&self, sub_array_id: SubarrayId) -> SubarrayId {
         // the dispatcher is the first subarray of the same bank
         SubarrayId(sub_array_id.0 - sub_array_id.0 % self.config.subarrays)
     }
+
     fn distribute_local(
         &mut self,
         target_row_id: LogicRowId,
@@ -708,7 +724,7 @@ impl Hardware {
     fn read_local_and_distribute_remote(
         &mut self,
         target_row_id: LogicRowId,
-        dispatcher_id: SubarrayId,
+        subarray_id: SubarrayId,
         local_subarray: SubarrayId,
         matrix_b_row_id: LogicRowId,
         col_id: LogicColId,
@@ -716,7 +732,7 @@ impl Hardware {
         // read the local row
         let local_read_row_id = self.get_row_id(matrix_b_row_id, col_id);
         self.sub_array[local_subarray.0].add_remote_read_task(local_read_row_id);
-        self.distribute_remote(target_row_id, dispatcher_id, col_id);
+        self.distribute_remote(target_row_id, subarray_id, col_id);
     }
     /// get the ring_buffer_id(bank id) from subarray id
     fn ring_buffer_id(&self, subarray_id: SubarrayId) -> RingBufferId {
@@ -727,32 +743,48 @@ impl Hardware {
     fn distribute_remote(
         &mut self,
         target_row_id: LogicRowId,
-        dispatcher_id: SubarrayId,
+        subarray_id: SubarrayId,
         col_id: LogicColId,
     ) {
         // write the the dispatcher
-        let ring_buffer_id = self.ring_buffer_id(dispatcher_id);
+        let ring_buffer_id = self.ring_buffer_id(subarray_id);
         self.ring_buffer[ring_buffer_id.0].add_remote_task();
         //  write to the rings
-
-        let source_layer = self.ring_id_from_subarray(dispatcher_id);
+        let source_layer = self.ring_id_from_subarray(subarray_id);
 
         let target_partition_id = self.get_partition_id_col(col_id);
+        // should be local if the target partition is the same as the subarray
+        assert_ne!(subarray_id, target_partition_id);
         let target = self.ring_port_from_subarray(target_partition_id);
         let target_layer = self.ring_id_from_subarray(target_partition_id);
         if source_layer == target_layer {
             // no need to write to the csv
-            let source = self.ring_port_from_subarray(dispatcher_id);
-
-            self.ring[source_layer.0].add_task(source, target, (target_layer, target));
+            let source = self.ring_port_from_subarray(subarray_id);
+            // directly write to the target port
+            if source != target {
+                self.ring[source_layer.0].add_task(
+                    subarray_id.0 % self.config.subarrays,
+                    source,
+                    target,
+                    (target_layer, target),
+                );
+            }
+            // add to the target subarray
+            let remote_dense_row_write = self.get_row_id_dense(target_row_id, col_id);
+            self.sub_array[target_partition_id.0].add_remote_task(remote_dense_row_write);
         } else {
             // write to source ring
-            let source_bank = self.ring_port_from_subarray(dispatcher_id);
+            let source_bank = self.ring_port_from_subarray(subarray_id);
             let target_bank = RingPort(0);
-            self.ring[source_layer.0].add_task(source_bank, target_bank, (target_layer, target));
+            self.ring[source_layer.0].add_task(
+                subarray_id.0 % self.config.subarrays,
+                source_bank,
+                target_bank,
+                (target_layer, target),
+            );
 
             // write to tsv from source ring to base ring
-            let tsv_id = self.get_tsv_id_from_subarray(dispatcher_id);
+            let tsv_id = self.get_tsv_id_from_subarray(subarray_id);
             self.tsv[tsv_id.0].add_task();
 
             // write to the base icnt
@@ -765,7 +797,7 @@ impl Hardware {
             // write to target ring
             let source_bank = RingPort(0);
             let target_bank = self.ring_port_from_subarray(target_partition_id);
-            self.ring[target_layer.0].add_task(source_bank, target_bank, (target_layer, target));
+            self.ring[target_layer.0].add_task(0, source_bank, target_bank, (target_layer, target));
 
             // target subarray distribute local task
             let remote_dense_row_write = self.get_row_id_dense(target_row_id, col_id);
@@ -800,7 +832,7 @@ impl Hardware {
     fn report(
         &self,
         name: String,
-        total_result: TotalResult,
+        total_result: GlobalStat,
         batch: usize,
         topk: f32,
     ) -> SingleResult {
@@ -883,17 +915,8 @@ impl<'a> GearboxSim<'a> {
         input_vec: &CsMatI<Pattern, u32>,
         current_batch: usize,
         _current_topk: f32,
-    ) -> TotalResult {
-        let mut global_max_acc_cycle = 0;
-        let mut global_max_acc_cycle_remote = 0;
-        let mut gloabl_max_acc_ring = 0;
-        let mut global_max_acc_tsv = 0;
-        let mut global_max_real_local = 0;
-        let mut global_max_ring_buffer = 0;
-        let mut global_tsv_base_real = 0;
-        let mut global_tsv_base_total = 0;
-        let mut global_tsv_base_cycle = 0;
-
+    ) -> GlobalStat {
+        let mut global_stats = GlobalStat::default();
         let now = std::time::Instant::now();
         debug!("run gearbox sim");
         let evil_rows = self.evil_row_ids.len();
@@ -906,17 +929,7 @@ impl<'a> GearboxSim<'a> {
         let mut next_print_percent = total_rows / 100;
         let mut next_print_time = TIME_TO_LOG as u64;
         //each data size if 8 bytes and there are 512 rows in a subarray
-        let mut overflow_count_8_512 = 0;
-        let mut overflow_count_8_256 = 0;
-        let mut overflow_count_12_256 = 0;
-        let mut overflow_count_12_512 = 0;
 
-        let mut overflow_count_8_512_overhead = 0;
-        let mut overflow_count_8_256_overhead = 0;
-        let mut overflow_count_12_256_overhead = 0;
-        let mut overflow_count_12_512_overhead = 0;
-
-        let mut total_counts = 0;
         for (target_id, row) in input_vec.outer_iterator().enumerate() {
             if target_id >= next_print_percent || now.elapsed().as_secs() >= next_print_time {
                 let time = now.elapsed().as_secs_f32();
@@ -984,10 +997,7 @@ impl<'a> GearboxSim<'a> {
                                 // the col is in different partition, need to access remote
                                 self.hardware.read_local_and_distribute_remote(
                                     LogicRowId(target_id),
-                                    self.hardware.get_dispatcher_id(
-                                        self.hardware
-                                            .get_partition_id_row(LogicRowId(mat_b_row_id)),
-                                    ),
+                                    self.hardware.get_partition_id_row(LogicRowId(mat_b_row_id)),
                                     self.hardware.get_partition_id_row(LogicRowId(mat_b_row_id)),
                                     LogicRowId(mat_b_row_id),
                                     LogicColId(col),
@@ -1003,110 +1013,19 @@ impl<'a> GearboxSim<'a> {
             // reduce the tasks and clear the tasks
             // the cycle of this round
             if (target_id + 1) % current_batch == 0 {
-                // test if the size is overflow!
-                let tsv_report_base = self.hardware.calculate_tsv_traffic();
-                global_tsv_base_total += tsv_report_base.max_use;
-                global_tsv_base_real += tsv_report_base.real_use;
-                global_tsv_base_cycle += tsv_report_base.cycle;
-                let ring_max_cycle = self
-                    .hardware
-                    .ring
-                    .iter_mut()
-                    .map(|ring| ring.report_current_round())
-                    .max()
-                    .unwrap();
-                let tsv_max_cycle = self
-                    .hardware
-                    .tsv
-                    .iter_mut()
-                    .map(|tsv| tsv.report_current_round())
-                    .max()
-                    .unwrap();
-                // get the max ring buffer cycle and count for the overflow
-                let ring_buffer_max = self
-                    .hardware
-                    .ring_buffer
-                    .iter_mut()
-                    .map(|ring_buffer| {
-                        // in this function, we need to calculate the overhead of the overflow
-                        //
-                        // when an overflow happenend we need to stop all other subarrays and
-                        // finish that write, the cycle will be composed by:
-                        // 1. send from the original subarray the cycle should be the total cycle
-                        //    of the overflow
-                        // 2. others should be ignored for now
-                        let ring_buffer_cycle = ring_buffer.report_and_reset();
-                        if ring_buffer_cycle * 8 > 256 * 256 {
-                            overflow_count_8_256 += 1;
-                            overflow_count_8_256_overhead += ring_buffer_cycle;
-                        }
-                        if ring_buffer_cycle * 8 > 512 * 256 {
-                            overflow_count_8_512 += 1;
-                            overflow_count_8_512_overhead += ring_buffer_cycle;
-                        }
-                        if ring_buffer_cycle * 12 > 256 * 256 {
-                            overflow_count_12_256 += 1;
-                            overflow_count_12_256_overhead += ring_buffer_cycle;
-                        }
-                        if ring_buffer_cycle * 12 > 512 * 256 {
-                            overflow_count_12_512 += 1;
-                            overflow_count_12_512_overhead += ring_buffer_cycle;
-                        }
-                        total_counts += 1;
-                        ring_buffer_cycle
-                    })
-                    .max()
-                    .unwrap();
-                // the subarray max cycle for local
-                let (max_local, max_remote): (Vec<_>, Vec<_>) = self
-                    .hardware
-                    .sub_array
-                    .iter_mut()
-                    .map(|sub_array| {
-                        let (local, remote) = sub_array.report_current_round();
-                        (local, remote)
-                    })
-                    .unzip();
-                let max_local_cycle = max_local.iter().max().unwrap();
-                let max_remote_cycle = max_remote.iter().max().unwrap();
-                let max_real_local_cycle = max_local_cycle.max(&ring_buffer_max);
-
-                global_max_acc_cycle += max_local_cycle;
-                global_max_acc_cycle_remote += max_remote_cycle;
-                gloabl_max_acc_ring += ring_max_cycle;
-                global_max_acc_tsv += tsv_max_cycle;
-                global_max_real_local += max_real_local_cycle;
-                global_max_ring_buffer += ring_buffer_max;
+                update_stats(&mut self.hardware, &mut global_stats);
                 // the data for overflow:
             }
             // add the result to the total result and continue to the next line
         }
-        TotalResult {
-            global_max_acc_cycle,
-            global_max_acc_cycle_remote,
-            gloabl_max_acc_ring,
-            global_max_acc_tsv,
-            global_max_real_local,
-            global_max_ring_buffer,
-            overflow_count_12_256,
-            overflow_count_12_256_overhead,
-            overflow_count_12_512,
-            overflow_count_12_512_overhead,
-            overflow_count_8_256,
-            overflow_count_8_256_overhead,
-            overflow_count_8_512,
-            overflow_count_8_512_overhead,
-            global_tsv_base_total,
-            global_tsv_base_real,
-            global_tsv_base_cycle,
-        }
+        global_stats
     }
 
     /// reduce the result and return the result
     fn report(
         &self,
         name: String,
-        total_result: TotalResult,
+        total_result: GlobalStat,
         batch: usize,
         topk: f32,
     ) -> SingleResult {
@@ -1119,6 +1038,100 @@ impl<'a> GearboxSim<'a> {
     fn get_partition_id_col(&self, col_id: LogicColId) -> SubarrayId {
         self.hardware.get_partition_id_col(col_id)
     }
+}
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct GlobalStat {
+    pub global_tsv_base_total: usize,
+    pub global_tsv_base_real: usize,
+    pub global_tsv_base_cycle: usize,
+    pub overflow_count_8_256: usize,
+    pub overflow_count_8_256_overhead: usize,
+    pub overflow_count_8_512: usize,
+    pub overflow_count_8_512_overhead: usize,
+    pub overflow_count_12_256: usize,
+    pub overflow_count_12_256_overhead: usize,
+    pub overflow_count_12_512: usize,
+    pub overflow_count_12_512_overhead: usize,
+    pub total_counts: i32,
+    pub global_max_acc_cycle: usize,
+    pub global_max_acc_cycle_remote: usize,
+    pub global_max_acc_ring: usize,
+    pub global_max_acc_tsv: usize,
+    pub global_max_real_local: usize,
+    pub global_max_ring_buffer: usize,
+}
+
+fn update_stats(hardware: &mut Hardware, global_stats: &mut GlobalStat) {
+    // test if the size is overflow!
+    let tsv_report_base = hardware.calculate_tsv_traffic();
+    global_stats.global_tsv_base_total += tsv_report_base.max_use;
+    global_stats.global_tsv_base_real += tsv_report_base.real_use;
+    global_stats.global_tsv_base_cycle += tsv_report_base.cycle;
+    let ring_max_cycle = hardware
+        .ring
+        .iter_mut()
+        .map(|ring| ring.report_current_round())
+        .max()
+        .unwrap();
+    let tsv_max_cycle = hardware
+        .tsv
+        .iter_mut()
+        .map(|tsv| tsv.report_current_round())
+        .max()
+        .unwrap();
+    // get the max ring buffer cycle and count for the overflow
+    let ring_buffer_max = hardware
+        .ring_buffer
+        .iter_mut()
+        .map(|ring_buffer| {
+            // in this function, we need to calculate the overhead of the overflow
+            //
+            // when an overflow happenend we need to stop all other subarrays and
+            // finish that write, the cycle will be composed by:
+            // 1. send from the original subarray the cycle should be the total cycle
+            //    of the overflow
+            // 2. others should be ignored for now
+            let ring_buffer_cycle = ring_buffer.report_and_reset();
+            if ring_buffer_cycle * 8 > 256 * 256 {
+                global_stats.overflow_count_8_256 += 1;
+                global_stats.overflow_count_8_256_overhead += ring_buffer_cycle;
+            }
+            if ring_buffer_cycle * 8 > 512 * 256 {
+                global_stats.overflow_count_8_512 += 1;
+                global_stats.overflow_count_8_512_overhead += ring_buffer_cycle;
+            }
+            if ring_buffer_cycle * 12 > 256 * 256 {
+                global_stats.overflow_count_12_256 += 1;
+                global_stats.overflow_count_12_256_overhead += ring_buffer_cycle;
+            }
+            if ring_buffer_cycle * 12 > 512 * 256 {
+                global_stats.overflow_count_12_512 += 1;
+                global_stats.overflow_count_12_512_overhead += ring_buffer_cycle;
+            }
+            global_stats.total_counts += 1;
+            ring_buffer_cycle
+        })
+        .max()
+        .unwrap();
+    // the subarray max cycle for local
+    let (max_local, max_remote): (Vec<_>, Vec<_>) = hardware
+        .sub_array
+        .iter_mut()
+        .map(|sub_array| {
+            let (local, remote) = sub_array.report_current_round();
+            (local, remote)
+        })
+        .unzip();
+    let max_local_cycle = max_local.iter().max().unwrap();
+    let max_remote_cycle = max_remote.iter().max().unwrap();
+    let max_real_local_cycle = max_local_cycle.max(&ring_buffer_max);
+
+    global_stats.global_max_acc_cycle += max_local_cycle;
+    global_stats.global_max_acc_cycle_remote += max_remote_cycle;
+    global_stats.global_max_acc_ring += ring_max_cycle;
+    global_stats.global_max_acc_tsv += tsv_max_cycle;
+    global_stats.global_max_real_local += max_real_local_cycle;
+    global_stats.global_max_ring_buffer += ring_buffer_max;
 }
 
 struct DistributionDrawer;
@@ -1409,7 +1422,7 @@ impl SubarrayStatus {
         )
     }
 }
-
+#[allow(deprecated)]
 #[cfg(test)]
 mod tests {
     use crate::pim::configv2::LevelConfig;
@@ -1500,5 +1513,205 @@ mod tests {
                 hard_ware.ring_port_from_subarray(hard_ware.get_dispatcher_id(SubarrayId(i)))
             );
         }
+    }
+
+    #[test]
+    fn test_dist() {
+        let mut hard_ware = init_hardware();
+        // the evil col, same write in subarray will be merged
+        hard_ware.distribute_evil_col(
+            LogicRowId(200),
+            [
+                (LogicRowId(0), LogicColId(200)),
+                (LogicRowId(1), LogicColId(200)),
+                (LogicRowId(100), LogicColId(200)),
+                (LogicRowId(101), LogicColId(200)),
+            ],
+        );
+        let mut global_stat = GlobalStat::default();
+        update_stats(&mut hard_ware, &mut global_stat);
+        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+        // println!("{:?}", report);
+        assert_eq!(report.subarray_result[0].remote_row_read_cycle, 28);
+        assert_eq!(report.subarray_result[1].remote_row_read_cycle, 28);
+        assert_eq!(report.subarray_result[2].remote_row_write_cycle, 10);
+        assert_eq!(report.subarray_result[2].cycle_remote, 10);
+        // the ring traffic should be zero
+        assert_eq!(report.total_result.global_max_acc_ring, 0);
+        // the tsv traffic should be zero
+        assert_eq!(report.total_result.global_max_acc_tsv, 0);
+
+        // the evil row will always be local, the partition will be decided by the col id!
+        hard_ware.distribute_evil_row(
+            LogicRowId(0),
+            LogicRowId(0),
+            [LogicColId(300), LogicColId(400)],
+        );
+        update_stats(&mut hard_ware, &mut global_stat);
+        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+        // println!("{:?}", report.subarray_result[3]);
+        assert_eq!(report.subarray_result[3].local_row_open_cycle_evil, 18);
+        assert_eq!(report.subarray_result[3].local_row_read_cycle_evil, 0);
+        assert_eq!(report.subarray_result[3].local_row_write_cycle_evil, 0);
+        assert_eq!(report.subarray_result[3].cycle, 18);
+        assert_eq!(report.subarray_result[3].local_row_open_cycle_evil, 18);
+        assert_eq!(report.subarray_result[3].local_row_read_cycle_evil, 0);
+        assert_eq!(report.subarray_result[3].local_row_write_cycle_evil, 0);
+        assert_eq!(report.subarray_result[3].cycle, 18);
+        hard_ware.distribute_local(LogicRowId(0), LogicRowId(500), LogicColId(0));
+        update_stats(&mut hard_ware, &mut global_stat);
+        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+        assert_eq!(report.subarray_result[5].local_row_open_cycle, 18);
+        assert_eq!(report.subarray_result[5].cycle, 18);
+        // hard_ware.distribute_local_evil_row(LogicRowId(0), LogicRowId(0), LogicColId(0));
+        // to another subarray
+        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(100));
+        update_stats(&mut hard_ware, &mut global_stat);
+        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+        // the ring traffic should be zero
+        assert_eq!(report.total_result.global_max_acc_ring, 0);
+
+        // to another bank
+        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(1600));
+        update_stats(&mut hard_ware, &mut global_stat);
+        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+        assert_eq!(report.total_result.global_max_acc_ring, 1);
+        assert_eq!(report.ring_result[0].cycle, 1);
+
+        // the ring traffic should be zero
+        // to another layer
+        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(25600));
+        update_stats(&mut hard_ware, &mut global_stat);
+        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+        // layer 0 -> 1, port 0 -> 0, so there are no ring traffic, this one is the old one.
+        assert_eq!(report.total_result.global_max_acc_ring, 1);
+        // there are two tsv traffic 0 and 1
+        assert_eq!(report.total_result.global_max_acc_tsv, 1);
+        assert_eq!(report.ring_result[0].cycle, 1);
+        assert_eq!(report.ring_result[1].cycle, 0);
+        assert_eq!(report.tsv_result[0].cycle, 1);
+        assert_eq!(report.tsv_result[1].cycle, 1);
+
+        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(16), LogicColId(27200));
+        update_stats(&mut hard_ware, &mut global_stat);
+        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+        // layer 0 -> 1, port 1 -> 1, so there are one ring traffic, this one is the old one.
+        assert_eq!(report.total_result.global_max_acc_ring, 2);
+        // there are two tsv traffic 0 and 1
+        assert_eq!(report.total_result.global_max_acc_tsv, 2);
+        assert_eq!(report.ring_result[0].cycle, 2);
+        assert_eq!(report.ring_result[1].cycle, 1);
+        assert_eq!(report.tsv_result[0].cycle, 2);
+        assert_eq!(report.tsv_result[1].cycle, 2);
+
+        // the ring confilic
+        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(1600));
+        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(3200));
+        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(4800));
+
+        // layer 0 -> 0, port 0 -> 1,0-2, so there are two ring traffic, .
+        update_stats(&mut hard_ware, &mut global_stat);
+        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+        assert_eq!(report.total_result.global_max_acc_ring, 5);
+        assert_eq!(report.ring_result[0].cycle, 5);
+    }
+
+    fn init_hardware() -> Hardware {
+        // test the distribution of rows
+        let config = ConfigV2 {
+            channels: LevelConfig {
+                num: 16,
+                ..Default::default()
+            },
+            chips: LevelConfig {
+                num: 1,
+                ..Default::default()
+            },
+            ranks: LevelConfig {
+                num: 1,
+                ..Default::default()
+            },
+            bank_groups: LevelConfig {
+                num: 1,
+                ..Default::default()
+            },
+            banks: LevelConfig {
+                num: 16,
+                ..Default::default()
+            },
+            subarrays: 16,
+            ..Default::default()
+        };
+        let hard_ware: Hardware = Hardware::new(1024, config, 100, 100);
+        hard_ware
+    }
+
+    /// test the base layer router
+    /// test the interleave result
+    #[test]
+    fn test_base_layer() {
+        let mut hardware = init_hardware();
+        // generate some traffic which each one will always to route to subarray 0
+        for i in 0..1024 {
+            hardware.distribute_remote(LogicRowId(0), SubarrayId(i), LogicColId(102400 + i * 100));
+        }
+
+        let tsv_traffic = hardware.get_tsv_interleave();
+        assert_eq!(tsv_traffic[0].len(), 256);
+        assert_eq!(tsv_traffic[1].len(), 256);
+        assert_eq!(tsv_traffic[2].len(), 256);
+        assert_eq!(tsv_traffic[3].len(), 256);
+        // first interleave the bank
+        assert!(
+            tsv_traffic[0]
+                .iter()
+                .map(|v| v.2 .1 .0)
+                .take(4)
+                .collect_vec()
+                == vec![0, 1, 2, 3]
+        );
+        // another round interleave the bank for the next subarray
+        assert!(
+            tsv_traffic[0]
+                .iter()
+                .map(|v| v.2 .1 .0)
+                .skip(16)
+                .take(4)
+                .collect_vec()
+                == vec![0, 1, 2, 3]
+        );
+        let result = compute_result(tsv_traffic);
+        // no conflict , so the cycle is 256
+        assert_eq!(result.cycle, 256);
+    }
+
+    /// test the base layer router
+    /// test the interleave result
+    #[test]
+    fn test_base_layer_conflict() {
+        let mut hardware = init_hardware();
+        // generate some traffic which each one will always to route to subarray 0
+        for i in 0..1024 {
+            hardware.distribute_remote(LogicRowId(0), SubarrayId(i), LogicColId(102400));
+        }
+
+        let tsv_traffic = hardware.get_tsv_interleave();
+        assert_eq!(tsv_traffic[0].len(), 256);
+        assert_eq!(tsv_traffic[1].len(), 256);
+        assert_eq!(tsv_traffic[2].len(), 256);
+        assert_eq!(tsv_traffic[3].len(), 256);
+        // first interleave the bank
+        assert!(
+            tsv_traffic[0]
+                .iter()
+                .map(|v| v.2 .1 .0)
+                .take(4)
+                .collect_vec()
+                == vec![0, 0, 0, 0]
+        );
+
+        let result = compute_result(tsv_traffic);
+        // all conflict , so the cycle is 1024
+        assert_eq!(result.cycle, 1024);
     }
 }

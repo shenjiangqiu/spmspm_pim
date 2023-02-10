@@ -15,6 +15,7 @@ mod gearbox_all;
 mod gearbox_all_multiconf;
 mod gearbox_old;
 mod speedup;
+mod tsv_and_overflow;
 #[derive(Debug)]
 pub enum Ext {
     Png,
@@ -125,6 +126,7 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
         DrawType::GearBoxV2(gearbox_result) => draw_v2::draw(gearbox_result)?,
         DrawType::GearBoxOverflow(gearbox_result) => draw_overflow::draw(gearbox_result)?,
         DrawType::GearBoxTsvTraffic(gearbox_result) => draw_tsv_traffic::draw(gearbox_result)?,
+        DrawType::TsvAndOverflow(gearbox_result) => tsv_and_overflow::draw(gearbox_result)?,
     }
     Ok(())
 }

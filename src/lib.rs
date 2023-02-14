@@ -27,18 +27,19 @@ pub mod draw;
 pub static mut STOP_NOW: bool = false;
 #[allow(dead_code)]
 pub fn init_logger_info() {
-    init_logger(LevelFilter::INFO, io::stderr);
+    init_logger_with_ansi(LevelFilter::INFO, io::stderr, true);
 }
 
 #[allow(dead_code)]
 pub fn init_logger_debug() {
-    init_logger(LevelFilter::DEBUG, io::stderr);
+    init_logger_with_ansi(LevelFilter::DEBUG, io::stderr, true);
 }
 
 #[allow(dead_code)]
-pub fn init_logger(
+pub fn init_logger_with_ansi(
     filter: LevelFilter,
     writter: impl for<'writer> MakeWriter<'writer> + 'static + Send + Sync,
+    ansi: bool,
 ) {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -47,11 +48,19 @@ pub fn init_logger(
                 .from_env_lossy(),
         )
         .with_writer(writter)
-        .with_ansi(false)
+        .with_ansi(ansi)
         .try_init()
         .unwrap_or_else(|e| {
             eprintln!("failed to init logger: {}", e);
         });
+}
+
+#[allow(dead_code)]
+pub fn init_logger(
+    filter: LevelFilter,
+    writter: impl for<'writer> MakeWriter<'writer> + 'static + Send + Sync,
+) {
+    init_logger_with_ansi(filter, writter, false);
 }
 static CURRENT_MEMORY_USAGE: Mutex<usize> = Mutex::new(0);
 static MEMORY_CONDVAR: Condvar = Condvar::new();

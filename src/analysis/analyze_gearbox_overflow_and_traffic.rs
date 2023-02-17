@@ -6,7 +6,11 @@
 //! - in this version, we can calculate the overhead of the overflow and the overhead of traffic
 //! inbanlace
 //!  w
-use crate::tools::FlatInterleaveTrait;
+use crate::tools::{
+    crossbare_simulator::CrossBareSimulator,
+    crossbare_simulator_no_conflic::CrossBareSimulatorNoConflict, ring_simulator::RingSimulator,
+    CrossBarPacket, Direction, FlatInterleaveTrait, IcntPacket,
+};
 use std::{
     cmp::Reverse,
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -66,7 +70,7 @@ pub struct SingleResult {
     pub subarray_result: Vec<SubArrayResult>,
     pub ring_result: Vec<RingResult>,
     pub tsv_result: Vec<TsvResult>,
-    pub total_result: GlobalStat,
+    pub total_result: GlobalStatV2,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -490,6 +494,8 @@ pub struct Hardware {
     /// and for the evil row, distribute them by column
     col_per_partition: usize,
 }
+#[allow(dead_code)]
+#[derive(Debug, Default)]
 struct TsvReport {
     pub cycle: usize,
     pub cycle_no_conflict: usize,
@@ -498,6 +504,16 @@ struct TsvReport {
     pub real_use: usize,
 }
 
+#[derive(Debug, Default)]
+struct TsvReportV2 {
+    pub cycle_normal: usize,
+    pub cycle_no_conflict: usize,
+    pub max_use: usize,
+    pub max_use_valid: usize,
+    pub real_use: usize,
+}
+
+#[allow(dead_code)]
 fn compute_result<'a>(
     mut tsv_traffic: Vec<VecDeque<&'a (RingPort, RingPort, (RingId, RingPort))>>,
 ) -> TsvReport {
@@ -551,6 +567,103 @@ fn compute_result<'a>(
         max_use_valid,
     }
 }
+fn get_ring_interleave(
+    rings_tasks: Vec<&Vec<Vec<Vec<(RingPort, RingPort, (RingId, RingPort))>>>>,
+) -> Vec<Vec<VecDeque<&(RingPort, RingPort, (RingId, RingPort))>>> {
+    let tsv_traffic = rings_tasks
+        .into_iter()
+        .map(|r| {
+            r.into_iter()
+                .map(|bank| bank.into_iter().flat_interleave().collect())
+                .collect()
+        })
+        .collect();
+    // now we got the remote traffic from ring to base layer, then we should make a detailed simulation to calculate the cycle
+    tsv_traffic
+}
+struct RingTraffic<T> {
+    from: usize,
+    to: usize,
+    direction: Direction,
+    traffic: T,
+}
+impl<T> RingTraffic<T> {
+    fn new(from: usize, to: usize, direction: Direction, traffic: T) -> Self {
+        Self {
+            from,
+            to,
+            direction,
+            traffic,
+        }
+    }
+}
+impl<T> IcntPacket for RingTraffic<T> {
+    fn get_source(&self) -> usize {
+        self.from
+    }
+
+    fn get_next_hop(&self) -> usize {
+        self.to
+    }
+
+    fn get_direction(&self) -> Direction {
+        self.direction
+    }
+}
+
+#[allow(dead_code)]
+struct CrossBarTraffic<T> {
+    from: usize,
+    to: usize,
+    traffic: T,
+}
+impl<T> CrossBarTraffic<T> {
+    fn new(from: usize, to: usize, traffic: T) -> Self {
+        Self { from, to, traffic }
+    }
+}
+impl<T> CrossBarPacket for CrossBarTraffic<T> {
+    fn get_source(&self) -> usize {
+        self.from
+    }
+
+    fn get_dest(&self) -> usize {
+        self.to
+    }
+}
+
+trait CrossBarCommon<T> {
+    fn add(&mut self, node: usize, traffic: T) -> Result<(), T>;
+    fn pop(&mut self, node: usize) -> Option<T>;
+    fn cycle(&mut self);
+}
+
+impl<T: CrossBarPacket> CrossBarCommon<T> for CrossBareSimulator<T> {
+    fn add(&mut self, node: usize, traffic: T) -> Result<(), T> {
+        self.add(node, traffic)
+    }
+
+    fn pop(&mut self, node: usize) -> Option<T> {
+        self.pop(node)
+    }
+
+    fn cycle(&mut self) {
+        self.cycle()
+    }
+}
+impl<T: CrossBarPacket> CrossBarCommon<T> for CrossBareSimulatorNoConflict<T> {
+    fn add(&mut self, node: usize, traffic: T) -> Result<(), T> {
+        self.add(node, traffic)
+    }
+
+    fn pop(&mut self, node: usize) -> Option<T> {
+        self.pop(node)
+    }
+
+    fn cycle(&mut self) {
+        self.cycle()
+    }
+}
 
 impl Hardware {
     fn new(
@@ -575,9 +688,8 @@ impl Hardware {
             col_per_partition,
         }
     }
-    fn get_tsv_interleave<'a>(
-        &'a self,
-    ) -> Vec<VecDeque<&'a (RingPort, RingPort, (RingId, RingPort))>> {
+    #[allow(dead_code)]
+    fn get_tsv_interleave(&self) -> Vec<VecDeque<&(RingPort, RingPort, (RingId, RingPort))>> {
         let tsv_traffic = self.ring.iter().enumerate().map(|(ring_id, r)| {
             r.tasks
                 .iter()
@@ -589,6 +701,7 @@ impl Hardware {
         let tsv_traffic: Vec<VecDeque<_>> = tsv_traffic.map(|t| t.collect()).collect();
         tsv_traffic
     }
+
     /// # situation
     /// - when a round is finished, all traffic from each input port are ready to route to the other port
     /// - the traffic is routed by a crossbar network in the base layer
@@ -602,10 +715,156 @@ impl Hardware {
     /// # TODO
     /// - redesign the buffer to store the traffic from each subarray. then use the [flat_interleave] to
     ///  route the traffic
-    fn calculate_tsv_traffic(&self) -> TsvReport {
+    fn calculate_tsv_traffic(&self) -> TsvReportV2 {
         // the input traffic from each bank in the layer
 
-        compute_result(self.get_tsv_interleave())
+        // the old method is deprecated
+        // `compute_result(self.get_tsv_interleave())`
+
+        // first get the traffic for each bank and each ring
+        let rings_tasks = self.ring.iter().map(|r| &r.tasks).collect_vec();
+        let ring_bank_traffic: Vec<Vec<VecDeque<&(RingPort, RingPort, (RingId, RingPort))>>> =
+            get_ring_interleave(rings_tasks);
+        // second, build the hardware:
+        // - the ring simulator for each ring
+        let ports = self.config.channels.num;
+        let cycle_normal = {
+            self.calculate_icnt(
+                ring_bank_traffic.clone(),
+                CrossBareSimulator::new(ports, 16),
+            )
+        };
+        let cycle_no_conflict = {
+            self.calculate_icnt(
+                ring_bank_traffic,
+                CrossBareSimulatorNoConflict::new(ports, 16),
+            )
+        };
+        // println!("cycle: {}", cycle);
+        tracing::debug!("cycle: {cycle_normal} {cycle_no_conflict}");
+        TsvReportV2 {
+            cycle_normal,
+            cycle_no_conflict,
+            max_use: 0,
+            max_use_valid: 0,
+            real_use: 0,
+        }
+    }
+
+    fn calculate_icnt<'a, Cross>(
+        &'a self,
+        mut ring_bank_traffic: Vec<Vec<VecDeque<&'a (RingPort, RingPort, (RingId, RingPort))>>>,
+        mut crossbar_simulator: Cross,
+    ) -> usize
+    where
+        Cross: CrossBarCommon<CrossBarTraffic<&'a (RingPort, RingPort, (RingId, RingPort))>>,
+    {
+        // - the corssbar simulator for the base layer
+        let mut ring_simulators = (0..self.config.channels.num)
+            .map(|_ring_id| RingSimulator::new(self.config.banks.num, 128))
+            .collect_vec();
+
+        let mut tsv_buffer = (0..self.config.channels.num)
+            .map(|_| VecDeque::with_capacity(16))
+            .collect_vec();
+
+        let mut total_remain_traffic = 0;
+        let mut cycle = 0;
+        loop {
+            for (ring_id, (ring_sim, ring_traffic)) in ring_simulators
+                .iter_mut()
+                .zip(ring_bank_traffic.iter_mut())
+                .enumerate()
+            {
+                for (bank_id, bank_traffic) in ring_traffic.iter_mut().enumerate() {
+                    // first add the traffic to the input of the ring
+
+                    if let Some(traffic) = bank_traffic.pop_front() {
+                        // add the traffic to ring port  `bank_id`
+                        let from = traffic.0 .0 as usize;
+                        let to = traffic.1 .0 as usize;
+                        let nodes = self.config.banks.num;
+                        let right_distance = (to + nodes - from) % nodes;
+                        let left_distance = (from + nodes - to) % nodes;
+                        let direction = if right_distance < left_distance {
+                            Direction::Right
+                        } else {
+                            Direction::Left
+                        };
+                        match ring_sim.add(bank_id, RingTraffic::new(from, to, direction, traffic))
+                        {
+                            Ok(_) => {
+                                total_remain_traffic += 1;
+                            }
+                            Err(RingTraffic { traffic, .. }) => {
+                                bank_traffic.push_front(traffic);
+                            }
+                        }
+                    }
+                    // then pop the traffic from the output of the ring
+
+                    if let Some(RingTraffic { traffic, .. }) = ring_sim.front(bank_id) {
+                        if bank_id == 0 {
+                            // the tsv port
+                            // test if the traffic should go to other ring
+                            let target_ring_id = traffic.2 .0 .0;
+                            if ring_id == target_ring_id {
+                                // no!
+                                // do nothing and pop the traffic
+                                ring_sim.pop(bank_id);
+                                total_remain_traffic -= 1;
+                            } else {
+                                // yes, go to the target ring
+                                // push it to the tsv buffer
+                                if tsv_buffer[ring_id].len() < 16 {
+                                    let traffic = ring_sim.pop(bank_id).unwrap();
+                                    tsv_buffer[ring_id].push_back(traffic);
+                                    // do not need to decrease the total_remain_traffic because we will do it on pop of the crossbar
+                                } else {
+                                    // the buffer is full, do nothing
+                                }
+                            }
+                        } else {
+                            // just pop the traffic
+                            ring_sim.pop(bank_id).unwrap();
+                            total_remain_traffic -= 1;
+                        }
+                    }
+                }
+            }
+
+            // handle the tsv buffer traffic
+            for (tsv_id, tsv) in tsv_buffer.iter_mut().enumerate() {
+                if let Some(traffic) = tsv.pop_front() {
+                    let crossbare_packet =
+                        CrossBarTraffic::new(tsv_id, traffic.traffic.2 .0 .0, traffic.traffic);
+                    match crossbar_simulator.add(tsv_id, crossbare_packet) {
+                        Ok(_) => {
+                            // do nothing
+                        }
+                        Err(_) => {
+                            tsv.push_front(traffic);
+                        }
+                    }
+                }
+                // handle the crossbar traffic out
+                if let Some(_p) = crossbar_simulator.pop(tsv_id) {
+                    // the packet is finished
+                    total_remain_traffic -= 1;
+                }
+            }
+            // cycle the simulators
+            for ring_sim in ring_simulators.iter_mut() {
+                ring_sim.cycle();
+            }
+            crossbar_simulator.cycle();
+
+            cycle += 1;
+            if total_remain_traffic == 0 {
+                break;
+            }
+        }
+        cycle
     }
 
     #[allow(unused)]
@@ -850,7 +1109,7 @@ impl Hardware {
     fn report(
         &self,
         name: String,
-        total_result: GlobalStat,
+        total_result: GlobalStatV2,
         batch: usize,
         topk: f32,
     ) -> SingleResult {
@@ -933,8 +1192,8 @@ impl<'a> GearboxSim<'a> {
         input_vec: &CsMatI<Pattern, u32>,
         current_batch: usize,
         _current_topk: f32,
-    ) -> GlobalStat {
-        let mut global_stats = GlobalStat::default();
+    ) -> GlobalStatV2 {
+        let mut global_stats = GlobalStatV2::default();
         let now = std::time::Instant::now();
         debug!("run gearbox sim");
         let evil_rows = self.evil_row_ids.len();
@@ -1043,7 +1302,7 @@ impl<'a> GearboxSim<'a> {
     fn report(
         &self,
         name: String,
-        total_result: GlobalStat,
+        total_result: GlobalStatV2,
         batch: usize,
         topk: f32,
     ) -> SingleResult {
@@ -1080,13 +1339,36 @@ pub struct GlobalStat {
     pub global_max_real_local: usize,
     pub global_max_ring_buffer: usize,
 }
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct GlobalStatV2 {
+    pub global_tsv_base_total: usize,
+    pub global_tsv_base_real: usize,
+    pub global_tsv_base_cycle_normal: usize,
+    pub global_tsv_base_cycle_no_conflict: usize,
+    pub global_tsv_base_max_use_validt: usize,
+    pub overflow_count_8_256: usize,
+    pub overflow_count_8_256_overhead: usize,
+    pub overflow_count_8_512: usize,
+    pub overflow_count_8_512_overhead: usize,
+    pub overflow_count_12_256: usize,
+    pub overflow_count_12_256_overhead: usize,
+    pub overflow_count_12_512: usize,
+    pub overflow_count_12_512_overhead: usize,
+    pub total_counts: i32,
+    pub global_max_acc_cycle: usize,
+    pub global_max_acc_cycle_remote: usize,
+    pub global_max_acc_ring: usize,
+    pub global_max_acc_tsv: usize,
+    pub global_max_real_local: usize,
+    pub global_max_ring_buffer: usize,
+}
 
-fn update_stats(hardware: &mut Hardware, global_stats: &mut GlobalStat) {
+fn update_stats(hardware: &mut Hardware, global_stats: &mut GlobalStatV2) {
     // test if the size is overflow!
     let tsv_report_base = hardware.calculate_tsv_traffic();
     global_stats.global_tsv_base_total += tsv_report_base.max_use;
     global_stats.global_tsv_base_real += tsv_report_base.real_use;
-    global_stats.global_tsv_base_cycle += tsv_report_base.cycle;
+    global_stats.global_tsv_base_cycle_normal += tsv_report_base.cycle_normal;
     global_stats.global_tsv_base_cycle_no_conflict += tsv_report_base.cycle_no_conflict;
     global_stats.global_tsv_base_max_use_validt += tsv_report_base.max_use_valid;
     let ring_max_cycle = hardware
@@ -1550,7 +1832,7 @@ mod tests {
                 (LogicRowId(101), LogicColId(200)),
             ],
         );
-        let mut global_stat = GlobalStat::default();
+        let mut global_stat = GlobalStatV2::default();
         update_stats(&mut hard_ware, &mut global_stat);
         let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
         // println!("{:?}", report);
@@ -1739,5 +2021,38 @@ mod tests {
         assert_eq!(result.max_use, 1024 * 16);
         assert_eq!(result.real_use, 1024);
         assert_eq!(result.max_use_valid, 4 * 1020 + 4 + 3 + 2 + 1);
+    }
+
+    #[test]
+    fn test_ring_interleave() {
+        // first build
+        let rings_tasks: Vec<Vec<Vec<(RingPort, RingPort, (RingId, RingPort))>>> = (0..4)
+            .map(|bank_id| {
+                (0..4)
+                    .map(|subarray_id| {
+                        (0..10)
+                            .map(|task_id| {
+                                (
+                                    RingPort(bank_id),
+                                    RingPort(0),
+                                    (RingId((subarray_id << 4) + task_id), RingPort(0)),
+                                )
+                            })
+                            .collect_vec()
+                    })
+                    .collect()
+            })
+            .collect_vec();
+        let rings_task = get_ring_interleave(vec![&rings_tasks]);
+        for (_ring_id, ring) in rings_task.into_iter().enumerate() {
+            for (_bank_id, bank) in ring.into_iter().enumerate() {
+                let true_value = (0..4)
+                    .map(|i| (0..10).map(move |j| (i << 4) + j))
+                    .flat_interleave()
+                    .collect_vec();
+                let result = bank.into_iter().map(|i| i.2 .0 .0).collect_vec();
+                assert_eq!(result, true_value);
+            }
+        }
     }
 }

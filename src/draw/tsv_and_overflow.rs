@@ -160,7 +160,7 @@ impl DrawFn for GearboxAllDrawer {
                     let total_valid = result.total_result.global_tsv_base_max_use_validt;
                     // the cycle
                     let tsv_no_conf_cycle = result.total_result.global_tsv_base_cycle_no_conflict;
-                    let tsv_cycle = result.total_result.global_tsv_base_cycle;
+                    let tsv_cycle = result.total_result.global_tsv_base_cycle_normal;
                     let use_rate: f32 = real_use as f32 / total_use as f32;
                     let no_conflict_rate: f32 = tsv_no_conf_cycle as f32 / tsv_cycle as f32;
                     let use_rate_valid: f32 = real_use as f32 / total_valid as f32;

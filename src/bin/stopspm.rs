@@ -18,12 +18,12 @@ fn main() {
 mod tests {
     #[test]
     fn test_endian() {
-        let array: [u8; 4] = 1u32.to_ne_bytes();
+        let array = 1u32.to_ne_bytes();
         println!("{:?}", array);
         println!("{:?}", 1u32.to_le_bytes());
         println!("{:?}", 1u32.to_be_bytes());
     }
-
+    #[derive(Debug)]
     struct A(String, usize);
     impl Drop for A {
         fn drop(&mut self) {
@@ -37,7 +37,9 @@ mod tests {
     fn test_transmute() {
         let a = A("hello".into(), 1);
         // will not drop a
-        let b = unsafe { std::mem::transmute::<A, B>(a) };
+        let b: B = unsafe { std::mem::transmute(a) };
         println!("{:?}", b);
+        let a: A = unsafe { std::mem::transmute(b) };
+        println!("{:?}", a);
     }
 }

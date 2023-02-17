@@ -1,14 +1,6 @@
 use std::collections::VecDeque;
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Direction {
-    Left,
-    Right,
-}
-pub trait IcntPacket {
-    fn get_source(&self) -> usize;
-    fn get_next_hop(&self) -> usize;
-    fn get_direction(&self) -> Direction;
-}
+
+use super::{Direction, IcntPacket};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SourceId {
@@ -161,6 +153,10 @@ impl<T: IcntPacket> RingSimulator<T> {
             }
             None => None,
         }
+    }
+
+    pub fn front(&self, node: usize) -> Option<&T> {
+        self.output[node].front()
     }
 
     /// cycle the simulator
@@ -453,6 +449,7 @@ mod tests {
         run_full_bandwidth(Direction::Right, 16, |i| (i + 16 - 1) % 16);
         run_full_bandwidth(Direction::Left, 16, |i| (i + 1) % 16);
         run_full_bandwidth(Direction::Right, 16, |i| (i + 1) % 16);
+        run_full_bandwidth(Direction::Right, 16, |i| (i + 2) % 16);
     }
 
     fn run_full_bandwidth(

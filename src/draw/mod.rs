@@ -128,7 +128,7 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
         DrawType::GearBoxOverflow(gearbox_result) => draw_overflow::draw(gearbox_result)?,
         DrawType::GearBoxTsvTraffic(gearbox_result) => draw_tsv_traffic::draw(gearbox_result)?,
         DrawType::TsvAndOverflow(gearbox_result) => tsv_and_overflow::draw(gearbox_result)?,
-        DrawType::Channel(gearbox_result) => todo!(),
+        DrawType::Channel(gearbox_result) => channel::draw(gearbox_result)?,
     }
     Ok(())
 }

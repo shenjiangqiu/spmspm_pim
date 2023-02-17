@@ -155,6 +155,9 @@ impl DrawFn for GearboxAllDrawer {
                     let result = &graph[*maped_results.get(&(batch, TopK(topk))).unwrap()];
                     let channel_input = &result.total_result.channel_stats_input;
                     let channel_output = &result.total_result.channel_stats_output;
+                    if channel_input.is_empty() {
+                        continue;
+                    }
                     let channels = channel_input[0].len();
                     let datas = channel_input.len();
                     let graph_name = std::path::Path::new(&result.name);

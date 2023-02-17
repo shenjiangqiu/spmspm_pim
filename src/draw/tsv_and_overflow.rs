@@ -155,80 +155,12 @@ impl DrawFn for GearboxAllDrawer {
             for (i, &TopK(topk)) in topks.iter().enumerate() {
                 for (j, &batch) in batches.iter().enumerate() {
                     let result = &graph[*maped_results.get(&(batch, TopK(topk))).unwrap()];
-                    let total_use = result.total_result.global_tsv_base_total;
-                    let real_use = result.total_result.global_tsv_base_real;
-                    let total_valid = result.total_result.global_tsv_base_max_use_validt;
-                    // the cycle
-                    let tsv_no_conf_cycle = result.total_result.global_tsv_base_cycle_no_conflict;
-                    let tsv_cycle = result.total_result.global_tsv_base_cycle_normal;
-                    let use_rate: f32 = real_use as f32 / total_use as f32;
-                    let no_conflict_rate: f32 = tsv_no_conf_cycle as f32 / tsv_cycle as f32;
-                    let use_rate_valid: f32 = real_use as f32 / total_valid as f32;
-
+                    let normal = result.total_result.global_tsv_base_cycle_normal;
+                    let no_conf = result.total_result.global_tsv_base_cycle_no_conflict;
+                    let rate = no_conf as f32 / normal as f32;
                     chart.draw_series(LineSeries::new(
-                        [(i as f32, 0f32, j as f32), (i as f32, use_rate, j as f32)],
+                        [(i as f32, 0f32, j as f32), (i as f32, rate, j as f32)],
                         &RED,
-                    ))?;
-                    chart.draw_series(LineSeries::new(
-                        [
-                            (i as f32 + 0.1, 0f32, j as f32),
-                            (i as f32 + 0.1, no_conflict_rate, j as f32),
-                        ],
-                        &BLACK,
-                    ))?;
-                    chart.draw_series(LineSeries::new(
-                        [
-                            (i as f32 + 0.2, 0f32, j as f32),
-                            (i as f32 + 0.2, use_rate_valid, j as f32),
-                        ],
-                        &GREEN,
-                    ))?;
-                    let overflow_cycle_12_256 = result.total_result.overflow_count_12_256_overhead;
-                    let overflow_cycle_12_512 = result.total_result.overflow_count_12_512_overhead;
-                    let overflow_cycle_8_256 = result.total_result.overflow_count_8_256_overhead;
-                    let overflow_cycle_8_512 = result.total_result.overflow_count_8_512_overhead;
-                    let total_cycle = result.total_result.global_max_real_local
-                        + result.total_result.global_max_acc_cycle_remote
-                        + result
-                            .total_result
-                            .global_max_acc_tsv
-                            .max(result.total_result.global_max_acc_ring);
-                    let overflow_cycle_12_256_rate: f32 = overflow_cycle_12_256 as f32
-                        / (total_cycle as f32 + overflow_cycle_12_256 as f32);
-                    let overflow_cycle_12_512_rate: f32 = overflow_cycle_12_512 as f32
-                        / (total_cycle as f32 + overflow_cycle_12_512 as f32);
-                    let overflow_cycle_8_256_rate: f32 = overflow_cycle_8_256 as f32
-                        / (total_cycle as f32 + overflow_cycle_8_256 as f32);
-                    let overflow_cycle_8_512_rate: f32 = overflow_cycle_8_512 as f32
-                        / (total_cycle as f32 + overflow_cycle_8_512 as f32);
-
-                    chart.draw_series(LineSeries::new(
-                        [
-                            (i as f32 + 0.3, 0f32, j as f32),
-                            (i as f32 + 0.3, overflow_cycle_12_256_rate, j as f32),
-                        ],
-                        &BLUE,
-                    ))?;
-                    chart.draw_series(LineSeries::new(
-                        [
-                            (i as f32 + 0.4, 0f32, j as f32),
-                            (i as f32 + 0.4, overflow_cycle_12_512_rate, j as f32),
-                        ],
-                        &BLUE,
-                    ))?;
-                    chart.draw_series(LineSeries::new(
-                        [
-                            (i as f32 + 0.5, 0f32, j as f32),
-                            (i as f32 + 0.5, overflow_cycle_8_256_rate, j as f32),
-                        ],
-                        &BLUE,
-                    ))?;
-                    chart.draw_series(LineSeries::new(
-                        [
-                            (i as f32 + 0.6, 0f32, j as f32),
-                            (i as f32 + 0.6, overflow_cycle_8_512_rate, j as f32),
-                        ],
-                        &BLUE,
                     ))?;
                 }
             }

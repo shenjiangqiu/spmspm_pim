@@ -3,6 +3,7 @@
 //!
 
 use crate::pim::config::Config;
+pub mod analyze_channel;
 pub mod analyze_gearbox;
 pub mod analyze_gearbox_origin;
 pub mod analyze_gearbox_origin_all;

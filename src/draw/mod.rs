@@ -4,6 +4,7 @@ use plotters::{coord::Shift, prelude::*};
 use plotters_text::TextDrawingBackend;
 use terminal_size::{Height, Width};
 use tracing::info;
+mod channel;
 mod cycle_dist;
 mod draw_overflow;
 mod draw_split;
@@ -127,6 +128,7 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
         DrawType::GearBoxOverflow(gearbox_result) => draw_overflow::draw(gearbox_result)?,
         DrawType::GearBoxTsvTraffic(gearbox_result) => draw_tsv_traffic::draw(gearbox_result)?,
         DrawType::TsvAndOverflow(gearbox_result) => tsv_and_overflow::draw(gearbox_result)?,
+        DrawType::Channel(gearbox_result) => todo!(),
     }
     Ok(())
 }

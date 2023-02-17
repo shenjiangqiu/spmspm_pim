@@ -76,6 +76,8 @@ pub enum AnalyzeType {
     GearboxOriginAllV2OverFlow,
     /// analyze the overflow overhead and tsv traffic
     GearboxOverflowTraffic,
+    /// the channel traffic stats
+    AnalyzeChannel,
 }
 
 #[derive(Debug, Subcommand)]
@@ -94,6 +96,7 @@ pub enum DrawType {
     GearBoxOverflow(ExecResult),
     GearBoxTsvTraffic(ExecResult),
     TsvAndOverflow(ExecResult),
+    Channel(ExecResult),
 }
 
 #[derive(Debug, Args)]

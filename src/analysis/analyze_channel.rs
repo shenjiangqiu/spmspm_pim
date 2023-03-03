@@ -37,7 +37,6 @@ use crate::{
         configv2::{ConfigV2, DramType},
         level::{ddr4, LevelTrait},
     },
-    TIME_TO_LOG,
 };
 
 // #[derive(Serialize, Deserialize, Default, Debug)]
@@ -503,7 +502,7 @@ struct TsvReport {
     pub max_use_valid: usize,
     pub real_use: usize,
 }
-
+#[allow(unused)]
 #[derive(Debug, Default)]
 struct TsvReportV2 {
     pub cycle_normal: usize,
@@ -567,6 +566,7 @@ fn compute_result<'a>(
         max_use_valid,
     }
 }
+#[allow(unused)]
 fn get_ring_interleave(
     rings_tasks: Vec<&Vec<Vec<Vec<(RingPort, RingPort, (RingId, RingPort))>>>>,
 ) -> Vec<Vec<VecDeque<&(RingPort, RingPort, (RingId, RingPort))>>> {
@@ -581,6 +581,7 @@ fn get_ring_interleave(
     // now we got the remote traffic from ring to base layer, then we should make a detailed simulation to calculate the cycle
     tsv_traffic
 }
+#[allow(unused)]
 struct RingTraffic<T> {
     from: usize,
     to: usize,
@@ -588,6 +589,7 @@ struct RingTraffic<T> {
     traffic: T,
 }
 impl<T> RingTraffic<T> {
+    #[allow(dead_code)]
     fn new(from: usize, to: usize, direction: Direction, traffic: T) -> Self {
         Self {
             from,
@@ -618,6 +620,7 @@ struct CrossBarTraffic<T> {
     traffic: T,
 }
 impl<T> CrossBarTraffic<T> {
+    #[allow(dead_code)]
     fn new(from: usize, to: usize, traffic: T) -> Self {
         Self { from, to, traffic }
     }
@@ -737,6 +740,7 @@ impl Hardware {
     /// # TODO
     /// - redesign the buffer to store the traffic from each subarray. then use the [flat_interleave] to
     ///  route the traffic
+    #[allow(dead_code)]
     fn calculate_tsv_traffic(&self) -> TsvReportV2 {
         // the input traffic from each bank in the layer
 
@@ -1216,17 +1220,17 @@ impl<'a> GearboxSim<'a> {
         _current_topk: f32,
     ) -> GlobalStatV2 {
         let mut global_stats = GlobalStatV2::default();
-        let now = std::time::Instant::now();
+        // let now = std::time::Instant::now();
         debug!("run gearbox sim");
         let evil_rows = self.evil_row_ids.len();
         let evil_cols = self.evil_col_ids.len();
         debug!(?self.row_per_partition,?self.row_per_partition,  ?evil_rows, ?evil_cols, "run gearbox sim");
         debug!(?self.evil_row_ids, ?self.evil_col_ids, "run gearbox sim");
         // distribute the task to components
-        let total_rows = input_vec.rows();
+        // let total_rows = input_vec.rows();
         // print every 1% or every 60s
-        let mut next_print_percent = total_rows / 100;
-        let mut next_print_time = TIME_TO_LOG as u64;
+        // let mut next_print_percent = total_rows / 100;
+        // let mut next_print_time = TIME_TO_LOG as u64;
         //each data size if 8 bytes and there are 512 rows in a subarray
 
         for (target_id, row) in input_vec.outer_iterator().enumerate() {

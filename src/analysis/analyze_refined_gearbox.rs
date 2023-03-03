@@ -128,15 +128,22 @@ pub(crate) fn analyze_gearbox(config: &ConfigV2) -> Vec<((usize, f32), Vec<Singl
 
 #[derive(Default)]
 struct RingBuffer {
-    tasks: usize,
+    sending_tasks: usize,
+    received_tasks: usize,
 }
 impl RingBuffer {
-    fn add_remote_task(&mut self) {
-        self.tasks += 1;
+    fn add_recieved_tasks(&mut self) {
+        self.received_tasks += 1;
     }
-    fn report_and_reset(&mut self) -> usize {
-        let ret = self.tasks;
-        self.tasks = 0;
+    fn add_send_tasks(&mut self) {
+        self.sending_tasks += 1;
+    }
+    /// return sending tasks and received tasks
+    fn report_and_reset(&mut self) -> (usize, usize) {
+        let ret = (self.sending_tasks, self.received_tasks);
+
+        self.sending_tasks = 0;
+        self.received_tasks = 0;
         ret
     }
 }
@@ -144,9 +151,9 @@ impl RingBuffer {
 #[derive(Clone)]
 struct SubArray {
     read_open: Option<usize>,
-    write_open: Option<usize>,
+    write_open: Option<(usize, usize)>,
 
-    remote_write: Option<usize>,
+    remote_write: Option<(usize, usize)>,
 
     sub_array_result: SubArrayResult,
     final_subarry_result: SubArrayResult,
@@ -222,7 +229,13 @@ impl SubArray {
     }
 
     /// a local read and write task(local accumulate)
-    fn add_task(&mut self, local_read: PhysicRowId, local_write: PhysicRowId, evil: bool) {
+    fn add_task(
+        &mut self,
+        local_read: PhysicRowId,
+        local_write: PhysicRowId,
+        evil: bool,
+        col_id: usize,
+    ) {
         if evil {
             match self.read_open {
                 Some(last_read) => {
@@ -242,19 +255,26 @@ impl SubArray {
                 }
             }
             match self.write_open {
-                Some(last_write) => {
-                    if last_write == local_write.0 {
-                        self.sub_array_result.local_row_write_cycle_evil += 1;
+                Some((last_write_row, last_write_col)) => {
+                    if last_write_row == local_write.0 {
+                        let write_cycle = if last_write_col > col_id {
+                            last_write_col - col_id
+                        } else {
+                            col_id - last_write_col
+                        };
+                        self.sub_array_result.local_row_write_cycle_evil += write_cycle;
+                        self.sub_array_result.cycle += write_cycle;
+                        self.write_open = Some((last_write_row, col_id));
                     } else {
                         self.sub_array_result.local_row_open_cycle_evil += 19;
                         self.sub_array_result.cycle += 19;
-                        self.write_open = Some(local_write.0);
+                        self.write_open = Some((local_write.0, col_id));
                     }
                 }
                 _ => {
                     self.sub_array_result.local_row_open_cycle_evil += 9;
                     self.sub_array_result.cycle += 9;
-                    self.write_open = Some(local_write.0);
+                    self.write_open = Some((local_write.0, col_id));
                 }
             }
         } else {
@@ -277,19 +297,26 @@ impl SubArray {
                 }
             }
             match self.write_open {
-                Some(last_write) => {
-                    if last_write == local_write.0 {
-                        self.sub_array_result.local_row_write_cycle += 1;
+                Some((last_write_row, last_write_col)) => {
+                    if last_write_row == local_write.0 {
+                        let write_cycle = if last_write_col > col_id {
+                            last_write_col - col_id
+                        } else {
+                            col_id - last_write_col
+                        };
+                        self.sub_array_result.local_row_write_cycle += write_cycle;
+                        self.sub_array_result.cycle += write_cycle;
+                        self.write_open = Some((last_write_row, col_id));
                     } else {
                         self.sub_array_result.local_row_open_cycle += 19;
                         self.sub_array_result.cycle += 19;
-                        self.write_open = Some(local_write.0);
+                        self.write_open = Some((local_write.0, col_id));
                     }
                 }
                 _ => {
                     self.sub_array_result.local_row_open_cycle += 9;
                     self.sub_array_result.cycle += 9;
-                    self.write_open = Some(local_write.0);
+                    self.write_open = Some((local_write.0, col_id));
                 }
             }
         }
@@ -317,22 +344,28 @@ impl SubArray {
     }
 
     /// after received the remote task, it will update the local dense result
-    fn add_remote_task(&mut self, local_write: PhysicRowId) {
+    fn add_remote_task(&mut self, local_write: PhysicRowId, col_id: usize) {
         match self.remote_write {
-            Some(last_write) => {
-                if last_write == local_write.0 {
-                    self.sub_array_result.remote_row_write_cycle += 1;
-                    self.sub_array_result.cycle_remote += 1;
+            Some((last_write_row, last_write_col)) => {
+                if last_write_row == local_write.0 {
+                    let shift_cycle = if col_id > last_write_col {
+                        col_id - last_write_col
+                    } else {
+                        last_write_col - col_id
+                    };
+                    self.sub_array_result.remote_row_write_cycle += shift_cycle;
+                    self.sub_array_result.cycle_remote += shift_cycle;
+                    self.remote_write = Some((local_write.0, col_id));
                 } else {
                     self.sub_array_result.remote_row_write_cycle += 19;
                     self.sub_array_result.cycle_remote += 19;
-                    self.remote_write = Some(local_write.0);
+                    self.remote_write = Some((local_write.0, col_id));
                 }
             }
             _ => {
                 self.sub_array_result.remote_row_write_cycle += 9;
                 self.sub_array_result.cycle_remote += 9;
-                self.remote_write = Some(local_write.0);
+                self.remote_write = Some((local_write.0, col_id));
             }
         }
     }
@@ -371,7 +404,7 @@ pub struct RingResult {
     pub cycle: usize,
     pub traffic: usize,
 }
-
+#[allow(dead_code)]
 impl Ring {
     fn new(banks: usize, subarrays: usize) -> Self {
         Self {
@@ -423,6 +456,7 @@ impl Ring {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct Tsv {
     traffic: usize,
     tsv_result: TsvResult,
@@ -433,6 +467,7 @@ pub struct TsvResult {
     pub cycle: usize,
     pub traffic: usize,
 }
+#[allow(dead_code)]
 
 impl Tsv {
     fn new() -> Self {
@@ -481,6 +516,7 @@ struct TsvId(usize);
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
 struct RingPort(u8);
+#[allow(dead_code)]
 
 pub struct Hardware {
     sub_array: Vec<SubArray>,
@@ -505,7 +541,7 @@ struct TsvReport {
     pub max_use_valid: usize,
     pub real_use: usize,
 }
-
+#[allow(dead_code)]
 #[derive(Debug, Default)]
 struct TsvReportV2 {
     pub cycle_normal: usize,
@@ -569,6 +605,8 @@ fn compute_result<'a>(
         max_use_valid,
     }
 }
+#[allow(dead_code)]
+
 fn get_ring_interleave(
     rings_tasks: Vec<&Vec<Vec<Vec<(RingPort, RingPort, (RingId, RingPort))>>>>,
 ) -> Vec<Vec<VecDeque<&(RingPort, RingPort, (RingId, RingPort))>>> {
@@ -583,12 +621,15 @@ fn get_ring_interleave(
     // now we got the remote traffic from ring to base layer, then we should make a detailed simulation to calculate the cycle
     tsv_traffic
 }
+#[allow(dead_code)]
 struct RingTraffic<T> {
     from: usize,
     to: usize,
     direction: Direction,
     traffic: T,
 }
+#[allow(dead_code)]
+
 impl<T> RingTraffic<T> {
     fn new(from: usize, to: usize, direction: Direction, traffic: T) -> Self {
         Self {
@@ -619,6 +660,7 @@ struct CrossBarTraffic<T> {
     to: usize,
     traffic: T,
 }
+#[allow(dead_code)]
 impl<T> CrossBarTraffic<T> {
     fn new(from: usize, to: usize, traffic: T) -> Self {
         Self { from, to, traffic }
@@ -717,6 +759,7 @@ impl Hardware {
     /// # TODO
     /// - redesign the buffer to store the traffic from each subarray. then use the [flat_interleave] to
     ///  route the traffic
+    #[allow(dead_code)]
     fn calculate_tsv_traffic(&self) -> TsvReportV2 {
         // the input traffic from each bank in the layer
 
@@ -962,7 +1005,8 @@ impl Hardware {
         let partition_id = self.get_partition_id_col(col_id);
         let local_read = self.get_row_id_evil(mat_b_row_id, col_id);
         let local_write = self.get_row_id_dense(target_row_id, col_id);
-        self.sub_array[partition_id.0].add_task(local_read, local_write, true);
+        let local_col_id = self.get_col_id_dense(target_row_id, col_id);
+        self.sub_array[partition_id.0].add_task(local_read, local_write, true, local_col_id);
     }
 
     fn get_row_id_evil(&self, mat_b_row_id: LogicRowId, _col_id: LogicColId) -> PhysicRowId {
@@ -985,9 +1029,11 @@ impl Hardware {
         let partition_id = self.get_partition_id_row(mat_b_row_id);
         let local_read = self.get_row_id(mat_b_row_id, col_id);
         let local_write = self.get_row_id_dense(target_row_id, col_id);
-        self.sub_array[partition_id.0].add_task(local_read, local_write, false);
+        let local_col_id = self.get_col_id_dense(target_row_id, col_id);
+        self.sub_array[partition_id.0].add_task(local_read, local_write, false, local_col_id);
     }
 
+    #[allow(dead_code)]
     fn get_tsv_id_from_subarray(&self, sub_array_id: SubarrayId) -> TsvId {
         TsvId(sub_array_id.0 / self.config.subarrays / self.config.banks.num)
     }
@@ -997,6 +1043,7 @@ impl Hardware {
         TsvId(ring_id.0)
     }
 
+    #[allow(dead_code)]
     fn ring_port_from_subarray(&self, subarray_id: SubarrayId) -> RingPort {
         RingPort(((subarray_id.0 / self.config.subarrays) % self.config.banks.num) as u8)
     }
@@ -1022,68 +1069,21 @@ impl Hardware {
     fn distribute_remote(
         &mut self,
         target_row_id: LogicRowId,
-        subarray_id: SubarrayId,
+        _subarray_id: SubarrayId,
         col_id: LogicColId,
     ) {
-        // write the the dispatcher
-        let ring_buffer_id = self.ring_buffer_id(subarray_id);
-        self.ring_buffer[ring_buffer_id.0].add_remote_task();
-        //  write to the rings
-        let source_layer = self.ring_id_from_subarray(subarray_id);
-
+        // ignore the ring and tsv here cause it's overlaped with local accumulation.
         let target_partition_id = self.get_partition_id_col(col_id);
-        // should be local if the target partition is the same as the subarray
-        assert_ne!(subarray_id, target_partition_id);
-        let target = self.ring_port_from_subarray(target_partition_id);
-        let target_layer = self.ring_id_from_subarray(target_partition_id);
-        if source_layer == target_layer {
-            // no need to write to the csv
-            let source = self.ring_port_from_subarray(subarray_id);
-            // directly write to the target port
-            if source != target {
-                self.ring[source_layer.0].add_task(
-                    subarray_id.0 % self.config.subarrays,
-                    source,
-                    target,
-                    (target_layer, target),
-                );
-            }
-            // add to the target subarray
-            let remote_dense_row_write = self.get_row_id_dense(target_row_id, col_id);
-            self.sub_array[target_partition_id.0].add_remote_task(remote_dense_row_write);
-        } else {
-            // write to source ring
-            let source_bank = self.ring_port_from_subarray(subarray_id);
-            let target_bank = RingPort(0);
-            self.ring[source_layer.0].add_task(
-                subarray_id.0 % self.config.subarrays,
-                source_bank,
-                target_bank,
-                (target_layer, target),
-            );
-
-            // write to tsv from source ring to base ring
-            let tsv_id = self.get_tsv_id_from_subarray(subarray_id);
-            self.tsv[tsv_id.0].add_task();
-
-            // write to the base icnt
-            // ignored because it's not the bottleneck
-
-            // write to tsv from base ring to target ring
-            let tsv_id = self.get_tsv_id_from_subarray(target_partition_id);
-            self.tsv[tsv_id.0].add_task();
-
-            // write to target ring
-            let source_bank = RingPort(0);
-            let target_bank = self.ring_port_from_subarray(target_partition_id);
-            self.ring[target_layer.0].add_task(0, source_bank, target_bank, (target_layer, target));
-
-            // target subarray distribute local task
-            let remote_dense_row_write = self.get_row_id_dense(target_row_id, col_id);
-            self.sub_array[target_partition_id.0].add_remote_task(remote_dense_row_write);
-        }
+        let remote_dense_row_write = self.get_row_id_dense(target_row_id, col_id);
+        let col_id = self.get_col_id_dense(target_row_id, col_id);
+        self.sub_array[target_partition_id.0].add_remote_task(remote_dense_row_write, col_id);
+        let target_bank_id = self.ring_buffer_id(target_partition_id);
+        let self_bank_id = self.ring_buffer_id(_subarray_id);
+        self.ring_buffer[target_bank_id.0].add_recieved_tasks();
+        self.ring_buffer[self_bank_id.0].add_send_tasks();
     }
     /// from bank id to ring id
+    #[allow(unused)]
     fn ring_id_from_subarray(&self, partition_id: SubarrayId) -> RingId {
         let bank_id = partition_id.0 / self.config.subarrays;
         RingId(bank_id / self.config.banks.num)
@@ -1095,7 +1095,15 @@ impl Hardware {
 
     /// fix a bug here, the one subarray do not contains the whole dense vec, so the col id should % self.col_per_partition
     fn get_row_id_dense(&self, target_row_id: LogicRowId, col_id: LogicColId) -> PhysicRowId {
-        PhysicRowId((target_row_id.0 * self.dense_dim + col_id.0 % self.col_per_partition) / 256)
+        let real_col_id =
+            target_row_id.0 * self.col_per_partition * 4 + col_id.0 % self.col_per_partition;
+        PhysicRowId(real_col_id / 256)
+    }
+    /// fix a bug here, the one subarray do not contains the whole dense vec, so the col id should % self.col_per_partition
+    fn get_col_id_dense(&self, target_row_id: LogicRowId, col_id: LogicColId) -> usize {
+        let real_col_id =
+            target_row_id.0 * self.col_per_partition * 4 + col_id.0 % self.col_per_partition;
+        real_col_id % 256
     }
 
     fn get_partition_id_row(&self, row_id: LogicRowId) -> SubarrayId {
@@ -1219,9 +1227,9 @@ impl<'a> GearboxSim<'a> {
                 tracing::trace!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
                 next_print_percent = target_id + total_rows / 100;
                 next_print_time = now.elapsed().as_secs() + TIME_TO_LOG as u64;
-                if next_print_time > 300 {
-                    break;
-                }
+                // if next_print_time > 3000 {
+                //     break;
+                // }
                 if unsafe { crate::STOP_NOW } {
                     info!("received stop signal, start write results");
                     break;
@@ -1363,30 +1371,31 @@ pub struct GlobalStatV2 {
     pub global_max_acc_tsv: usize,
     pub global_max_real_local: usize,
     pub global_max_ring_buffer: usize,
+    pub global_max_dispatching: usize,
 }
 
 fn update_stats(hardware: &mut Hardware, global_stats: &mut GlobalStatV2) {
     // test if the size is overflow!
-    let tsv_report_base = hardware.calculate_tsv_traffic();
-    global_stats.global_tsv_base_total += tsv_report_base.max_use;
-    global_stats.global_tsv_base_real += tsv_report_base.real_use;
-    global_stats.global_tsv_base_cycle_normal += tsv_report_base.cycle_normal;
-    global_stats.global_tsv_base_cycle_no_conflict += tsv_report_base.cycle_no_conflict;
-    global_stats.global_tsv_base_max_use_validt += tsv_report_base.max_use_valid;
-    let ring_max_cycle = hardware
-        .ring
-        .iter_mut()
-        .map(|ring| ring.report_current_round())
-        .max()
-        .unwrap();
-    let tsv_max_cycle = hardware
-        .tsv
-        .iter_mut()
-        .map(|tsv| tsv.report_current_round())
-        .max()
-        .unwrap();
+    // let tsv_report_base = hardware.calculate_tsv_traffic();
+    // global_stats.global_tsv_base_total += tsv_report_base.max_use;
+    // global_stats.global_tsv_base_real += tsv_report_base.real_use;
+    // global_stats.global_tsv_base_cycle_normal += tsv_report_base.cycle_normal;
+    // global_stats.global_tsv_base_cycle_no_conflict += tsv_report_base.cycle_no_conflict;
+    // global_stats.global_tsv_base_max_use_validt += tsv_report_base.max_use_valid;
+    // let ring_max_cycle = hardware
+    //     .ring
+    //     .iter_mut()
+    //     .map(|ring| ring.report_current_round())
+    //     .max()
+    //     .unwrap();
+    // let tsv_max_cycle = hardware
+    //     .tsv
+    //     .iter_mut()
+    //     .map(|tsv| tsv.report_current_round())
+    //     .max()
+    //     .unwrap();
     // get the max ring buffer cycle and count for the overflow
-    let ring_buffer_max = hardware
+    let ring_buffer_max: (Vec<_>, Vec<_>) = hardware
         .ring_buffer
         .iter_mut()
         .map(|ring_buffer| {
@@ -1398,27 +1407,16 @@ fn update_stats(hardware: &mut Hardware, global_stats: &mut GlobalStatV2) {
             //    of the overflow
             // 2. others should be ignored for now
             let ring_buffer_cycle = ring_buffer.report_and_reset();
-            if ring_buffer_cycle * 8 > 256 * 256 {
-                global_stats.overflow_count_8_256 += 1;
-                global_stats.overflow_count_8_256_overhead += ring_buffer_cycle;
-            }
-            if ring_buffer_cycle * 8 > 512 * 256 {
-                global_stats.overflow_count_8_512 += 1;
-                global_stats.overflow_count_8_512_overhead += ring_buffer_cycle;
-            }
-            if ring_buffer_cycle * 12 > 256 * 256 {
-                global_stats.overflow_count_12_256 += 1;
-                global_stats.overflow_count_12_256_overhead += ring_buffer_cycle;
-            }
-            if ring_buffer_cycle * 12 > 512 * 256 {
-                global_stats.overflow_count_12_512 += 1;
-                global_stats.overflow_count_12_512_overhead += ring_buffer_cycle;
-            }
-            global_stats.total_counts += 1;
-            ring_buffer_cycle
+            // the frist one is the cycle of local stage,the second one is the cycle of remote stage
+            (
+                ring_buffer_cycle.0 + ring_buffer_cycle.1,
+                ring_buffer_cycle.1,
+            )
         })
-        .max()
-        .unwrap();
+        .unzip();
+    let dispatcher_local = ring_buffer_max.0.iter().max().unwrap();
+    let dispatcher_remote = ring_buffer_max.1.iter().max().unwrap();
+
     // the subarray max cycle for local
     let (max_local, max_remote): (Vec<_>, Vec<_>) = hardware
         .sub_array
@@ -1430,14 +1428,14 @@ fn update_stats(hardware: &mut Hardware, global_stats: &mut GlobalStatV2) {
         .unzip();
     let max_local_cycle = max_local.iter().max().unwrap();
     let max_remote_cycle = max_remote.iter().max().unwrap();
-    let max_real_local_cycle = max_local_cycle.max(&ring_buffer_max);
+
+    let max_real_local_cycle = max_local_cycle.max(dispatcher_local);
 
     global_stats.global_max_acc_cycle += max_local_cycle;
     global_stats.global_max_acc_cycle_remote += max_remote_cycle;
-    global_stats.global_max_acc_ring += ring_max_cycle;
-    global_stats.global_max_acc_tsv += tsv_max_cycle;
     global_stats.global_max_real_local += max_real_local_cycle;
-    global_stats.global_max_ring_buffer += ring_buffer_max;
+    global_stats.global_max_ring_buffer += *dispatcher_local;
+    global_stats.global_max_dispatching += *dispatcher_remote;
 }
 
 struct DistributionDrawer;

@@ -78,6 +78,8 @@ pub enum AnalyzeType {
     GearboxOverflowTraffic,
     /// the channel traffic stats
     AnalyzeChannel,
+    /// analyze the refined gearbox
+    AnalyzeRefinedGearbox,
 }
 
 #[derive(Debug, Subcommand)]

@@ -150,16 +150,15 @@ impl DrawFn for GearboxAllDrawer {
                 .max_light_lines(3)
                 .draw()?;
 
-            for (i, &TopK(topk)) in topks.iter().enumerate() {
-                for (j, &batch) in batches.iter().enumerate() {
+            for &TopK(topk) in topks.iter() {
+                for &batch in batches.iter() {
                     let result = &graph[*maped_results.get(&(batch, TopK(topk))).unwrap()];
                     let channel_input = &result.total_result.channel_stats_input;
                     let channel_output = &result.total_result.channel_stats_output;
                     if channel_input.is_empty() {
                         continue;
                     }
-                    let channels = channel_input[0].len();
-                    let datas = channel_input.len();
+
                     let graph_name = std::path::Path::new(&result.name);
                     let real_name = graph_name.file_stem().unwrap().to_str().unwrap();
                     let input_file_name = format!(
@@ -175,10 +174,11 @@ impl DrawFn for GearboxAllDrawer {
                     let mut buffer_writer_output =
                         BufWriter::new(File::create(&output_file_name).unwrap());
 
-                    for i in (0..datas) {
-                        for j in (0..channels) {
-                            write!(buffer_writer_input, "{} ", channel_input[i][j])?;
-                            write!(buffer_writer_output, "{} ", channel_output[i][j])?;
+                    for (input_data, output_data) in channel_input.iter().zip(channel_output.iter())
+                    {
+                        for (idata, odata) in input_data.iter().zip(output_data.iter()) {
+                            write!(buffer_writer_input, "{} ", idata)?;
+                            write!(buffer_writer_output, "{} ", odata)?;
                         }
                         writeln!(buffer_writer_input, "")?;
                         writeln!(buffer_writer_output, "")?;

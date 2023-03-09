@@ -41,7 +41,7 @@ max_msg_generated = 2
 max_msg_in = 2
 max_msg_out = 2
 merger_num = 16
-num = 32
+num = 8
 
 [ranks]
 max_msg_generated = 2
@@ -72,7 +72,7 @@ merger_num = 8
 num = 64
 
 [gearbox_config]
-batch = [1, 2, 4, 8, 16, 32, 64, 128]
+batch = [1, 2, 4, 8, 16]
 layers = 8
 stacks = 4
-topk = [0.001, 0.0005, 0.0001, 0.00005, 0.00001]
+topk = [0.0005]

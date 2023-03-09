@@ -7,6 +7,7 @@ use tracing::info;
 mod channel;
 mod cycle_dist;
 mod draw_overflow;
+mod draw_refined;
 mod draw_split;
 mod draw_tsv_traffic;
 mod draw_v2;
@@ -129,6 +130,8 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
         DrawType::GearBoxTsvTraffic(gearbox_result) => draw_tsv_traffic::draw(gearbox_result)?,
         DrawType::TsvAndOverflow(gearbox_result) => tsv_and_overflow::draw(gearbox_result)?,
         DrawType::Channel(gearbox_result) => channel::draw(gearbox_result)?,
+        DrawType::Refined(gearbox_result) => draw_refined::draw(gearbox_result)?,
+        DrawType::RefinedDispatchOverflow(_) => todo!(),
     }
     Ok(())
 }
@@ -142,5 +145,17 @@ mod tests {
     fn test_read_mtx() {
         const MTX_PATH: &str = "mtx/gearbox/ca-hollywood-2009.mtx";
         let _graph: CsMat<Pattern> = io::read_matrix_market(MTX_PATH).unwrap().to_csr();
+    }
+
+    fn t1<'a: 'b, 'b, T>(a: &'a T, _b: &'a T) -> &'b T {
+        a
+    }
+    #[test]
+    fn test_fn() {
+        let a = "123".to_string();
+        let b = "234".to_string();
+        let c = t1(&a, &b);
+
+        println!("c:{}", c);
     }
 }

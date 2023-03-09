@@ -80,6 +80,8 @@ pub enum AnalyzeType {
     AnalyzeChannel,
     /// analyze the refined gearbox
     AnalyzeRefinedGearbox,
+    /// analyze the refined gearbox with dispatching and overflow
+    AnalyzeRefinedGearboxDispatchOverflow,
 }
 
 #[derive(Debug, Subcommand)]
@@ -99,6 +101,8 @@ pub enum DrawType {
     GearBoxTsvTraffic(ExecResult),
     TsvAndOverflow(ExecResult),
     Channel(ExecResult),
+    Refined(ExecResult),
+    RefinedDispatchOverflow(ExecResult),
 }
 
 #[derive(Debug, Args)]

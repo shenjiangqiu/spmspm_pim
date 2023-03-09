@@ -13,6 +13,7 @@ pub mod analyze_gearbox_parallel;
 pub(crate) mod analyze_nnz;
 pub mod analyze_nnz_gearbox;
 pub(crate) mod analyze_nnz_native;
+pub mod analyze_refined_dispatcher_overflow;
 pub mod analyze_refined_gearbox;
 pub mod analyze_split_spmm;
 pub mod compute_merger_cycle;

@@ -8,6 +8,8 @@ mod channel;
 mod cycle_dist;
 mod draw_overflow;
 mod draw_refined;
+mod draw_refined_dispaching;
+// mod draw_refined_hybrid;
 mod draw_split;
 mod draw_tsv_traffic;
 mod draw_v2;
@@ -131,7 +133,10 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
         DrawType::TsvAndOverflow(gearbox_result) => tsv_and_overflow::draw(gearbox_result)?,
         DrawType::Channel(gearbox_result) => channel::draw(gearbox_result)?,
         DrawType::Refined(gearbox_result) => draw_refined::draw(gearbox_result)?,
-        DrawType::RefinedDispatchOverflow(_) => todo!(),
+        DrawType::RefinedDispatchOverflow(gearbox_result) => {
+            draw_refined_dispaching::draw(gearbox_result)?
+        }
+        DrawType::RefinedHybrid(_hybrid_result) => todo!(),
     }
     Ok(())
 }

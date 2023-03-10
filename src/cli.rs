@@ -103,6 +103,7 @@ pub enum DrawType {
     Channel(ExecResult),
     Refined(ExecResult),
     RefinedDispatchOverflow(ExecResult),
+    RefinedHybrid(HybridResult),
 }
 
 #[derive(Debug, Args)]
@@ -140,6 +141,19 @@ pub struct ExecResult {
     /// the path of the split spmm result
     #[clap(short, long)]
     pub result_file: Option<PathBuf>,
+    /// the output path of png,
+    #[clap(short, long)]
+    pub output: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+pub struct HybridResult {
+    /// the path of the split spmm result
+    #[clap(short, long)]
+    pub pre_result: Option<PathBuf>,
+    /// the path of the split spmm result
+    #[clap(short, long)]
+    pub new_result: Option<PathBuf>,
     /// the output path of png,
     #[clap(short, long)]
     pub output: Option<PathBuf>,

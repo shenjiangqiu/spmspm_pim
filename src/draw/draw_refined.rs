@@ -13,7 +13,9 @@ use rayon::prelude::*;
 use tracing::info;
 
 use super::DrawFn;
-use crate::{analysis::analyze_refined_gearbox, cli::ExecResult, draw::draw_data_with_size};
+use crate::{
+    analysis::three_stages::analyze_refined_gearbox, cli::ExecResult, draw::draw_data_with_size,
+};
 
 pub fn draw(result: ExecResult) -> eyre::Result<()> {
     let ExecResult {

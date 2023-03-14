@@ -82,6 +82,8 @@ pub enum AnalyzeType {
     AnalyzeRefinedGearbox,
     /// analyze the refined gearbox with dispatching and overflow
     AnalyzeRefinedGearboxDispatchOverflow,
+    /// the distribution
+    AnalyzeRefinedDistribution,
 }
 
 #[derive(Debug, Subcommand)]

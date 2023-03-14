@@ -14,7 +14,8 @@ use tracing::info;
 
 use super::DrawFn;
 use crate::{
-    analysis::analyze_refined_dispatcher_overflow, cli::ExecResult, draw::draw_data_with_size,
+    analysis::three_stages::analyze_refined_dispatcher_overflow, cli::ExecResult,
+    draw::draw_data_with_size,
 };
 
 pub fn draw(result: ExecResult) -> eyre::Result<()> {

@@ -10,6 +10,7 @@ mod draw_overflow;
 mod draw_refined;
 mod draw_refined_dispaching;
 // mod draw_refined_hybrid;
+mod draw_refined_distribution;
 mod draw_split;
 mod draw_tsv_traffic;
 mod draw_v2;
@@ -137,6 +138,9 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
             draw_refined_dispaching::draw(gearbox_result)?
         }
         DrawType::RefinedHybrid(_hybrid_result) => todo!(),
+        DrawType::RefinedDistribution(gearbox_result) => {
+            draw_refined_distribution::draw(gearbox_result)?
+        }
     }
     Ok(())
 }

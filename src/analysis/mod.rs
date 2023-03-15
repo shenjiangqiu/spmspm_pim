@@ -14,38 +14,22 @@ use crate::{init_logger_stderr, AnalyzeArgs};
 use serde::Serialize;
 use tracing::info;
 use tracing::metadata::LevelFilter;
-
+pub mod mapping;
 use self::three_stages::{analyze_refined_dispatcher_overflow, analyze_refined_distribution};
-pub mod analyze_channel;
-pub mod analyze_gearbox;
-pub mod analyze_gearbox_origin;
-pub mod analyze_gearbox_origin_all;
-pub mod analyze_gearbox_origin_all_v2;
-pub mod analyze_gearbox_origin_all_v2_overflow;
-pub mod analyze_gearbox_parallel;
-pub(crate) mod analyze_nnz;
-pub mod analyze_nnz_gearbox;
-pub(crate) mod analyze_nnz_native;
-
-pub mod analyze_split_spmm;
-pub mod compute_merger_cycle;
-pub mod event;
-pub mod mergered_stream;
-pub mod overlap;
-pub mod partition;
-pub mod schedule_window;
-pub mod sequential_event_sim;
-pub mod split;
+pub mod old;
+pub use old::*;
 pub mod three_stages;
 
-pub mod analyze_gearbox_overflow_and_traffic;
 pub fn print_all_stats(config: &Config) {
     let single_task_overlap_stat = overlap::compute_single_task_overlap_stat(config);
+
     for stat in single_task_overlap_stat {
         println!("graph: {}", stat.graph);
         stat.print();
     }
+
     let lock_task_overlap_stat = sequential_event_sim::compute_lock_task_overlap_stat(config);
+
     for stat in lock_task_overlap_stat {
         println!("graph: {}", stat.graph);
         stat.print();

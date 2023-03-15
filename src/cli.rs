@@ -106,6 +106,7 @@ pub enum DrawType {
     Refined(ExecResult),
     RefinedDispatchOverflow(ExecResult),
     RefinedHybrid(HybridResult),
+    RefinedDistribution(ExecResult),
 }
 
 #[derive(Debug, Args)]
@@ -157,6 +158,18 @@ pub struct HybridResult {
     #[clap(short, long)]
     pub new_result: Option<PathBuf>,
     /// the output path of png,
+    #[clap(short, long)]
+    pub output: Option<PathBuf>,
+}
+
+#[derive(Parser, Debug)]
+#[command(name = "generate_matrix_graph", about = "stop spmm experiment")]
+pub struct GenerateGraphCli {
+    /// the port of the server
+    #[clap(short, long)]
+    pub graph: PathBuf,
+    #[clap(short, long)]
+    pub max_size: Option<usize>,
     #[clap(short, long)]
     pub output: Option<PathBuf>,
 }

@@ -24,4 +24,6 @@ fn main() {
 
     let mut cmd = cli::StopCli::command();
     generate_complete_scripts(&mut cmd);
+    let mut cmd = cli::GenerateGraphCli::command();
+    generate_complete_scripts(&mut cmd);
 }

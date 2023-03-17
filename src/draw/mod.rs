@@ -19,6 +19,7 @@ mod gearbox;
 mod gearbox_all;
 mod gearbox_all_multiconf;
 mod gearbox_old;
+mod show_cycle;
 mod speedup;
 mod tsv_and_overflow;
 #[derive(Debug)]
@@ -141,6 +142,7 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
         DrawType::RefinedDistribution(gearbox_result) => {
             draw_refined_distribution::draw(gearbox_result)?
         }
+        DrawType::ShowCycle(gearbox_result) => show_cycle::draw(gearbox_result)?,
     }
     Ok(())
 }

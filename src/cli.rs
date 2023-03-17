@@ -107,6 +107,7 @@ pub enum DrawType {
     RefinedDispatchOverflow(ExecResult),
     RefinedHybrid(HybridResult),
     RefinedDistribution(ExecResult),
+    ShowCycle(ExecResult),
 }
 
 #[derive(Debug, Args)]

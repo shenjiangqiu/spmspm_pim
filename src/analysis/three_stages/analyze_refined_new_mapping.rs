@@ -1,5 +1,5 @@
 //! this module is used to analyze the gearbox
-//! - date: 2023-03-02
+//! - date: 2023-03-21
 //! # WARNING:
 //!
 //! !!! this module is derived from analyze_split_spmm.rs and the code and ***doc*** might not be accurate
@@ -8,16 +8,16 @@
 //! -  
 //!
 //! ```text
-//! ________________________________________
-//! / In this version, we get the            \
-//! | distribution of the remote traffic and |
-//! \ analyze the unbanlance                 /
-//!  ----------------------------------------
+//! _________________________________________
+//! / In this version, we use the new mapping \
+//! | system, both same subarray and same     |
+//! \ bank!!!                                 /
+//!  -----------------------------------------
 //!         \   ^__^
 //!          \  (oo)\_______
 //!             (__)\       )\/\
-//!                ||----w |
-//!                ||     ||
+//!                 ||----w |
+//!                 ||     ||
 //! ```
 use crate::analysis::mapping::*;
 use crate::tools::stop_signal;
@@ -1573,27 +1573,56 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
             let num_cols = matrix_b.cols();
             let row_per_partition = (num_rows + num_partitions - 1) / num_partitions;
             let col_per_partition = (num_cols + num_partitions - 1) / num_partitions;
-            let mapping = same_subarray::SameSubarrayMapping::new(
-                config,
-                row_per_partition,
-                col_per_partition,
-            );
-            let mut gearbox = GearboxSim::new(
-                mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
-                mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
-                &matrix_b,
-                config,
-                mapping,
-            );
-            info!("start running the sim");
-            let result = gearbox.run(&matrix_a, batch, top_k);
-            TOTAL_FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
-            info!(
-                "finished task: {}/{}",
-                TOTAL_FINISHED_TASKS.load(Ordering::Relaxed),
-                *TOTAL_TASKS.read().unwrap()
-            );
-            gearbox.report(path.to_string(), result, batch, top_k)
+
+            match config.mapping {
+                crate::pim::configv2::MappingType::SameSubarray => {
+                    let mapping = same_subarray::SameSubarrayMapping::new(
+                        config,
+                        row_per_partition,
+                        col_per_partition,
+                    );
+                    let mut gearbox = GearboxSim::new(
+                        mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
+                        mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
+                        &matrix_b,
+                        config,
+                        mapping,
+                    );
+                    info!("start running the sim");
+                    let result = gearbox.run(&matrix_a, batch, top_k);
+                    TOTAL_FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
+                    info!(
+                        "finished task: {}/{}",
+                        TOTAL_FINISHED_TASKS.load(Ordering::Relaxed),
+                        *TOTAL_TASKS.read().unwrap()
+                    );
+                    gearbox.report(path.to_string(), result, batch, top_k)
+                }
+                crate::pim::configv2::MappingType::SameBank => {
+                    let mapping = same_bank::SameBankMapping::new(
+                        num_rows,
+                        config.banks.num,
+                        config.channels.num,
+                        config.subarrays,
+                    );
+                    let mut gearbox = GearboxSim::new(
+                        mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
+                        mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
+                        &matrix_b,
+                        config,
+                        mapping,
+                    );
+                    info!("start running the sim");
+                    let result = gearbox.run(&matrix_a, batch, top_k);
+                    TOTAL_FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
+                    info!(
+                        "finished task: {}/{}",
+                        TOTAL_FINISHED_TASKS.load(Ordering::Relaxed),
+                        *TOTAL_TASKS.read().unwrap()
+                    );
+                    gearbox.report(path.to_string(), result, batch, top_k)
+                }
+            }
         })
         .collect();
     drop(matrix_a);

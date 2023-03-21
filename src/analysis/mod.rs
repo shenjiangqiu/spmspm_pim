@@ -15,7 +15,9 @@ use serde::Serialize;
 use tracing::info;
 use tracing::metadata::LevelFilter;
 pub mod mapping;
-use self::three_stages::{analyze_refined_dispatcher_overflow, analyze_refined_distribution};
+use self::three_stages::{
+    analyze_refined_dispatcher_overflow, analyze_refined_distribution, analyze_refined_new_mapping,
+};
 pub mod old;
 pub use old::*;
 pub mod three_stages;
@@ -275,6 +277,14 @@ pub fn do_analyze(
                         &config_v2,
                         &config_v2.output_path,
                         analyze_refined_distribution::analyze_gearbox,
+                    )?;
+                }
+                cli::AnalyzeType::AnalyzeRefinedNewMapping => {
+                    let config_v2 = ConfigV2::new(config);
+                    do_analyze_by_batch_and_topk(
+                        &config_v2,
+                        &config_v2.output_path,
+                        analyze_refined_new_mapping::analyze_gearbox,
                     )?;
                 }
             }

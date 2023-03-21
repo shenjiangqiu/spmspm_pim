@@ -84,6 +84,8 @@ pub enum AnalyzeType {
     AnalyzeRefinedGearboxDispatchOverflow,
     /// the distribution
     AnalyzeRefinedDistribution,
+    /// with mapping,
+    AnalyzeRefinedNewMapping,
 }
 
 #[derive(Debug, Subcommand)]

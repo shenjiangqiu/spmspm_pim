@@ -11,7 +11,7 @@
 use crate::tools::{
     crossbare_simulator::CrossBareSimulator,
     crossbare_simulator_no_conflic::CrossBareSimulatorNoConflict, ring_simulator::RingSimulator,
-    CrossBarPacket, Direction, FlatInterleaveTrait, IcntPacket,
+    stop_signal, CrossBarPacket, Direction, FlatInterleaveTrait, IcntPacket,
 };
 use std::{
     cmp::Reverse,
@@ -1230,7 +1230,7 @@ impl<'a> GearboxSim<'a> {
                 // if next_print_time > 3000 {
                 //     break;
                 // }
-                if unsafe { crate::STOP_NOW } {
+                if stop_signal::read() {
                     info!("received stop signal, start write results");
                     break;
                 }

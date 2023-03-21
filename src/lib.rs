@@ -1,5 +1,5 @@
 //! a library for creating pim simulator
-// #![deny(unsafe_code)]
+#![deny(unsafe_code)]
 // #![warn(missing_docs)]
 pub mod analysis;
 pub mod pim;
@@ -20,9 +20,10 @@ use std::{
 use sysinfo::SystemExt;
 use tracing::{error, info, metadata::LevelFilter};
 use tracing_subscriber::fmt::MakeWriter;
+
+use crate::tools::stop_signal;
 pub mod cli;
 pub mod draw;
-pub static mut STOP_NOW: bool = false;
 
 #[allow(dead_code)]
 pub fn init_logger_info() {
@@ -168,10 +169,7 @@ fn setup_exit_receiver() {
                         Ok(_) => {
                             let cmd = u32::from_le_bytes(buffer);
                             if cmd == 33 {
-                                unsafe {
-                                    info!("received ctrl-c command");
-                                    STOP_NOW = true;
-                                }
+                                stop_signal::stop();
                             }
                         }
                     }

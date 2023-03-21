@@ -6,8 +6,16 @@ pub mod same_subarray;
 macro_rules! generate_id_usize {
     ($($name:ident),+ $(,)?) => {
         $(
+            /// a wrapper for the id
             #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
+            #[repr(transparent)]
             pub struct $name(pub usize);
+            impl std::ops::Deref for $name {
+                type Target = usize;
+                fn deref(&self) -> &Self::Target {
+                    &self.0
+                }
+            }
         )+
     };
 }

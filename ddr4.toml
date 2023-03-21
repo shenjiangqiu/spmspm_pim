@@ -1,0 +1,52 @@
+dram_type = "DDR4"
+subarray_provider_size = 2
+subarray_task_queue_size = 2
+subarrays = 16
+precharge_cycle = 22
+activate_cycle = 22
+cas = 22
+rows = 32768
+window_size = 0
+columns = 256
+graph_path = ["mtx/test.mtx"]
+output_path = "output/ddr4.json"
+mapping = "SameSubarray"
+
+[channels]
+num = 1
+merger_num = 16
+max_msg_in = 2
+max_msg_out = 2
+max_msg_generated = 2
+
+[ranks]
+num = 2
+merger_num = 12
+max_msg_in = 2
+max_msg_out = 2
+max_msg_generated = 2
+
+[chips]
+num = 8
+merger_num = 8
+max_msg_in = 2
+max_msg_out = 2
+max_msg_generated = 2
+
+[bank_groups]
+num = 8
+merger_num = 8
+max_msg_in = 2
+max_msg_out = 2
+max_msg_generated = 2
+
+[banks]
+num = 8
+merger_num = 8
+max_msg_in = 2
+max_msg_out = 2
+max_msg_generated = 2
+
+[gearbox_config]
+batch = []
+topk = []

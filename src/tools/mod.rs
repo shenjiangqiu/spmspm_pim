@@ -4,6 +4,7 @@ pub mod crossbare_simulator;
 pub mod crossbare_simulator_no_conflic;
 pub mod math;
 pub mod ring_simulator;
+pub mod stop_signal;
 pub trait CrossBarPacket {
     fn get_source(&self) -> usize;
     fn get_dest(&self) -> usize;

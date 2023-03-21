@@ -27,6 +27,7 @@ use tracing::{debug, info};
 use crate::draw::DrawFn;
 use crate::pim::configv2::{ConfigV2, DramType};
 use crate::pim::level::{ddr4, LevelTrait};
+use crate::tools::stop_signal;
 use crate::TIME_TO_LOG;
 
 #[derive(Serialize, Deserialize)]
@@ -800,7 +801,7 @@ impl<'a> GearboxSim<'a> {
                 tracing::trace!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
                 next_print_percent = target_id + total_rows / 100;
                 next_print_time = now.elapsed().as_secs() + TIME_TO_LOG as u64;
-                if unsafe { crate::STOP_NOW } {
+                if stop_signal::read() {
                     break;
                 }
             }

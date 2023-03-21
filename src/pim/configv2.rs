@@ -45,6 +45,13 @@ pub struct ConfigV2 {
     pub bank_groups: LevelConfig,
     pub banks: LevelConfig,
     pub gearbox_config: GearboxConfigV2,
+    pub mapping: MappingType,
+}
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
+pub enum MappingType {
+    #[default]
+    SameSubarray,
+    SameBank,
 }
 impl ConfigV2 {
     /// create a config from path

@@ -1,3 +1,4 @@
+#[allow(unused)]
 mod generate_matrix_graph;
 use generate_matrix_graph::matrix_to_image;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};

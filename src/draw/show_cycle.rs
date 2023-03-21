@@ -152,8 +152,8 @@ impl DrawFn for GearboxAllDrawer {
                 .max_light_lines(3)
                 .draw()?;
 
-            for (i, &TopK(topk)) in topks.iter().enumerate() {
-                let max_total = batches
+            for (_i, &TopK(topk)) in topks.iter().enumerate() {
+                let _max_total = batches
                     .iter()
                     .map(|batch| {
                         let result = &graph[*maped_results.get(&(*batch, TopK(topk))).unwrap()];
@@ -165,7 +165,7 @@ impl DrawFn for GearboxAllDrawer {
                     })
                     .max()
                     .unwrap();
-                for (j, &batch) in batches.iter().enumerate() {
+                for (_j, &batch) in batches.iter().enumerate() {
                     let result = &graph[*maped_results.get(&(batch, TopK(topk))).unwrap()];
                     let remote = result.total_result.global_max_acc_cycle_remote;
                     let dispatching = result.total_result.global_max_dispatching;

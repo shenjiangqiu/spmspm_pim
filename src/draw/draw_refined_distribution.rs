@@ -225,7 +225,6 @@ impl DrawFn for GearboxAllDrawer {
                         .map(|x| x.remote_variance)
                         .mean();
 
-                    let total = real_local + dispatching + remote;
                     let local_rate = local as f32 / max_total as f32;
                     let real_local_rate = real_local as f32 / max_total as f32;
                     let send_remote_rate = send_remote as f32 / max_total as f32;

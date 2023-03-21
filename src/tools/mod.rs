@@ -2,6 +2,7 @@ mod flat_interleave;
 pub use flat_interleave::{FlatInterleave, FlatInterleaveTrait};
 pub mod crossbare_simulator;
 pub mod crossbare_simulator_no_conflic;
+pub mod math;
 pub mod ring_simulator;
 pub trait CrossBarPacket {
     fn get_source(&self) -> usize;

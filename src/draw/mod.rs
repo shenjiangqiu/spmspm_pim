@@ -9,6 +9,7 @@ mod cycle_dist;
 mod draw_overflow;
 mod draw_refined;
 mod draw_refined_dispaching;
+mod show_average_max;
 // mod draw_refined_hybrid;
 mod draw_refined_distribution;
 mod draw_split;
@@ -143,6 +144,7 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
             draw_refined_distribution::draw(gearbox_result)?
         }
         DrawType::ShowCycle(gearbox_result) => show_cycle::draw(gearbox_result)?,
+        DrawType::ShowAvgMax(gearbox_result) => show_average_max::draw(gearbox_result)?,
     }
     Ok(())
 }

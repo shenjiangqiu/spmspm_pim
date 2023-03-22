@@ -110,6 +110,7 @@ pub enum DrawType {
     RefinedHybrid(HybridResult),
     RefinedDistribution(ExecResult),
     ShowCycle(ExecResult),
+    ShowAvgMax(ExecResult),
 }
 
 #[derive(Debug, Args)]

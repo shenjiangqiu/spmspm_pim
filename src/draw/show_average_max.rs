@@ -2,7 +2,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     error::Error,
     fs::File,
-    io::BufReader,
+    io::{BufReader, Write},
     ops::Deref,
     path::PathBuf,
 };
@@ -114,11 +114,14 @@ impl DrawFn for GearboxAllDrawer {
     type DATA = Vec<Vec<analyze_refined_new_mapping::SingleResult>>;
 
     fn draw_apply<'a, DB: DrawingBackend + 'a>(
-        root: DrawingArea<DB, Shift>,
+        _root: DrawingArea<DB, Shift>,
         data: &Self::DATA,
     ) -> Result<(), Box<dyn Error + 'a>> {
         println!("local_max local_average local_disp_max local_disp_average dispatching_max dispatching_average remote_max remote_average");
-
+        let mut local_total_result = Vec::new();
+        let mut local_dispatcher_total_result = Vec::new();
+        let mut dispathing_total_result = Vec::new();
+        let mut remote_total_result = Vec::new();
         for graph in data.iter() {
             let batches = graph.iter().map(|x| x.batch).collect::<BTreeSet<_>>();
 
@@ -130,7 +133,10 @@ impl DrawFn for GearboxAllDrawer {
                 .collect::<BTreeMap<_, _>>();
 
             info!("draw graph {}", graph[0].name);
-
+            let mut local_result = Vec::new();
+            let mut local_dispatcher_result = Vec::new();
+            let mut dispathing_result = Vec::new();
+            let mut remote_result = Vec::new();
             for (_i, &TopK(topk)) in topks.iter().enumerate() {
                 // the max cycle and the average cycle
                 for (_j, &batch) in batches.iter().enumerate() {
@@ -170,13 +176,54 @@ impl DrawFn for GearboxAllDrawer {
                         .map(|x| x.remote_max as f64)
                         .mean();
 
-                    print!("{local_max} {local_average} {local_disp_max} {local_disp_average} {dispatching_max} {dispatching_average} {remote_max} {remote_average}");
+                    let local_rate = local_max / local_average;
+                    let local_disp_rate = local_disp_max / local_disp_average;
+                    let dispatching_rate = dispatching_max / dispatching_average;
+                    let remote_rate = remote_max / remote_average;
+                    local_result.push(local_rate);
+                    local_dispatcher_result.push(local_disp_rate);
+                    dispathing_result.push(dispatching_rate);
+                    remote_result.push(remote_rate);
                 }
             }
-            println!("");
+            local_total_result.push(local_result);
+            local_dispatcher_total_result.push(local_dispatcher_result);
+            dispathing_total_result.push(dispathing_result);
+            remote_total_result.push(remote_result);
         }
+        // wirte the result to file
+        let mut local_total_result_file = File::create("local_total_result.txt")?;
+        let mut local_dispatcher_total_result_file =
+            File::create("local_dispatcher_total_result.txt")?;
+        let mut dispathing_total_result_file = File::create("dispathing_total_result.txt")?;
+        let mut remote_total_result_file = File::create("remote_total_result.txt")?;
+        let from_vec_to_string = |data: Vec<Vec<f64>>| {
+            data.into_iter()
+                .map(|graph_result| {
+                    graph_result
+                        .into_iter()
+                        .fold("".to_string(), |acc, data| format!("{acc} {}", data))
+                })
+                .fold("".to_string(), |acc, data| format!("{acc}\n{data}"))
+        };
+        let out = from_vec_to_string(local_total_result);
+        local_total_result_file.write_all(out.as_bytes())?;
+        let out = from_vec_to_string(local_dispatcher_total_result);
+        local_dispatcher_total_result_file.write_all(out.as_bytes())?;
+        let out = from_vec_to_string(dispathing_total_result);
+        dispathing_total_result_file.write_all(out.as_bytes())?;
+        let out = from_vec_to_string(remote_total_result);
+        remote_total_result_file.write_all(out.as_bytes())?;
 
-        root.present()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_div() {
+        let result = 1. / 0.;
+        println!("{}", result)
     }
 }

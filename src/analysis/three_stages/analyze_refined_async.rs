@@ -1,26 +1,43 @@
 //! this module is used to analyze the gearbox
-//! - date: 2023-03-02
+//! - date: 2023-03-21
 //! # WARNING:
 //!
 //! !!! this module is derived from analyze_split_spmm.rs and the code and ***doc*** might not be accurate
 //!
 //!
-//! - in this version, we run the local accumutation in parallel with sending remote traffic, so remote traffic time is ignored
-//! - the dispatching stage send the received packages to local subarrays.
-//!  w
+//! -  
+//!
+//! ```text
+//! _________________________________________
+//! / In this version, we use the new mapping \
+//! | system, both same subarray and same     |
+//! \ bank!!!                                 /
+//!  -----------------------------------------
+//!         \   ^__^
+//!          \  (oo)\_______
+//!             (__)\       )\/\
+//!                 ||----w |
+//!                 ||     ||
+//! ```
+use crate::analysis::mapping::*;
+use crate::tools::stop_signal;
 use crate::{
-    analysis::results::SubArrayResult,
+    analysis::mapping::Mapping,
     tools::{
         crossbare_simulator::CrossBareSimulator,
         crossbare_simulator_no_conflic::CrossBareSimulatorNoConflict,
-        ring_simulator::RingSimulator, stop_signal, CrossBarPacket, Direction, FlatInterleaveTrait,
-        IcntPacket,
+        ring_simulator::RingSimulator, CrossBarPacket, Direction, FlatInterleaveTrait, IcntPacket,
     },
 };
+use hashbrown::HashSet;
+use itertools::Itertools;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use sprs::{io::MatrixHead, num_kinds::Pattern, CsMatI, TriMatI};
+use statrs::statistics::*;
 use std::{
     cmp::Reverse,
     collections::{BTreeMap, BTreeSet, VecDeque},
-    error::Error,
     fmt::{Debug, Display},
     mem::size_of,
     sync::{
@@ -28,17 +45,9 @@ use std::{
         RwLock,
     },
 };
-
-use hashbrown::HashSet;
-use itertools::Itertools;
-use plotters::{coord::Shift, prelude::*};
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use sprs::{io::MatrixHead, num_kinds::Pattern, CsMatI, TriMatI};
 use tracing::{debug, info};
 
 use crate::{
-    draw::DrawFn,
     pim::{
         configv2::{ConfigV2, DramType},
         level::{ddr4, LevelTrait},
@@ -161,6 +170,63 @@ struct SubArray {
 
     sub_array_result: SubArrayResult,
     final_subarry_result: SubArrayResult,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
+pub struct SubArrayResult {
+    /// total local cycle
+    pub cycle: usize,
+    /// for normal rows
+    pub local_row_open_cycle: usize,
+    /// row hit for read
+    pub local_row_read_cycle: usize,
+    /// row hit for write
+    pub local_row_write_cycle: usize,
+    /// cycle for compuation
+    pub comp_cycle: usize,
+
+    /// for evil row read/write miss
+    pub local_row_open_cycle_evil: usize,
+    /// row hit for read
+    pub local_row_read_cycle_evil: usize,
+    /// row hit for write
+    pub local_row_write_cycle_evil: usize,
+
+    // for remote rows that read by local subarray
+    pub remote_row_read_cycle: usize,
+
+    // remote result write by target subarray
+    pub remote_row_write_cycle: usize,
+    /// remote total cycle
+    pub cycle_remote: usize,
+}
+impl SubArrayResult {
+    fn accumulate(&self, other: &mut SubArrayResult) {
+        other.cycle += self.cycle;
+        other.local_row_open_cycle += self.local_row_open_cycle;
+        other.local_row_read_cycle += self.local_row_read_cycle;
+        other.local_row_write_cycle += self.local_row_write_cycle;
+        other.comp_cycle += self.comp_cycle;
+        other.local_row_open_cycle_evil += self.local_row_open_cycle_evil;
+        other.local_row_read_cycle_evil += self.local_row_read_cycle_evil;
+        other.local_row_write_cycle_evil += self.local_row_write_cycle_evil;
+        other.remote_row_read_cycle += self.remote_row_read_cycle;
+        other.remote_row_write_cycle += self.remote_row_write_cycle;
+        other.cycle_remote += self.cycle_remote;
+    }
+    fn reset(&mut self) {
+        self.cycle = 0;
+        self.local_row_open_cycle = 0;
+        self.local_row_read_cycle = 0;
+        self.local_row_write_cycle = 0;
+        self.comp_cycle = 0;
+        self.local_row_open_cycle_evil = 0;
+        self.local_row_read_cycle_evil = 0;
+        self.local_row_write_cycle_evil = 0;
+        self.remote_row_read_cycle = 0;
+        self.remote_row_write_cycle = 0;
+        self.cycle_remote = 0;
+    }
 }
 
 impl SubArray {
@@ -439,45 +505,14 @@ impl Tsv {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct LogicRowId(usize);
-
-/// the col id in matrix(0..matrix_cols)
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct LogicColId(usize);
-
-/// the row id in a subarray(0..subarray_rows)
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct PhysicRowId(usize);
-
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct SubarrayId(usize);
-
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct RingId(usize);
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct RingBufferId(usize);
-
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct TsvId(usize);
-
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct RingPort(u8);
-#[allow(dead_code)]
-
-pub struct Hardware {
+pub struct Hardware<'a, MP> {
     sub_array: Vec<SubArray>,
     ring: Vec<Ring>,
     tsv: Vec<Tsv>,
     ring_buffer: Vec<RingBuffer>,
-    config: ConfigV2,
-    /// the dimension of dense matrix in one subarray
-    dense_dim: usize,
-    /// for normal rows, distribute them to different subarrays
-    row_per_partition: usize,
-    /// for target rows, distribute the cols to different subarrays
-    /// and for the evil row, distribute them by column
-    col_per_partition: usize,
+    config: &'a ConfigV2,
+
+    mapping: MP,
 }
 #[allow(dead_code)]
 #[derive(Debug, Default)]
@@ -656,29 +691,7 @@ impl<T: CrossBarPacket> CrossBarCommon<T> for CrossBareSimulatorNoConflict<T> {
     }
 }
 
-impl Hardware {
-    fn new(
-        dense_dim: usize,
-        config: ConfigV2,
-        row_per_partition: usize,
-        col_per_partition: usize,
-    ) -> Self {
-        // each single layer should be a channel
-        let banks = config.channels.num * config.banks.num;
-        let num_subarray = banks * config.subarrays;
-        let num_rings = config.channels.num;
-        let num_tsvs = config.channels.num;
-        Self {
-            sub_array: vec![SubArray::new(); num_subarray],
-            ring: vec![Ring::new(config.banks.num, config.subarrays); num_rings],
-            tsv: vec![Tsv::new(); num_tsvs],
-            ring_buffer: (0..banks).map(|_| RingBuffer::default()).collect(),
-            dense_dim,
-            config,
-            row_per_partition,
-            col_per_partition,
-        }
-    }
+impl<'a, MP: Mapping> Hardware<'a, MP> {
     #[allow(dead_code)]
     fn get_tsv_interleave(&self) -> Vec<VecDeque<&(RingPort, RingPort, (RingId, RingPort))>> {
         let tsv_traffic = self.ring.iter().enumerate().map(|(ring_id, r)| {
@@ -743,8 +756,8 @@ impl Hardware {
         }
     }
 
-    fn calculate_icnt<'a, Cross>(
-        &'a self,
+    fn calculate_icnt<Cross>(
+        &self,
         mut ring_bank_traffic: Vec<Vec<VecDeque<&'a (RingPort, RingPort, (RingId, RingPort))>>>,
         mut crossbar_simulator: Cross,
     ) -> usize
@@ -913,14 +926,14 @@ impl Hardware {
         let mut remote_tasks = BTreeMap::new();
         for (mat_b_row_id, col_id) in row_id_col_id {
             // noticed here, the evil col
-            let partition_id = self.get_partition_id_row(mat_b_row_id);
-            let target_partition_id = self.get_partition_id_col(col_id);
+            let partition_id = self.mapping.get_partition_id_row(mat_b_row_id);
+            let target_partition_id = self.mapping.get_partition_id_col(col_id);
             if partition_id == target_partition_id {
                 self.distribute_local(target_row_id, mat_b_row_id, col_id);
             } else {
                 // record the remote tasks
                 // first read the local row
-                let physic_row_id = self.get_row_id(mat_b_row_id, col_id);
+                let physic_row_id = self.mapping.get_row_id(mat_b_row_id, col_id);
                 self.sub_array[partition_id.0].add_remote_read_task(physic_row_id);
                 // then store the temporary result for the remote dense
                 *remote_tasks
@@ -936,7 +949,7 @@ impl Hardware {
         for (subarray_id, subarray_entry) in remote_tasks {
             for (col_id, _entry) in subarray_entry {
                 // let count = entry.1;
-                assert_ne!(subarray_id, self.get_partition_id_col(col_id));
+                assert_ne!(subarray_id, self.mapping.get_partition_id_col(col_id));
                 self.distribute_remote(target_row_id, subarray_id, col_id);
             }
         }
@@ -949,21 +962,11 @@ impl Hardware {
         col_id: LogicColId,
     ) {
         // just need to write to the local dense result
-        let partition_id = self.get_partition_id_col(col_id);
-        let local_read = self.get_row_id_evil(mat_b_row_id, col_id);
-        let local_write = self.get_row_id_dense(target_row_id, col_id);
-        let local_col_id = self.get_col_id_dense(target_row_id, col_id);
+        let partition_id = self.mapping.get_partition_id_col(col_id);
+        let local_read = self.mapping.get_row_id_evil(mat_b_row_id, col_id);
+        let local_write = self.mapping.get_row_id_dense(target_row_id, col_id);
+        let local_col_id = self.mapping.get_col_id_dense(target_row_id, col_id);
         self.sub_array[partition_id.0].add_task(local_read, local_write, true, local_col_id);
-    }
-
-    fn get_row_id_evil(&self, mat_b_row_id: LogicRowId, _col_id: LogicColId) -> PhysicRowId {
-        PhysicRowId(mat_b_row_id.0)
-    }
-    #[allow(unused)]
-    #[deprecated = "use the subarray_id directly"]
-    fn get_dispatcher_id(&self, sub_array_id: SubarrayId) -> SubarrayId {
-        // the dispatcher is the first subarray of the same bank
-        SubarrayId(sub_array_id.0 - sub_array_id.0 % self.config.subarrays)
     }
 
     fn distribute_local(
@@ -973,27 +976,13 @@ impl Hardware {
         col_id: LogicColId,
     ) {
         // just need to write to the local dense result
-        let partition_id = self.get_partition_id_row(mat_b_row_id);
-        let local_read = self.get_row_id(mat_b_row_id, col_id);
-        let local_write = self.get_row_id_dense(target_row_id, col_id);
-        let local_col_id = self.get_col_id_dense(target_row_id, col_id);
+        let partition_id = self.mapping.get_partition_id_row(mat_b_row_id);
+        let local_read = self.mapping.get_row_id(mat_b_row_id, col_id);
+        let local_write = self.mapping.get_row_id_dense(target_row_id, col_id);
+        let local_col_id = self.mapping.get_col_id_dense(target_row_id, col_id);
         self.sub_array[partition_id.0].add_task(local_read, local_write, false, local_col_id);
     }
 
-    #[allow(dead_code)]
-    fn get_tsv_id_from_subarray(&self, sub_array_id: SubarrayId) -> TsvId {
-        TsvId(sub_array_id.0 / self.config.subarrays / self.config.banks.num)
-    }
-    #[allow(unused)]
-    fn get_tsv_id_from_ring(&self, ring_id: RingId) -> TsvId {
-        // the ring id is the same as the tsv id
-        TsvId(ring_id.0)
-    }
-
-    #[allow(dead_code)]
-    fn ring_port_from_subarray(&self, subarray_id: SubarrayId) -> RingPort {
-        RingPort(((subarray_id.0 / self.config.subarrays) % self.config.banks.num) as u8)
-    }
     fn read_local_and_distribute_remote(
         &mut self,
         target_row_id: LogicRowId,
@@ -1003,15 +992,11 @@ impl Hardware {
         col_id: LogicColId,
     ) {
         // read the local row
-        let local_read_row_id = self.get_row_id(matrix_b_row_id, col_id);
+        let local_read_row_id = self.mapping.get_row_id(matrix_b_row_id, col_id);
         self.sub_array[local_subarray.0].add_remote_read_task(local_read_row_id);
         self.distribute_remote(target_row_id, subarray_id, col_id);
     }
-    /// get the ring_buffer_id(bank id) from subarray id
-    fn ring_buffer_id(&self, subarray_id: SubarrayId) -> RingBufferId {
-        // return the global bank id
-        RingBufferId(subarray_id.0 / self.config.subarrays)
-    }
+
     /// this task will have to write the result to a remote subarray
     fn distribute_remote(
         &mut self,
@@ -1020,48 +1005,35 @@ impl Hardware {
         col_id: LogicColId,
     ) {
         // ignore the ring and tsv here cause it's overlaped with local accumulation.
-        let target_partition_id = self.get_partition_id_col(col_id);
-        let remote_dense_row_write = self.get_row_id_dense(target_row_id, col_id);
-        let col_id = self.get_col_id_dense(target_row_id, col_id);
+        let target_partition_id = self.mapping.get_partition_id_col(col_id);
+        let remote_dense_row_write = self.mapping.get_row_id_dense(target_row_id, col_id);
+        let col_id = self.mapping.get_col_id_dense(target_row_id, col_id);
         self.sub_array[target_partition_id.0].add_remote_task(remote_dense_row_write, col_id);
-        let target_bank_id = self.ring_buffer_id(target_partition_id);
-        let self_bank_id = self.ring_buffer_id(_subarray_id);
+        let target_bank_id = self.mapping.ring_buffer_id(target_partition_id);
+        let self_bank_id = self.mapping.ring_buffer_id(_subarray_id);
         self.ring_buffer[target_bank_id.0].add_recieved_tasks();
         self.ring_buffer[self_bank_id.0].add_send_tasks();
     }
-    /// from bank id to ring id
-    #[allow(unused)]
-    fn ring_id_from_subarray(&self, partition_id: SubarrayId) -> RingId {
-        let bank_id = partition_id.0 / self.config.subarrays;
-        RingId(bank_id / self.config.banks.num)
+}
+
+impl<'a, MP> Hardware<'a, MP> {
+    fn new(config: &'a ConfigV2, mapping: MP) -> Self {
+        // each single layer should be a channel
+        let banks = config.channels.num * config.banks.num;
+        let num_subarray = banks * config.subarrays;
+        let num_rings = config.channels.num;
+        let num_tsvs = config.channels.num;
+        Self {
+            sub_array: vec![SubArray::new(); num_subarray],
+            ring: vec![Ring::new(config.banks.num, config.subarrays); num_rings],
+            tsv: vec![Tsv::new(); num_tsvs],
+            ring_buffer: (0..banks).map(|_| RingBuffer::default()).collect(),
+            config,
+
+            mapping,
+        }
     }
 
-    fn get_row_id(&self, mat_b_row_id: LogicRowId, _col_id: LogicColId) -> PhysicRowId {
-        PhysicRowId(mat_b_row_id.0)
-    }
-
-    /// fix a bug here, the one subarray do not contains the whole dense vec, so the col id should % self.col_per_partition
-    fn get_row_id_dense(&self, target_row_id: LogicRowId, col_id: LogicColId) -> PhysicRowId {
-        let real_col_id =
-            target_row_id.0 * self.col_per_partition * 4 + col_id.0 % self.col_per_partition;
-        PhysicRowId(real_col_id / 256)
-    }
-    /// fix a bug here, the one subarray do not contains the whole dense vec, so the col id should % self.col_per_partition
-    fn get_col_id_dense(&self, target_row_id: LogicRowId, col_id: LogicColId) -> usize {
-        let real_col_id =
-            target_row_id.0 * self.col_per_partition * 4 + col_id.0 % self.col_per_partition;
-        real_col_id % 256
-    }
-
-    fn get_partition_id_row(&self, row_id: LogicRowId) -> SubarrayId {
-        // the rows are distrubuted to every subarray
-        SubarrayId(row_id.0 / self.row_per_partition)
-    }
-
-    fn get_partition_id_col(&self, col_id: LogicColId) -> SubarrayId {
-        // the cols are distrubuted to every subarray
-        SubarrayId(col_id.0 / self.col_per_partition)
-    }
     /// reduce the result and return the result
     fn report(
         &self,
@@ -1089,7 +1061,7 @@ impl Hardware {
         }
     }
 }
-pub struct GearboxSim<'a> {
+pub struct GearboxSim<'a, 'b, MP> {
     pub row_per_partition: usize,
     #[allow(unused)]
     pub col_per_partition: usize,
@@ -1098,48 +1070,10 @@ pub struct GearboxSim<'a> {
     /// the id of evil row: the evil row will be partitioned into each components,there are no remote access needed.
     pub evil_row_ids: HashSet<usize>,
     pub matrix_b: &'a CsMatI<Pattern, u32>,
-    pub hardware: Hardware,
+    pub hardware: Hardware<'b, MP>,
 }
-impl<'a> GearboxSim<'a> {
-    fn new(
-        evil_col_ids: impl IntoIterator<Item = usize>,
-        evil_row_ids: impl IntoIterator<Item = usize>,
-        matrix_b: &'a CsMatI<Pattern, u32>,
-        config: &ConfigV2,
-    ) -> Self {
-        let num_partitions = config.channels.num * config.banks.num * config.subarrays;
-        debug!(num_partitions, "new gearbox sim");
-        let num_rows = matrix_b.rows();
-        let num_cols = matrix_b.cols();
-        let mut row_per_partition = (num_rows + num_partitions - 1) / num_partitions;
-        let mut col_per_partition = (num_cols + num_partitions - 1) / num_partitions;
-        if row_per_partition == 0 {
-            row_per_partition = 1;
-        }
-        if col_per_partition == 0 {
-            col_per_partition = 1;
-        }
-        assert!(row_per_partition > 0);
-        assert!(col_per_partition > 0);
-        let mut dense_dim = matrix_b.cols() / num_partitions;
-        if dense_dim == 0 {
-            dense_dim = 1;
-        }
-        GearboxSim {
-            row_per_partition,
-            col_per_partition,
-            evil_col_ids: evil_col_ids.into_iter().collect(),
-            evil_row_ids: evil_row_ids.into_iter().collect(),
-            matrix_b,
-            hardware: Hardware::new(
-                dense_dim,
-                config.clone(),
-                row_per_partition,
-                col_per_partition,
-            ),
-        }
-    }
 
+impl<'a, 'b, MP: Mapping> GearboxSim<'a, 'b, MP> {
     /// distribute the task to components
     ///
     /// we should analyze the gearbox overflow overhead and the icnt unbanlance traffic in this
@@ -1178,7 +1112,7 @@ impl<'a> GearboxSim<'a> {
                 //     break;
                 // }
                 if stop_signal::read() {
-                    info!("received stop signal, start write results");
+                    info!("received stop signal, start writing results");
                     break;
                 }
             }
@@ -1218,9 +1152,12 @@ impl<'a> GearboxSim<'a> {
                                 .push((LogicRowId(mat_b_row_id), LogicColId(col)));
                         } else {
                             // the col is not evil, need to access remote
-                            let target_partition = self.get_partition_id_col(LogicColId(col));
-                            let source_partition =
-                                self.get_partition_id_row(LogicRowId(mat_b_row_id));
+                            let target_partition =
+                                self.hardware.mapping.get_partition_id_col(LogicColId(col));
+                            let source_partition = self
+                                .hardware
+                                .mapping
+                                .get_partition_id_row(LogicRowId(mat_b_row_id));
                             if target_partition == source_partition {
                                 self.hardware.distribute_local(
                                     LogicRowId(target_id),
@@ -1231,8 +1168,12 @@ impl<'a> GearboxSim<'a> {
                                 // the col is in different partition, need to access remote
                                 self.hardware.read_local_and_distribute_remote(
                                     LogicRowId(target_id),
-                                    self.hardware.get_partition_id_row(LogicRowId(mat_b_row_id)),
-                                    self.hardware.get_partition_id_row(LogicRowId(mat_b_row_id)),
+                                    self.hardware
+                                        .mapping
+                                        .get_partition_id_row(LogicRowId(mat_b_row_id)),
+                                    self.hardware
+                                        .mapping
+                                        .get_partition_id_row(LogicRowId(mat_b_row_id)),
                                     LogicRowId(mat_b_row_id),
                                     LogicColId(col),
                                 );
@@ -1254,6 +1195,40 @@ impl<'a> GearboxSim<'a> {
         }
         global_stats
     }
+}
+
+impl<'a, 'b, MP> GearboxSim<'a, 'b, MP> {
+    fn new(
+        evil_col_ids: impl IntoIterator<Item = usize>,
+        evil_row_ids: impl IntoIterator<Item = usize>,
+        matrix_b: &'a CsMatI<Pattern, u32>,
+        config: &'b ConfigV2,
+        mapping: MP,
+    ) -> Self {
+        let num_partitions = config.channels.num * config.banks.num * config.subarrays;
+        debug!(num_partitions, "new gearbox sim");
+        let num_rows = matrix_b.rows();
+        let num_cols = matrix_b.cols();
+        let mut row_per_partition = (num_rows + num_partitions - 1) / num_partitions;
+        let mut col_per_partition = (num_cols + num_partitions - 1) / num_partitions;
+        if row_per_partition == 0 {
+            row_per_partition = 1;
+        }
+        if col_per_partition == 0 {
+            col_per_partition = 1;
+        }
+        assert!(row_per_partition > 0);
+        assert!(col_per_partition > 0);
+
+        GearboxSim {
+            row_per_partition,
+            col_per_partition,
+            evil_col_ids: evil_col_ids.into_iter().collect(),
+            evil_row_ids: evil_row_ids.into_iter().collect(),
+            matrix_b,
+            hardware: Hardware::new(config, mapping),
+        }
+    }
 
     /// reduce the result and return the result
     fn report(
@@ -1264,13 +1239,6 @@ impl<'a> GearboxSim<'a> {
         topk: f32,
     ) -> SingleResult {
         self.hardware.report(name, total_result, batch, topk)
-    }
-
-    fn get_partition_id_row(&self, row_id: LogicRowId) -> SubarrayId {
-        self.hardware.get_partition_id_row(row_id)
-    }
-    fn get_partition_id_col(&self, col_id: LogicColId) -> SubarrayId {
-        self.hardware.get_partition_id_col(col_id)
     }
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -1319,9 +1287,57 @@ pub struct GlobalStatV2 {
     pub global_max_real_local: usize,
     pub global_max_ring_buffer: usize,
     pub global_max_dispatching: usize,
+
+    pub top_1000_distribution: BTreeSet<SortedDistribution>,
 }
 
-fn update_stats(hardware: &mut Hardware, global_stats: &mut GlobalStatV2) {
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct SortedDistribution {
+    pub total_cycle: usize,
+
+    pub local_max: usize,
+    pub local_average: f64,
+    pub local_variance: f64,
+
+    pub local_dispatcher_max: usize,
+    pub local_dispatcher_average: f64,
+    pub local_dispatcher_variance: f64,
+    pub local_dispatcher_50: f64,
+    pub local_dispatcher_75: f64,
+
+    pub dispatching_max: usize,
+    pub dispatching_average: f64,
+    pub dispatching_variance: f64,
+    pub dispatching_50: f64,
+    pub dispatching_75: f64,
+
+    pub remote_max: usize,
+    pub remote_average: f64,
+    pub remote_variance: f64,
+    pub remote_50: f64,
+    pub remote_75: f64,
+}
+impl Eq for SortedDistribution {}
+
+impl PartialOrd for SortedDistribution {
+    fn partial_cmp(&self, other: &Self) -> std::option::Option<std::cmp::Ordering> {
+        self.total_cycle.partial_cmp(&other.total_cycle)
+    }
+}
+
+impl Ord for SortedDistribution {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.total_cycle.cmp(&other.total_cycle)
+    }
+}
+
+/// we need to get more infomation:
+///
+/// 1. the distribution of the local
+/// 2. the distribution of the local dispatcher
+/// 3. the distribution of the dispatching
+/// 4. the distribution of the remote update
+fn update_stats<T>(hardware: &mut Hardware<T>, global_stats: &mut GlobalStatV2) {
     // test if the size is overflow!
     // let tsv_report_base = hardware.calculate_tsv_traffic();
     // global_stats.global_tsv_base_total += tsv_report_base.max_use;
@@ -1342,6 +1358,7 @@ fn update_stats(hardware: &mut Hardware, global_stats: &mut GlobalStatV2) {
     //     .max()
     //     .unwrap();
     // get the max ring buffer cycle and count for the overflow
+    // received and send, only received
     let ring_buffer_max: (Vec<_>, Vec<_>) = hardware
         .ring_buffer
         .iter_mut()
@@ -1361,7 +1378,22 @@ fn update_stats(hardware: &mut Hardware, global_stats: &mut GlobalStatV2) {
             )
         })
         .unzip();
+    let dispatcher_local_average =
+        ring_buffer_max.0.iter().sum::<usize>() as f64 / ring_buffer_max.0.len() as f64;
+    let dispatcher_local_variance = ring_buffer_max
+        .0
+        .iter()
+        .map(|x| *x as f64)
+        .population_variance();
     let dispatcher_local = ring_buffer_max.0.iter().max().unwrap();
+    let dispatcher_remote_average =
+        ring_buffer_max.1.iter().sum::<usize>() as f64 / ring_buffer_max.1.len() as f64;
+    let dispatcher_remote_variance = ring_buffer_max
+        .1
+        .iter()
+        .map(|x| *x as f64)
+        .population_variance();
+
     let dispatcher_remote = ring_buffer_max.1.iter().max().unwrap();
 
     // the subarray max cycle for local
@@ -1375,46 +1407,40 @@ fn update_stats(hardware: &mut Hardware, global_stats: &mut GlobalStatV2) {
         .unzip();
     let max_local_cycle = max_local.iter().max().unwrap();
     let max_remote_cycle = max_remote.iter().max().unwrap();
+    let max_local_average = max_local.iter().sum::<usize>() as f64 / max_local.len() as f64;
+    let max_local_variance = max_local.iter().map(|x| *x as f64).population_variance();
+    let max_remote_average = max_remote.iter().sum::<usize>() as f64 / max_remote.len() as f64;
+    let max_remote_variance = max_remote.iter().map(|x| *x as f64).population_variance();
 
     let max_real_local_cycle = max_local_cycle.max(dispatcher_local);
 
+    let distribution_stats = SortedDistribution {
+        total_cycle: max_real_local_cycle + dispatcher_remote + max_remote_cycle,
+        local_max: *max_local_cycle,
+        local_average: max_local_average,
+        local_variance: max_local_variance,
+        local_dispatcher_max: *dispatcher_local,
+        local_dispatcher_average: dispatcher_local_average,
+        local_dispatcher_variance: dispatcher_local_variance,
+        dispatching_max: *dispatcher_remote,
+        dispatching_average: dispatcher_remote_average,
+        dispatching_variance: dispatcher_remote_variance,
+        remote_max: *max_remote_cycle,
+        remote_average: max_remote_average,
+        remote_variance: max_remote_variance,
+        ..Default::default()
+    };
     global_stats.global_max_acc_cycle += max_local_cycle;
     global_stats.global_max_acc_cycle_remote += max_remote_cycle;
     global_stats.global_max_real_local += max_real_local_cycle;
     global_stats.global_max_ring_buffer += *dispatcher_local;
     global_stats.global_max_dispatching += *dispatcher_remote;
-}
-
-struct DistributionDrawer;
-
-impl DrawFn for DistributionDrawer {
-    type DATA = [(usize, usize)];
-
-    fn draw_apply<'a, DB: DrawingBackend + 'a>(
-        root: DrawingArea<DB, Shift>,
-        data: &Self::DATA,
-    ) -> Result<(), Box<dyn Error + 'a>> {
-        let size = data.len();
-        let max_nnz = data.iter().map(|(_, nnz)| *nnz).max().unwrap();
-
-        let mut chart = ChartBuilder::on(&root)
-            .set_all_label_area_size(10.percent())
-            .build_cartesian_2d(-100..(size + 100) as i32, 0..max_nnz)?;
-        chart
-            .configure_mesh()
-            .disable_x_mesh()
-            .disable_y_mesh()
-            .x_desc("rows")
-            .y_desc("nnzs")
-            .axis_desc_style(("sans-serif", 15).into_font())
-            .draw()?;
-        chart.draw_series(data.iter().enumerate().map(|(id, (_row_id, nnz))| {
-            Rectangle::new(
-                [(id as i32, 0), (id as i32 + 1, *nnz)],
-                RED.mix(0.3).filled(),
-            )
-        }))?;
-        Ok(())
+    global_stats
+        .top_1000_distribution
+        .insert(distribution_stats);
+    // there should be at max 1000 entries in the top 1000 distribution, delete one if it is full
+    if global_stats.top_1000_distribution.len() > 1024 {
+        global_stats.top_1000_distribution.pop_first();
     }
 }
 
@@ -1505,22 +1531,62 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
             let top_cols = if top_cols == 0 { 1 } else { top_cols };
             info!(?top_cols, "top cols");
             assert!(top_cols > 0);
+            let num_partitions = config.channels.num * config.banks.num * config.subarrays;
+            debug!(num_partitions, "new gearbox sim");
+            let num_rows = matrix_b.rows();
+            let num_cols = matrix_b.cols();
+            let row_per_partition = (num_rows + num_partitions - 1) / num_partitions;
+            let col_per_partition = (num_cols + num_partitions - 1) / num_partitions;
 
-            let mut gearbox = GearboxSim::new(
-                mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
-                mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
-                &matrix_b,
-                config,
-            );
-            info!("start running the sim");
-            let result = gearbox.run(&matrix_a, batch, top_k);
-            TOTAL_FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
-            info!(
-                "finished task: {}/{}",
-                TOTAL_FINISHED_TASKS.load(Ordering::Relaxed),
-                *TOTAL_TASKS.read().unwrap()
-            );
-            gearbox.report(path.to_string(), result, batch, top_k)
+            match config.mapping {
+                crate::pim::configv2::MappingType::SameSubarray => {
+                    let mapping = same_subarray::SameSubarrayMapping::new(
+                        config,
+                        row_per_partition,
+                        col_per_partition,
+                    );
+                    let mut gearbox = GearboxSim::new(
+                        mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
+                        mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
+                        &matrix_b,
+                        config,
+                        mapping,
+                    );
+                    info!("start running the sim");
+                    let result = gearbox.run(&matrix_a, batch, top_k);
+                    TOTAL_FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
+                    info!(
+                        "finished task: {}/{}",
+                        TOTAL_FINISHED_TASKS.load(Ordering::Relaxed),
+                        *TOTAL_TASKS.read().unwrap()
+                    );
+                    gearbox.report(path.to_string(), result, batch, top_k)
+                }
+                crate::pim::configv2::MappingType::SameBank => {
+                    let mapping = same_bank::SameBankMapping::new(
+                        num_rows,
+                        config.banks.num,
+                        config.channels.num,
+                        config.subarrays,
+                    );
+                    let mut gearbox = GearboxSim::new(
+                        mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
+                        mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
+                        &matrix_b,
+                        config,
+                        mapping,
+                    );
+                    info!("start running the sim");
+                    let result = gearbox.run(&matrix_a, batch, top_k);
+                    TOTAL_FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
+                    info!(
+                        "finished task: {}/{}",
+                        TOTAL_FINISHED_TASKS.load(Ordering::Relaxed),
+                        *TOTAL_TASKS.read().unwrap()
+                    );
+                    gearbox.report(path.to_string(), result, batch, top_k)
+                }
+            }
         })
         .collect();
     drop(matrix_a);
@@ -1671,335 +1737,5 @@ impl SubarrayStatus {
             remaining_cycle,
             total_rows_activated + remaining_rows,
         )
-    }
-}
-#[allow(deprecated)]
-#[cfg(test)]
-mod tests {
-    use crate::pim::configv2::LevelConfig;
-
-    use super::*;
-
-    #[test]
-    fn test_id_translate() {
-        let config = ConfigV2 {
-            channels: LevelConfig {
-                num: 16,
-                ..Default::default()
-            },
-            chips: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            ranks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            bank_groups: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            banks: LevelConfig {
-                num: 16,
-                ..Default::default()
-            },
-            subarrays: 16,
-            ..Default::default()
-        };
-        let hard_ware = Hardware::new(1024, config, 100, 100);
-        assert_eq!(hard_ware.tsvs(), 16);
-        assert_eq!(hard_ware.subarrays(), 4096);
-        assert_eq!(hard_ware.banks(), 256);
-        assert_eq!(hard_ware.get_dispatcher_id(SubarrayId(0)), SubarrayId(0));
-        assert_eq!(hard_ware.get_dispatcher_id(SubarrayId(16)), SubarrayId(16));
-        assert_eq!(hard_ware.get_dispatcher_id(SubarrayId(19)), SubarrayId(16));
-
-        assert_eq!(hard_ware.get_partition_id_col(LogicColId(0)), SubarrayId(0));
-        assert_eq!(
-            hard_ware.get_partition_id_col(LogicColId(1001)),
-            SubarrayId(10)
-        );
-        assert_eq!(
-            hard_ware.get_partition_id_row(LogicRowId(4095)),
-            SubarrayId(40)
-        );
-        // assert_eq!(hard_ware.get_row_id(LogicRowId(12), col_id(0)), RowId(12));
-        assert_eq!(hard_ware.get_tsv_id_from_ring(RingId(0)), TsvId(0));
-        assert_eq!(hard_ware.get_tsv_id_from_subarray(SubarrayId(1)), TsvId(0));
-        assert_eq!(hard_ware.get_tsv_id_from_subarray(SubarrayId(16)), TsvId(0));
-        assert_eq!(
-            hard_ware.get_tsv_id_from_subarray(SubarrayId(255)),
-            TsvId(0)
-        );
-        assert_eq!(
-            hard_ware.get_tsv_id_from_subarray(SubarrayId(256)),
-            TsvId(1)
-        );
-        assert_eq!(hard_ware.ring_buffer_id(SubarrayId(17)), RingBufferId(1));
-        assert_eq!(hard_ware.ring_buffer_id(SubarrayId(15)), RingBufferId(0));
-        assert_eq!(hard_ware.ring_id_from_subarray(SubarrayId(0)), RingId(0));
-        assert_eq!(hard_ware.ring_id_from_subarray(SubarrayId(255)), RingId(0));
-        assert_eq!(hard_ware.ring_id_from_subarray(SubarrayId(256)), RingId(1));
-        assert_eq!(
-            hard_ware.ring_port_from_subarray(SubarrayId(255)),
-            RingPort(15)
-        );
-        assert_eq!(
-            hard_ware.ring_port_from_subarray(SubarrayId(256)),
-            RingPort(0)
-        );
-        assert_eq!(
-            hard_ware.ring_port_from_subarray(SubarrayId(16)),
-            RingPort(1)
-        );
-
-        assert_eq!(hard_ware.rings(), 16);
-        for i in 0..100 {
-            assert_eq!(
-                hard_ware.ring_id_from_subarray(SubarrayId(i)),
-                hard_ware.ring_id_from_subarray(hard_ware.get_dispatcher_id(SubarrayId(i)))
-            );
-            assert_eq!(
-                hard_ware.ring_port_from_subarray(SubarrayId(i)),
-                hard_ware.ring_port_from_subarray(hard_ware.get_dispatcher_id(SubarrayId(i)))
-            );
-        }
-    }
-
-    #[test]
-    fn test_dist() {
-        let mut hard_ware = init_hardware();
-        // the evil col, same write in subarray will be merged
-        hard_ware.distribute_evil_col(
-            LogicRowId(200),
-            [
-                (LogicRowId(0), LogicColId(200)),
-                (LogicRowId(1), LogicColId(200)),
-                (LogicRowId(100), LogicColId(200)),
-                (LogicRowId(101), LogicColId(200)),
-            ],
-        );
-        let mut global_stat = GlobalStatV2::default();
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        // println!("{:?}", report);
-        assert_eq!(report.subarray_result[0].remote_row_read_cycle, 28);
-        assert_eq!(report.subarray_result[1].remote_row_read_cycle, 28);
-        assert_eq!(report.subarray_result[2].remote_row_write_cycle, 10);
-        assert_eq!(report.subarray_result[2].cycle_remote, 10);
-        // the ring traffic should be zero
-        assert_eq!(report.total_result.global_max_acc_ring, 0);
-        // the tsv traffic should be zero
-        assert_eq!(report.total_result.global_max_acc_tsv, 0);
-
-        // the evil row will always be local, the partition will be decided by the col id!
-        hard_ware.distribute_evil_row(
-            LogicRowId(0),
-            LogicRowId(0),
-            [LogicColId(300), LogicColId(400)],
-        );
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        // println!("{:?}", report.subarray_result[3]);
-        assert_eq!(report.subarray_result[3].local_row_open_cycle_evil, 18);
-        assert_eq!(report.subarray_result[3].local_row_read_cycle_evil, 0);
-        assert_eq!(report.subarray_result[3].local_row_write_cycle_evil, 0);
-        assert_eq!(report.subarray_result[3].cycle, 18);
-        assert_eq!(report.subarray_result[3].local_row_open_cycle_evil, 18);
-        assert_eq!(report.subarray_result[3].local_row_read_cycle_evil, 0);
-        assert_eq!(report.subarray_result[3].local_row_write_cycle_evil, 0);
-        assert_eq!(report.subarray_result[3].cycle, 18);
-        hard_ware.distribute_local(LogicRowId(0), LogicRowId(500), LogicColId(0));
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        assert_eq!(report.subarray_result[5].local_row_open_cycle, 18);
-        assert_eq!(report.subarray_result[5].cycle, 18);
-        // hard_ware.distribute_local_evil_row(LogicRowId(0), LogicRowId(0), LogicColId(0));
-        // to another subarray
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(100));
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        // the ring traffic should be zero
-        assert_eq!(report.total_result.global_max_acc_ring, 0);
-
-        // to another bank
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(1600));
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        assert_eq!(report.total_result.global_max_acc_ring, 1);
-        assert_eq!(report.ring_result[0].cycle, 1);
-
-        // the ring traffic should be zero
-        // to another layer
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(25600));
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        // layer 0 -> 1, port 0 -> 0, so there are no ring traffic, this one is the old one.
-        assert_eq!(report.total_result.global_max_acc_ring, 1);
-        // there are two tsv traffic 0 and 1
-        assert_eq!(report.total_result.global_max_acc_tsv, 1);
-        assert_eq!(report.ring_result[0].cycle, 1);
-        assert_eq!(report.ring_result[1].cycle, 0);
-        assert_eq!(report.tsv_result[0].cycle, 1);
-        assert_eq!(report.tsv_result[1].cycle, 1);
-
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(16), LogicColId(27200));
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        // layer 0 -> 1, port 1 -> 1, so there are one ring traffic, this one is the old one.
-        assert_eq!(report.total_result.global_max_acc_ring, 2);
-        // there are two tsv traffic 0 and 1
-        assert_eq!(report.total_result.global_max_acc_tsv, 2);
-        assert_eq!(report.ring_result[0].cycle, 2);
-        assert_eq!(report.ring_result[1].cycle, 1);
-        assert_eq!(report.tsv_result[0].cycle, 2);
-        assert_eq!(report.tsv_result[1].cycle, 2);
-
-        // the ring confilic
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(1600));
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(3200));
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(4800));
-
-        // layer 0 -> 0, port 0 -> 1,0-2, so there are two ring traffic, .
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        assert_eq!(report.total_result.global_max_acc_ring, 5);
-        assert_eq!(report.ring_result[0].cycle, 5);
-    }
-
-    fn init_hardware() -> Hardware {
-        // test the distribution of rows
-        let config = ConfigV2 {
-            channels: LevelConfig {
-                num: 16,
-                ..Default::default()
-            },
-            chips: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            ranks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            bank_groups: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            banks: LevelConfig {
-                num: 16,
-                ..Default::default()
-            },
-            subarrays: 16,
-            ..Default::default()
-        };
-        let hard_ware: Hardware = Hardware::new(1024, config, 100, 100);
-        hard_ware
-    }
-
-    /// test the base layer router
-    /// test the interleave result
-    #[test]
-    fn test_base_layer() {
-        let mut hardware = init_hardware();
-        // generate some traffic which each one will always to route to subarray 0
-        for i in 0..1024 {
-            hardware.distribute_remote(LogicRowId(0), SubarrayId(i), LogicColId(102400 + i * 100));
-        }
-
-        let tsv_traffic = hardware.get_tsv_interleave();
-        assert_eq!(tsv_traffic[0].len(), 256);
-        assert_eq!(tsv_traffic[1].len(), 256);
-        assert_eq!(tsv_traffic[2].len(), 256);
-        assert_eq!(tsv_traffic[3].len(), 256);
-        // first interleave the bank
-        assert!(
-            tsv_traffic[0]
-                .iter()
-                .map(|v| v.2 .1 .0)
-                .take(4)
-                .collect_vec()
-                == vec![0, 1, 2, 3]
-        );
-        // another round interleave the bank for the next subarray
-        assert!(
-            tsv_traffic[0]
-                .iter()
-                .map(|v| v.2 .1 .0)
-                .skip(16)
-                .take(4)
-                .collect_vec()
-                == vec![0, 1, 2, 3]
-        );
-        let result = compute_result(tsv_traffic);
-        // no conflict , so the cycle is 256
-        assert_eq!(result.cycle, 256);
-    }
-
-    /// test the base layer router
-    /// test the interleave result
-    #[test]
-    fn test_base_layer_conflict() {
-        let mut hardware = init_hardware();
-        // generate some traffic which each one will always to route to subarray 0
-        for i in 0..1024 {
-            hardware.distribute_remote(LogicRowId(0), SubarrayId(i), LogicColId(102400));
-        }
-
-        let tsv_traffic = hardware.get_tsv_interleave();
-        assert_eq!(tsv_traffic[0].len(), 256);
-        assert_eq!(tsv_traffic[1].len(), 256);
-        assert_eq!(tsv_traffic[2].len(), 256);
-        assert_eq!(tsv_traffic[3].len(), 256);
-        // first interleave the bank
-        assert!(
-            tsv_traffic[0]
-                .iter()
-                .map(|v| v.2 .1 .0)
-                .take(4)
-                .collect_vec()
-                == vec![0, 0, 0, 0]
-        );
-
-        let result = compute_result(tsv_traffic);
-        // all conflict , so the cycle is 1024
-        assert_eq!(result.cycle, 1024);
-        assert_eq!(result.cycle_no_conflict, 256);
-        assert_eq!(result.max_use, 1024 * 16);
-        assert_eq!(result.real_use, 1024);
-        assert_eq!(result.max_use_valid, 4 * 1020 + 4 + 3 + 2 + 1);
-    }
-
-    #[test]
-    fn test_ring_interleave() {
-        // first build
-        let rings_tasks: Vec<Vec<Vec<(RingPort, RingPort, (RingId, RingPort))>>> = (0..4)
-            .map(|bank_id| {
-                (0..4)
-                    .map(|subarray_id| {
-                        (0..10)
-                            .map(|task_id| {
-                                (
-                                    RingPort(bank_id),
-                                    RingPort(0),
-                                    (RingId((subarray_id << 4) + task_id), RingPort(0)),
-                                )
-                            })
-                            .collect_vec()
-                    })
-                    .collect()
-            })
-            .collect_vec();
-        let rings_task = get_ring_interleave(vec![&rings_tasks]);
-        for (_ring_id, ring) in rings_task.into_iter().enumerate() {
-            for (_bank_id, bank) in ring.into_iter().enumerate() {
-                let true_value = (0..4)
-                    .map(|i| (0..10).map(move |j| (i << 4) + j))
-                    .flat_interleave()
-                    .collect_vec();
-                let result = bank.into_iter().map(|i| i.2 .0 .0).collect_vec();
-                assert_eq!(result, true_value);
-            }
-        }
     }
 }

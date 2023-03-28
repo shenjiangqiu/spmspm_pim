@@ -111,6 +111,7 @@ pub enum DrawType {
     RefinedDistribution(ExecResult),
     ShowCycle(ExecResult),
     ShowAvgMax(ExecResult),
+    ShowDetailedAvgMax(ExecResult),
 }
 
 #[derive(Debug, Args)]

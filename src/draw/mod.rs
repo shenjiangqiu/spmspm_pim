@@ -1,3 +1,4 @@
+pub mod show_global_dist;
 use std::{error::Error, fmt::Debug, path::Path};
 
 use plotters::{coord::Shift, prelude::*};
@@ -145,6 +146,7 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
         }
         DrawType::ShowCycle(gearbox_result) => show_cycle::draw(gearbox_result)?,
         DrawType::ShowAvgMax(gearbox_result) => show_average_max::draw(gearbox_result)?,
+        DrawType::ShowDetailedAvgMax(gearbox_result) => show_global_dist::draw(gearbox_result)?,
     }
     Ok(())
 }

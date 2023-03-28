@@ -1,7 +1,8 @@
 //! # the analysis module
 //! show the key timing and bandwidth
 //!
-
+pub mod results;
+pub mod traits;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::BufWriter;

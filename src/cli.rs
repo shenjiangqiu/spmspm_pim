@@ -86,6 +86,8 @@ pub enum AnalyzeType {
     AnalyzeRefinedDistribution,
     /// with mapping,
     AnalyzeRefinedNewMapping,
+    /// the bank trace
+    AnalyzeBankTrace,
 }
 
 #[derive(Debug, Subcommand)]

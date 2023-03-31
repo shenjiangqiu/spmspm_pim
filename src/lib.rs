@@ -20,7 +20,7 @@ use std::{
 use sysinfo::SystemExt;
 use tracing::{error, info, metadata::LevelFilter};
 use tracing_subscriber::fmt::MakeWriter;
-
+use lazy_static::lazy_static;
 use crate::tools::stop_signal;
 pub mod cli;
 pub mod draw;
@@ -83,7 +83,9 @@ fn parse_memory_limit() -> usize {
     info!("memory limit: {} bytes", limit);
     limit
 }
-
+lazy_static!{
+    
+}
 static TOTAL_MEMORY: Lazy<usize> = Lazy::new(parse_memory_limit);
 pub struct MemoryGuard(usize);
 

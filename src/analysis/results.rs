@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::traits::{get_mean_std_max, ReportStats};
+use super::traits::{get_mean_std_max_from_mapper, ReportStats};
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct SubArrayResult {
@@ -34,46 +34,49 @@ pub struct SubArrayResult {
 impl ReportStats for SubArrayResult {
     fn report_stats(data_vec: &[Self]) -> std::collections::BTreeMap<String, (f64, f64, usize)> {
         let mut map = std::collections::BTreeMap::new();
-        map.insert("cycle".to_string(), get_mean_std_max(data_vec, |x| x.cycle));
+        map.insert(
+            "cycle".to_string(),
+            get_mean_std_max_from_mapper(data_vec, |x| x.cycle),
+        );
         map.insert(
             "local_row_open_cycle".to_string(),
-            get_mean_std_max(data_vec, |x| x.local_row_open_cycle),
+            get_mean_std_max_from_mapper(data_vec, |x| x.local_row_open_cycle),
         );
         map.insert(
             "local_row_read_cycle".to_string(),
-            get_mean_std_max(data_vec, |x| x.local_row_read_cycle),
+            get_mean_std_max_from_mapper(data_vec, |x| x.local_row_read_cycle),
         );
         map.insert(
             "local_row_write_cycle".to_string(),
-            get_mean_std_max(data_vec, |x| x.local_row_write_cycle),
+            get_mean_std_max_from_mapper(data_vec, |x| x.local_row_write_cycle),
         );
         map.insert(
             "comp_cycle".to_string(),
-            get_mean_std_max(data_vec, |x| x.comp_cycle),
+            get_mean_std_max_from_mapper(data_vec, |x| x.comp_cycle),
         );
         map.insert(
             "local_row_open_cycle_evil".to_string(),
-            get_mean_std_max(data_vec, |x| x.local_row_open_cycle_evil),
+            get_mean_std_max_from_mapper(data_vec, |x| x.local_row_open_cycle_evil),
         );
         map.insert(
             "local_row_read_cycle_evil".to_string(),
-            get_mean_std_max(data_vec, |x| x.local_row_read_cycle_evil),
+            get_mean_std_max_from_mapper(data_vec, |x| x.local_row_read_cycle_evil),
         );
         map.insert(
             "local_row_write_cycle_evil".to_string(),
-            get_mean_std_max(data_vec, |x| x.local_row_write_cycle_evil),
+            get_mean_std_max_from_mapper(data_vec, |x| x.local_row_write_cycle_evil),
         );
         map.insert(
             "remote_row_read_cycle".to_string(),
-            get_mean_std_max(data_vec, |x| x.remote_row_read_cycle),
+            get_mean_std_max_from_mapper(data_vec, |x| x.remote_row_read_cycle),
         );
         map.insert(
             "remote_row_write_cycle".to_string(),
-            get_mean_std_max(data_vec, |x| x.remote_row_write_cycle),
+            get_mean_std_max_from_mapper(data_vec, |x| x.remote_row_write_cycle),
         );
         map.insert(
             "cycle_remote".to_string(),
-            get_mean_std_max(data_vec, |x| x.cycle_remote),
+            get_mean_std_max_from_mapper(data_vec, |x| x.cycle_remote),
         );
         map
     }

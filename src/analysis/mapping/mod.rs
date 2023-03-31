@@ -2,7 +2,9 @@
 //!
 //! A mapping is a function from a logic id to physical id
 pub mod same_bank;
+pub mod same_bank_weighted;
 pub mod same_subarray;
+
 macro_rules! generate_id_usize {
     ($($name:ident),+ $(,)?) => {
         $(

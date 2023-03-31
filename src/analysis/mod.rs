@@ -2,11 +2,14 @@
 //! show the key timing and bandwidth
 //!
 pub mod results;
+pub mod stats;
 pub mod traits;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
+use std::sync::atomic::AtomicUsize;
+use std::sync::RwLock;
 
 use crate::pim::configv2::ConfigV2;
 use crate::{cli, pim::config::Config};
@@ -19,10 +22,13 @@ pub mod mapping;
 use self::three_stages::{
     analyze_refined_dispatcher_overflow, analyze_refined_distribution, analyze_refined_new_mapping,
 };
+use self::traits::AnalyzeTool;
 pub mod old;
 pub use old::*;
 pub mod three_stages;
 
+pub(self) static TOTAL_FINISHED_TASKS: AtomicUsize = AtomicUsize::new(0);
+pub(self) static TOTAL_TASKS: RwLock<usize> = RwLock::new(0);
 pub fn print_all_stats(config: &Config) {
     let single_task_overlap_stat = overlap::compute_single_task_overlap_stat(config);
 
@@ -37,6 +43,19 @@ pub fn print_all_stats(config: &Config) {
         println!("graph: {}", stat.graph);
         stat.print();
     }
+}
+pub fn transpose2<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
+    assert!(!v.is_empty());
+    let len = v[0].len();
+    let mut iters: Vec<_> = v.into_iter().map(|n| n.into_iter()).collect();
+    (0..len)
+        .map(|_| {
+            iters
+                .iter_mut()
+                .map(|n| n.next().unwrap())
+                .collect::<Vec<T>>()
+        })
+        .collect()
 }
 
 pub fn do_analyze(
@@ -286,6 +305,14 @@ pub fn do_analyze(
                         &config_v2,
                         &config_v2.output_path,
                         analyze_refined_new_mapping::analyze_gearbox,
+                    )?;
+                }
+                cli::AnalyzeType::AnalyzeBankTrace => {
+                    let config_v2 = ConfigV2::new(config);
+                    do_analyze_by_batch_and_topk(
+                        &config_v2,
+                        &config_v2.output_path,
+                        three_stages::analyze_refined_bank_trace::analyze_gearbox,
                     )?;
                 }
             }

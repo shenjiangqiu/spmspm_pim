@@ -137,11 +137,13 @@ impl DrawFn for GearboxAllDrawer {
             let y_spec = 0f32..1f32;
             let mut chart = ChartBuilder::on(chart)
                 .caption(
-                    format!("graph: {}", graph[0].name),
+                    format!("graph: {}", graph[0].name.split('/').last().unwrap()),
                     ("sans-serif", 10).into_font(),
                 )
+                .x_label_area_size(10)
+                .y_label_area_size(10)
                 .build_cartesian_2d(x_spec, y_spec)?;
-
+            chart.configure_mesh().disable_mesh().draw()?;
             let batch = batches.into_iter().next().unwrap();
             let top_k = topks.into_iter().next().unwrap();
             let result = &graph[*maped_results.get(&(batch, top_k)).unwrap()];

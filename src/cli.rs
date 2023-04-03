@@ -115,6 +115,7 @@ pub enum DrawType {
     ShowAvgMax(ExecResult),
     ShowDetailedAvgMax(ExecResult),
     DrawTrace(ExecResult),
+    DrawTraceSplit(ExecResult),
 }
 
 #[derive(Debug, Args)]

@@ -22,7 +22,6 @@ pub mod mapping;
 use self::three_stages::{
     analyze_refined_dispatcher_overflow, analyze_refined_distribution, analyze_refined_new_mapping,
 };
-use self::traits::AnalyzeTool;
 pub mod old;
 pub use old::*;
 pub mod three_stages;

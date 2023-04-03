@@ -149,6 +149,9 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
         DrawType::ShowAvgMax(gearbox_result) => show_average_max::draw(gearbox_result)?,
         DrawType::ShowDetailedAvgMax(gearbox_result) => show_global_dist::draw(gearbox_result)?,
         DrawType::DrawTrace(gearbox_result) => refined::draw_trace::draw(gearbox_result)?,
+        DrawType::DrawTraceSplit(gearbox_result) => {
+            refined::draw_trace_max_local_disp::draw(gearbox_result)?
+        }
     }
     Ok(())
 }

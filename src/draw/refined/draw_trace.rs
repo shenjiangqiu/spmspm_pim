@@ -152,31 +152,38 @@ impl DrawFn for GearboxAllDrawer {
             let sub_local_max = sub_local.iter().max().unwrap();
             let sub_remote_max = sub_remote.iter().max().unwrap();
             let data_len = bank_trace.len();
-            chart.draw_series(LineSeries::new(
+            chart.draw_series(
                 bank_trace
                     .iter()
                     .enumerate()
-                    .map(|(i, x)| (i as f32 / data_len as f32, *x as f32 / *bank_max as f32)),
-                &YELLOW,
-            ))?;
-            chart.draw_series(LineSeries::new(
-                sub_local.iter().enumerate().map(|(i, x)| {
-                    (
-                        i as f32 / data_len as f32,
-                        *x as f32 / *sub_local_max as f32,
-                    )
-                }),
-                &RED,
-            ))?;
-            chart.draw_series(LineSeries::new(
-                sub_remote.iter().enumerate().map(|(i, x)| {
-                    (
-                        i as f32 / data_len as f32,
-                        *x as f32 / *sub_remote_max as f32,
-                    )
-                }),
-                &BLUE,
-            ))?;
+                    .map(|(i, x)| (i as f32 / data_len as f32, *x as f32 / *bank_max as f32))
+                    .map(|coord| Circle::new(coord, 1, BLACK.filled())),
+            )?;
+
+            chart.draw_series(
+                sub_local
+                    .iter()
+                    .enumerate()
+                    .map(|(i, x)| {
+                        (
+                            i as f32 / data_len as f32,
+                            *x as f32 / *sub_local_max as f32,
+                        )
+                    })
+                    .map(|coord| Circle::new(coord, 1, RED.filled())),
+            )?;
+            chart.draw_series(
+                sub_remote
+                    .iter()
+                    .enumerate()
+                    .map(|(i, x)| {
+                        (
+                            i as f32 / data_len as f32,
+                            *x as f32 / *sub_remote_max as f32,
+                        )
+                    })
+                    .map(|coord| Circle::new(coord, 1, BLUE.filled())),
+            )?;
         }
 
         root.present()?;

@@ -381,7 +381,7 @@ impl SubArray {
             }
         }
     }
-
+    #[allow(dead_code)]
     fn report(&self) -> SubArrayResult {
         self.final_subarry_result.clone()
     }
@@ -1234,11 +1234,17 @@ impl<'a, 'b, MP> GearboxSim<'a, 'b, MP> {
         self.hardware.report(name, total_result, batch, topk)
     }
 }
-
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub enum Bottleneck {
+    #[default]
+    Local,
+    Dispatcher,
+}
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GlobalStatV2 {
     pub bank_trace: Vec<u16>,
     pub local_trace: Vec<u16>,
+    pub loc_acc_bottleneck: Vec<Bottleneck>,
     pub remote_trace: Vec<u16>,
 }
 
@@ -1289,13 +1295,12 @@ fn update_stats<T>(hardware: &mut Hardware<T>, global_stats: &mut GlobalStatV2) 
             )
         })
         .unzip();
-    let slowest_bank = ring_buffer_max
+    let (slowest_bank, bank_cycle) = ring_buffer_max
         .0
         .iter()
         .enumerate()
         .max_by_key(|x| x.1)
-        .unwrap()
-        .0;
+        .unwrap();
 
     // the subarray max cycle for local
     let (max_local, max_remote): (Vec<_>, Vec<_>) = hardware
@@ -1306,8 +1311,10 @@ fn update_stats<T>(hardware: &mut Hardware<T>, global_stats: &mut GlobalStatV2) 
             (local, remote)
         })
         .unzip();
-    let slowest_local_subarray = max_local.iter().enumerate().max_by_key(|x| x.1).unwrap().0;
-    let slowest_remote_subarray = max_remote.iter().enumerate().max_by_key(|x| x.1).unwrap().0;
+    let (slowest_local_subarray, local_cycle) =
+        max_local.iter().enumerate().max_by_key(|x| x.1).unwrap();
+    let (slowest_remote_subarray, _remote_cycle) =
+        max_remote.iter().enumerate().max_by_key(|x| x.1).unwrap();
 
     // there should be at max 1000 entries in the top 1000 distribution, delete one if it is full
     global_stats.bank_trace.push(slowest_bank as u16);
@@ -1315,6 +1322,11 @@ fn update_stats<T>(hardware: &mut Hardware<T>, global_stats: &mut GlobalStatV2) 
     global_stats
         .remote_trace
         .push(slowest_remote_subarray as u16);
+    if local_cycle > bank_cycle {
+        global_stats.loc_acc_bottleneck.push(Bottleneck::Local);
+    } else {
+        global_stats.loc_acc_bottleneck.push(Bottleneck::Dispatcher);
+    }
 }
 
 struct DistributionDrawer;

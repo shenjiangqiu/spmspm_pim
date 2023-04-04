@@ -73,7 +73,8 @@ merger_num = 8
 num = 64
 
 [gearbox_config]
-batch = [1, 2, 4, 8, 16]
+# batch = [1, 2, 4, 8, 16]
+batch = [1]
 layers = 8
 stacks = 4
 topk = [0.0005]

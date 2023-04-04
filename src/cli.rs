@@ -88,6 +88,8 @@ pub enum AnalyzeType {
     AnalyzeRefinedNewMapping,
     /// the bank trace
     AnalyzeBankTrace,
+    /// not only the max bank, but all values
+    AnalyzeBankTraceAll,
 }
 
 #[derive(Debug, Subcommand)]
@@ -116,6 +118,7 @@ pub enum DrawType {
     ShowDetailedAvgMax(ExecResult),
     DrawTrace(ExecResult),
     DrawTraceSplit(ExecResult),
+    DrawTraceSplitAll(ExecResult),
 }
 
 #[derive(Debug, Args)]

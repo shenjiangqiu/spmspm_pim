@@ -152,6 +152,9 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
         DrawType::DrawTraceSplit(gearbox_result) => {
             refined::draw_trace_max_local_disp::draw(gearbox_result)?
         }
+        DrawType::DrawTraceSplitAll(gearbox_result) => {
+            refined::draw_trace_max_local_disp_all::draw(gearbox_result)?
+        }
     }
     Ok(())
 }

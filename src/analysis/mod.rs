@@ -314,6 +314,14 @@ pub fn do_analyze(
                         three_stages::analyze_refined_bank_trace::analyze_gearbox,
                     )?;
                 }
+                cli::AnalyzeType::AnalyzeBankTraceAll => {
+                    let config_v2 = ConfigV2::new(config);
+                    do_analyze_by_batch_and_topk(
+                        &config_v2,
+                        &config_v2.output_path,
+                        three_stages::analyze_refined_bank_trace_all::analyze_gearbox,
+                    )?;
+                }
             }
         }
         cli::Operation::Draw(draw_args) => {

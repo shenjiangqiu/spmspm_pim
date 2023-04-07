@@ -90,6 +90,8 @@ pub enum AnalyzeType {
     AnalyzeBankTrace,
     /// not only the max bank, but all values
     AnalyzeBankTraceAll,
+    /// the new mapping: real col mapping
+    AnalyzeRefinedNewMappingCycle,
 }
 
 #[derive(Debug, Subcommand)]

@@ -19,6 +19,8 @@
 //!                ||----w |
 //!                ||     ||
 //! ```
+use crate::analysis::mapping::same_bank::SameBankMapping;
+use crate::analysis::mapping::same_bank_weighted::SameBankWeightedMapping;
 use crate::analysis::mapping::*;
 use crate::tools::{self, stop_signal};
 use crate::{
@@ -1290,9 +1292,15 @@ pub enum Bottleneck {
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GlobalStatV2 {
-    pub bank_trace_all: Vec<Vec<usize>>,
-    pub local_trace_all: Vec<Vec<usize>>,
-    pub remote_trace_all: Vec<Vec<usize>>,
+    pub local_cycle_max: usize,
+    pub local_cycle_mean: usize,
+    pub local_dist_cycle_max: usize,
+    pub local_dist_cycle_mean: usize,
+    pub dispatch_cycle_max: usize,
+    pub dispatch_cycle_mean: usize,
+    pub remote_cycle_max: usize,
+    pub remote_cycle_mean: usize,
+    pub real_cycle_max: usize,
 }
 
 /// we need to get more infomation:
@@ -1313,7 +1321,6 @@ fn update_stats<T>(hardware: &mut Hardware<T>, global_stats: &mut GlobalStatV2) 
             )
         })
         .unzip();
-    let bank_all = ring_buffer_max.0;
 
     // the subarray max cycle for local
     let (local_all, remote_all): (Vec<_>, Vec<_>) = hardware
@@ -1325,23 +1332,24 @@ fn update_stats<T>(hardware: &mut Hardware<T>, global_stats: &mut GlobalStatV2) 
         })
         .unzip();
     // should fix the problem, the memory footprint is too large
-    //
-    let chunk_size = local_all.len() / bank_all.len();
-    let bank_all = bank_all
-        .into_iter()
-        .chunks(chunk_size)
-        .into_iter()
-        .map(|ck| ck.max().unwrap())
-        .collect_vec();
-    let remote_all = remote_all
-        .into_iter()
-        .chunks(chunk_size)
-        .into_iter()
-        .map(|ck| ck.max().unwrap())
-        .collect_vec();
-    global_stats.bank_trace_all.push(bank_all);
-    global_stats.local_trace_all.push(local_all);
-    global_stats.remote_trace_all.push(remote_all);
+    let local_cycle_max = local_all.iter().max().unwrap();
+    let local_cycle_mean = local_all.iter().sum::<usize>() / local_all.len();
+    let local_dist_cycle_max = ring_buffer_max.0.iter().max().unwrap();
+    let local_dist_cycle_mean = ring_buffer_max.0.iter().sum::<usize>() / ring_buffer_max.1.len();
+    let dispatch_cycle_max = ring_buffer_max.1.iter().max().unwrap();
+    let dispatch_cycle_mean = ring_buffer_max.1.iter().sum::<usize>() / ring_buffer_max.0.len();
+    let remote_cycle_max = remote_all.iter().max().unwrap();
+    let remote_cycle_mean = remote_all.iter().sum::<usize>() / remote_all.len();
+    let real_max = local_cycle_max.max(dispatch_cycle_max);
+    global_stats.local_cycle_max += local_cycle_max;
+    global_stats.local_cycle_mean += local_cycle_mean;
+    global_stats.local_dist_cycle_max += local_dist_cycle_max;
+    global_stats.local_dist_cycle_mean += local_dist_cycle_mean;
+    global_stats.dispatch_cycle_max += dispatch_cycle_max;
+    global_stats.dispatch_cycle_mean += dispatch_cycle_mean;
+    global_stats.remote_cycle_max += remote_cycle_max;
+    global_stats.remote_cycle_mean += remote_cycle_mean;
+    global_stats.real_cycle_max += real_max;
 }
 
 struct DistributionDrawer;
@@ -1470,27 +1478,59 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
             let num_cols = matrix_b.cols();
             let row_per_partition = (num_rows + num_partitions - 1) / num_partitions;
             let col_per_partition = (num_cols + num_partitions - 1) / num_partitions;
-            let mapping = same_subarray::SameSubarrayMapping::new(
-                config,
-                row_per_partition,
-                col_per_partition,
-            );
-            let mut gearbox = GearboxSim::new(
-                mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
-                mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
-                &matrix_b,
-                config,
-                mapping,
-            );
-            info!("start running the sim");
-            let result = gearbox.run(&matrix_a, batch, top_k);
-            TOTAL_FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
-            info!(
-                "finished task: {}/{}",
-                TOTAL_FINISHED_TASKS.load(Ordering::Relaxed),
-                *TOTAL_TASKS.read().unwrap()
-            );
-            gearbox.report(path.to_string(), result, batch, top_k)
+            match config.mapping {
+                crate::pim::configv2::MappingType::SameSubarray => todo!(),
+                crate::pim::configv2::MappingType::SameBank => {
+                    let mapping = SameBankMapping::new(
+                        config.banks.num,
+                        config.channels.num,
+                        config.subarrays,
+                        config.columns,
+                        &matrix_b,
+                    );
+                    let mut gearbox = GearboxSim::new(
+                        mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
+                        mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
+                        &matrix_b,
+                        config,
+                        mapping,
+                    );
+                    info!("start running the sim");
+                    let result = gearbox.run(&matrix_a, batch, top_k);
+                    TOTAL_FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
+                    info!(
+                        "finished task: {}/{}",
+                        TOTAL_FINISHED_TASKS.load(Ordering::Relaxed),
+                        *TOTAL_TASKS.read().unwrap()
+                    );
+                    gearbox.report(path.to_string(), result, batch, top_k)
+                }
+                crate::pim::configv2::MappingType::SameBankWeightedMapping => {
+                    let mapping = SameBankWeightedMapping::new(
+                        config.banks.num,
+                        config.channels.num,
+                        config.subarrays,
+                        config.columns,
+                        &matrix_b,
+                    );
+                    let mut gearbox = GearboxSim::new(
+                        mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
+                        mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
+                        &matrix_b,
+                        config,
+                        mapping,
+                    );
+                    info!("start running the sim");
+                    let result = gearbox.run(&matrix_a, batch, top_k);
+                    TOTAL_FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
+                    info!(
+                        "finished task: {}/{}",
+                        TOTAL_FINISHED_TASKS.load(Ordering::Relaxed),
+                        *TOTAL_TASKS.read().unwrap()
+                    );
+                    gearbox.report(path.to_string(), result, batch, top_k)
+                }
+            }
         })
         .collect();
     drop(matrix_a);

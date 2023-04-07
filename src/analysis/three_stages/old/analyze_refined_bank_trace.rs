@@ -925,7 +925,7 @@ impl<'a, MP: Mapping> Hardware<'a, MP> {
         let mut remote_tasks = BTreeMap::new();
         for (mat_b_row_id, col_id) in row_id_col_id {
             // noticed here, the evil col
-            let partition_id = self.mapping.get_partition_id_row(mat_b_row_id);
+            let partition_id = self.mapping.get_matrix_b_location(mat_b_row_id).0;
             let target_partition_id = self.mapping.get_partition_id_col(col_id);
             if partition_id == target_partition_id {
                 self.distribute_local(target_row_id, mat_b_row_id, col_id);

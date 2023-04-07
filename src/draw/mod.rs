@@ -10,9 +10,9 @@ mod cycle_dist;
 mod draw_overflow;
 mod draw_refined;
 mod draw_refined_dispaching;
-mod show_average_max;
+// mod show_average_max;
 // mod draw_refined_hybrid;
-mod draw_refined_distribution;
+// mod draw_refined_distribution;
 mod draw_split;
 mod draw_tsv_traffic;
 mod draw_v2;
@@ -143,14 +143,14 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
         }
         DrawType::RefinedHybrid(_hybrid_result) => todo!(),
         DrawType::RefinedDistribution(gearbox_result) => {
-            draw_refined_distribution::draw(gearbox_result)?
+            todo!()
         }
         DrawType::ShowCycle(gearbox_result) => show_cycle::draw(gearbox_result)?,
-        DrawType::ShowAvgMax(gearbox_result) => show_average_max::draw(gearbox_result)?,
+        DrawType::ShowAvgMax(gearbox_result) => todo!(),
         DrawType::ShowDetailedAvgMax(gearbox_result) => show_global_dist::draw(gearbox_result)?,
-        DrawType::DrawTrace(gearbox_result) => refined::draw_trace::draw(gearbox_result)?,
+        DrawType::DrawTrace(gearbox_result) => todo!(),
         DrawType::DrawTraceSplit(gearbox_result) => {
-            refined::draw_trace_max_local_disp::draw(gearbox_result)?
+            todo!()
         }
         DrawType::DrawTraceSplitAll(gearbox_result) => {
             refined::draw_trace_max_local_disp_all::draw(gearbox_result)?

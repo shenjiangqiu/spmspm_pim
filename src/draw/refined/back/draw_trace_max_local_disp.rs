@@ -13,7 +13,6 @@ use rayon::prelude::*;
 use tracing::info;
 
 use crate::{
-    analysis::three_stages::analyze_refined_bank_trace,
     cli::ExecResult,
     draw::{draw_data_with_size, DrawFn},
 };

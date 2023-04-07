@@ -52,6 +52,7 @@ pub enum MappingType {
     #[default]
     SameSubarray,
     SameBank,
+    SameBankWeightedMapping,
 }
 impl ConfigV2 {
     /// create a config from path

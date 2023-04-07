@@ -10,6 +10,7 @@ use crate::{
     analysis::{
         mapping::{
             same_bank::{self, SameBankMapping},
+            same_bank_weighted::SameBankWeightedMapping,
             same_subarray::{self, SameSubarrayMapping},
             LogicColId, LogicRowId,
         },
@@ -200,11 +201,14 @@ pub trait GearboxSimTrait<'matrix, 'config> {
                             );
                         } else {
                             // the col is not evil, need to access remote
-                            let target_partition =
-                                self.get_mapping().get_partition_id_col(LogicColId(col));
+                            let target_partition = self
+                                .get_mapping()
+                                .get_result_dense_location(target_id.into(), LogicColId(col))
+                                .0;
                             let source_partition = self
                                 .get_mapping()
-                                .get_partition_id_row(LogicRowId(mat_b_row_id));
+                                .get_matrix_b_location(mat_b_row_id.into())
+                                .0;
                             if target_partition == source_partition {
                                 // self.hardware.distribute_local(
                                 //     LogicRowId(target_id),
@@ -457,10 +461,11 @@ pub trait AnalyzeTool {
                     }
                     crate::pim::configv2::MappingType::SameBank => {
                         let mapping = same_bank::SameBankMapping::new(
-                            num_rows,
                             config.banks.num,
                             config.channels.num,
                             config.subarrays,
+                            config.columns,
+                            &matrix_b,
                         );
                         let mut gearbox = Self::GearboxSimType::<'_, '_, SameBankMapping>::new(
                             mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
@@ -469,6 +474,32 @@ pub trait AnalyzeTool {
                             config,
                             mapping,
                         );
+                        info!("start running the sim");
+                        gearbox.run(&matrix_a, batch, top_k);
+                        TOTAL_FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);
+                        info!(
+                            "finished task: {}/{}",
+                            TOTAL_FINISHED_TASKS.load(Ordering::Relaxed),
+                            *TOTAL_TASKS.read().unwrap()
+                        );
+                        gearbox.report(path.to_string(), batch, top_k)
+                    }
+                    crate::pim::configv2::MappingType::SameBankWeightedMapping => {
+                        let mapping = SameBankWeightedMapping::new(
+                            config.banks.num,
+                            config.channels.num,
+                            config.subarrays,
+                            config.columns,
+                            &matrix_b,
+                        );
+                        let mut gearbox =
+                            Self::GearboxSimType::<'_, '_, SameBankWeightedMapping>::new(
+                                mat_b_col_ids.iter().take(top_cols).map(|(idx, _)| *idx),
+                                mat_b_row_ids.iter().take(top_rows).map(|(idx, _)| *idx),
+                                &matrix_b,
+                                config,
+                                mapping,
+                            );
                         info!("start running the sim");
                         gearbox.run(&matrix_a, batch, top_k);
                         TOTAL_FINISHED_TASKS.fetch_add(1, Ordering::Relaxed);

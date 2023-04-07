@@ -1,6 +1,6 @@
 //! Mapping for same subarray
 //!
-
+#![allow(dead_code, unused)]
 use crate::pim::configv2::ConfigV2;
 
 use super::*;
@@ -22,59 +22,26 @@ impl<'a> SameSubarrayMapping<'a> {
 }
 
 impl<'a> Mapping for SameSubarrayMapping<'a> {
-    fn get_row_id_evil(&self, mat_b_row_id: LogicRowId, _col_id: LogicColId) -> PhysicRowId {
-        PhysicRowId(mat_b_row_id.0)
+    fn get_matrix_b_location(
+        &self,
+        mat_b_row_id: LogicRowId,
+    ) -> (SubarrayId, PhysicRowId, PhysicColId) {
+        todo!()
     }
 
-    fn get_tsv_id_from_subarray(&self, sub_array_id: SubarrayId) -> TsvId {
-        TsvId(sub_array_id.0 / self.config.subarrays / self.config.banks.num)
-    }
-    #[allow(unused)]
-    fn get_tsv_id_from_ring(&self, ring_id: RingId) -> TsvId {
-        // the ring id is the same as the tsv id
-        TsvId(ring_id.0)
-    }
-
-    #[allow(dead_code)]
-    fn ring_port_from_subarray(&self, subarray_id: SubarrayId) -> RingPort {
-        RingPort(((subarray_id.0 / self.config.subarrays) % self.config.banks.num) as u8)
+    fn get_result_dense_location(
+        &self,
+        target_row_id: LogicRowId,
+        col_id: LogicColId,
+    ) -> (SubarrayId, PhysicRowId, PhysicColId) {
+        todo!()
     }
 
-    /// get the ring_buffer_id(bank id) from subarray id
-    fn ring_buffer_id(&self, subarray_id: SubarrayId) -> RingBufferId {
-        // return the global bank id
-        RingBufferId(subarray_id.0 / self.config.subarrays)
-    }
-    /// from bank id to ring id
-    fn ring_id_from_subarray(&self, partition_id: SubarrayId) -> RingId {
-        let bank_id = partition_id.0 / self.config.subarrays;
-        RingId(bank_id / self.config.banks.num)
-    }
-
-    fn get_row_id(&self, mat_b_row_id: LogicRowId, _col_id: LogicColId) -> PhysicRowId {
-        PhysicRowId(mat_b_row_id.0)
-    }
-
-    /// fix a bug here, the one subarray do not contains the whole dense vec, so the col id should % self.col_per_partition
-    fn get_row_id_dense(&self, target_row_id: LogicRowId, col_id: LogicColId) -> PhysicRowId {
-        let real_col_id =
-            target_row_id.0 * self.col_per_partition * 4 + col_id.0 % self.col_per_partition;
-        PhysicRowId(real_col_id / 256)
-    }
-    /// fix a bug here, the one subarray do not contains the whole dense vec, so the col id should % self.col_per_partition
-    fn get_col_id_dense(&self, target_row_id: LogicRowId, col_id: LogicColId) -> usize {
-        let real_col_id =
-            target_row_id.0 * self.col_per_partition * 4 + col_id.0 % self.col_per_partition;
-        real_col_id % 256
-    }
-
-    fn get_partition_id_row(&self, row_id: LogicRowId) -> SubarrayId {
-        // the rows are distrubuted to every subarray
-        SubarrayId(row_id.0 / self.row_per_partition)
-    }
-
-    fn get_partition_id_col(&self, col_id: LogicColId) -> SubarrayId {
-        // the cols are distrubuted to every subarray
-        SubarrayId(col_id.0 / self.col_per_partition)
+    fn get_matrix_b_location_with_shift(
+        &self,
+        mat_b_row_id: LogicRowId,
+        shift: usize,
+    ) -> (SubarrayId, PhysicRowId, PhysicColId) {
+        todo!()
     }
 }

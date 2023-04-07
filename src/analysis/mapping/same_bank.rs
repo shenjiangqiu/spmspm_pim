@@ -2,6 +2,11 @@
 //!
 //! todo: implement this
 
+use std::fmt::Debug;
+
+use sprs::{num_kinds::Pattern, CsMatI};
+use tracing::debug;
+
 use crate::tools;
 
 use super::*;
@@ -12,265 +17,274 @@ struct BitsField {
 }
 
 impl BitsField {
+    #[allow(dead_code)]
     fn get(&self, addr: usize) -> usize {
         let mask = (1 << self.bits) - 1;
         (addr >> self.offset) & mask
     }
 }
 
-/// the row and dense col share the same mapping
-#[derive(Debug)]
-pub struct SameBankMapping {
-    subarray_bits: BitsField,
-    inner_insubarray_bits: BitsField,
-    bank_bits: BitsField,
-    channel_bits: BitsField,
-    outer_insubarray_bits: BitsField,
+pub struct RowIdMappingEntry {
+    pub bank_id: usize,
+    pub subarray_id: usize,
+    pub row_id: usize,
+    pub col_id: usize,
+    pub size: usize,
 }
-
-impl SameBankMapping {
-    /// return the row_id of some dense col
-    fn get_col_rowid(&self, col_id: usize) -> usize {
-        let inner_bits = self.inner_insubarray_bits.get(col_id);
-        let outer_bits = self.outer_insubarray_bits.get(col_id);
-        let inner_offset = self.inner_insubarray_bits.bits;
-        let total_bits = outer_bits << inner_offset | inner_bits;
-        // this is the id inside a subarray, we should get the row id from it, each row contains 256/4 = 64 data
-
-        total_bits >> 6
-    }
-
-    /// return the col_id of some dense col
-    fn get_col_colid(&self, col_id: usize) -> usize {
-        let inner_bits = self.inner_insubarray_bits.get(col_id);
-        let outer_bits = self.outer_insubarray_bits.get(col_id);
-        let inner_offset = self.inner_insubarray_bits.bits;
-        let total_bits = outer_bits << inner_offset | inner_bits;
-        // this is the id inside a subarray, we should get the row id from it, each row contains 256/4 = 64 data
-        // and the bit shif(4 bytes for the data)
-        (total_bits & ((1 << 6) - 1)) << 2
-    }
-
-    /// return the row_id of some sparse row
-    fn get_row_rowid(&self, row_id: usize) -> usize {
-        let inner_bits = self.inner_insubarray_bits.get(row_id);
-        let outer_bits = self.outer_insubarray_bits.get(row_id);
-        let inner_offset = self.inner_insubarray_bits.bits;
-        let total_bits = outer_bits << inner_offset | inner_bits;
-        // this is already the row id, because each row will occupy the whole row!
-        total_bits
-    }
-
-    /// return the col_id of some sparse row
-    /// no such thing, because the col_id is always 0!!!
-    #[allow(dead_code)]
-    fn get_row_colid(&self, _row_id: usize) -> usize {
-        0
-    }
-
-    /// return the global subarray id
-    fn get_global_subarray_id(&self, row_id: usize) -> usize {
-        let channel_id = self.channel_bits.get(row_id);
-        let bank_id = self.bank_bits.get(row_id);
-        let subarray_id = self.subarray_bits.get(row_id);
-        (channel_id << (self.bank_bits.bits + self.subarray_bits.bits))
-            | (bank_id << self.subarray_bits.bits)
-            | subarray_id
+impl Debug for RowIdMappingEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "{} {} {} {} {}",
+            self.bank_id, self.subarray_id, self.row_id, self.col_id, self.size,
+        ))
     }
 }
 
-impl SameBankMapping {
+impl RowIdMappingEntry {
     pub fn new(
-        total_rows: usize,
-        total_banks: usize,
-        total_channels: usize,
-        total_subarrays: usize,
+        bank_id: usize,
+        subarray_id: usize,
+        row_id: usize,
+        col_id: usize,
+        size: usize,
     ) -> Self {
-        let bank_bits = tools::math::count_to_log(total_banks);
-        let total_bits = tools::math::count_to_log(total_rows);
-        let subarray_bits = tools::math::count_to_log(total_subarrays);
-        let channel_bits = tools::math::count_to_log(total_channels);
-        let row_bits = total_bits - 1 - bank_bits - subarray_bits - channel_bits;
-        // first calculate howmany rows for a banks in average
-        let subarray_bits = BitsField {
-            bits: subarray_bits,
-            offset: 0,
-        };
-        let inner_insubarray_bits = BitsField {
-            bits: row_bits,
-            offset: subarray_bits.offset + subarray_bits.bits,
-        };
-        let bank_bits = BitsField {
-            bits: bank_bits,
-            offset: inner_insubarray_bits.offset + inner_insubarray_bits.bits,
-        };
-        let channel_bits = BitsField {
-            bits: channel_bits,
-            offset: bank_bits.offset + bank_bits.bits,
-        };
-        let outer_insubarray_bits = BitsField {
-            bits: 1,
-            offset: channel_bits.offset + channel_bits.bits,
-        };
-
         Self {
-            subarray_bits,
-            inner_insubarray_bits,
-            bank_bits,
-            channel_bits,
-            outer_insubarray_bits,
+            bank_id,
+            subarray_id,
+            row_id,
+            col_id,
+            size,
         }
     }
 }
+#[allow(unused)]
+struct DenseIdMappingEntry {
+    pub bank_id: usize,
+    pub subarray_id: usize,
+    // the id shift
+    pub shift: usize,
+}
+impl Debug for DenseIdMappingEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "{} {} {}",
+            self.bank_id, self.subarray_id, self.shift,
+        ))
+    }
+}
+/// the row and dense col share the same mapping
+/// it follows the principles:
+/// 1. we first partition the graph into several partitions, each partition have a range of row
+///    ids,
+/// 2. we set the num of the partitions to the number of the banks, and make sure the weight of
+///    each partition are similar
+/// 3. after the mapping, we create the layout of the mapping insde the bank,
+#[derive(Debug)]
+pub struct SameBankMapping {
+    /// the mappings for matrix b rows
+    row_id_mappings: Vec<RowIdMappingEntry>,
+    /// the dense size for each subarray.
+    subarray_dense_size: Vec<usize>,
+    /// the mappings for the dense result
+    dense_id_mapping: Vec<DenseIdMappingEntry>,
+    subarray_bits: usize,
+    col_bits: usize,
+}
 
+impl SameBankMapping {
+    /// create the new mapping,
+    /// in this mapping, it achieve the goles defined here [`SameBankMapping`]
+    /// # Arguments
+    /// * `total_rows` - the total number of rows
+    /// * `total_banks` - the total number of banks in a channel
+    /// * `total_channels` - the total number of channels
+    /// * `total_subarrays` - the total number of subarrays in a bank
+    /// * `col_size` - the size of the col in a subarray row
+    /// * `graph` - the graph
+    /// # Returns
+    /// the mapping
+    pub fn new(
+        total_banks: usize,
+        total_channels: usize,
+        total_subarrays: usize,
+        col_size: usize,
+        graph: &CsMatI<Pattern, u32>,
+    ) -> Self {
+        // first, distribute the rows to banks,
+        // first calculate the average weight
+        let global_total_banks = total_channels * total_banks;
+
+        let graph_rows = graph.rows();
+        let average_rows_per_bank = graph_rows / global_total_banks;
+        let bank_rows = (0..global_total_banks).map(|i| {
+            if i != global_total_banks - 1 {
+                (i * average_rows_per_bank, (i + 1) * average_rows_per_bank)
+            } else {
+                (i * average_rows_per_bank, graph_rows)
+            }
+        });
+        let mut row_id_mappings = vec![];
+        let mut dense_id_mapping = vec![];
+        let mut total_subarray_dense_size = vec![];
+        // in this loop, will setup the row_id_mappings, which contains the detailed mappings for
+        // each row!
+        for (bank_id, (start_row_id, end_row_id)) in bank_rows.into_iter().enumerate() {
+            // this represent a bank, first create the subarray status for each subarray
+            #[derive(Debug, Clone, Copy)]
+            struct SubarrayStatus {
+                row_id: usize,
+                col_id: usize,
+            }
+            let mut subarray_status = vec![
+                SubarrayStatus {
+                    row_id: 0,
+                    col_id: 0,
+                };
+                total_subarrays
+            ];
+            let mut subarray_size = vec![0; total_subarrays];
+            // for each row, put it into the subarray
+            for (subarray_id, row_id) in (start_row_id..end_row_id)
+                .enumerate()
+                .map(|(index, row_id)| (index % total_subarrays, row_id))
+            {
+                // put that row into that subarray
+                let subarray = &mut subarray_status[subarray_id];
+                let subarray_row_id = subarray.row_id;
+                let subarray_col_id = subarray.col_id;
+                let row_len = graph.outer_view(row_id).unwrap().nnz();
+                assert_eq!(row_id_mappings.len(), row_id);
+                let shift = subarray_size[subarray_id];
+                dense_id_mapping.push(DenseIdMappingEntry {
+                    bank_id,
+                    shift,
+                    subarray_id,
+                });
+                row_id_mappings.push(RowIdMappingEntry::new(
+                    bank_id,
+                    subarray_id,
+                    subarray_row_id,
+                    subarray_col_id,
+                    row_len * 4,
+                ));
+
+                // update the subarray
+
+                let next_col = subarray_col_id + row_len * 4;
+                let next_row = subarray_row_id + next_col / col_size;
+                let next_col = next_col % col_size;
+                subarray.row_id = next_row;
+                subarray.col_id = next_col;
+                subarray_size[subarray_id] += 1;
+            }
+
+            total_subarray_dense_size.extend(subarray_size);
+        }
+
+        // now we have the row_id_mappings, we can create the mapping
+        // debug!("the row_id_mappings is {:?}", row_id_mappings);
+
+        let col_bits = tools::math::count_to_log(col_size);
+        let subarray_bits = tools::math::count_to_log(total_subarrays);
+        Self {
+            col_bits,
+            row_id_mappings,
+            subarray_bits,
+
+            subarray_dense_size: total_subarray_dense_size,
+            dense_id_mapping,
+        }
+    }
+}
 impl Mapping for SameBankMapping {
-    fn get_row_id_evil(&self, mat_b_row_id: LogicRowId, _col_id: LogicColId) -> PhysicRowId {
-        PhysicRowId(mat_b_row_id.0)
+    fn get_matrix_b_location(
+        &self,
+        mat_b_row_id: LogicRowId,
+    ) -> (SubarrayId, PhysicRowId, PhysicColId) {
+        let location = self.row_id_mappings.get(mat_b_row_id.0).unwrap();
+        let subarray_id = location.subarray_id;
+        let bank_id = location.bank_id;
+        let subarray_id = bank_id << self.subarray_bits | subarray_id;
+        (
+            subarray_id.into(),
+            location.row_id.into(),
+            location.col_id.into(),
+        )
     }
 
-    fn get_tsv_id_from_subarray(&self, sub_array_id: SubarrayId) -> TsvId {
-        //     TsvId(sub_array_id.0 / self.config.subarrays / self.config.banks.num)
-        // should be the channel id
-        TsvId(sub_array_id.0 >> self.subarray_bits.bits >> self.bank_bits.bits)
+    fn get_result_dense_location(
+        &self,
+        target_row_id: LogicRowId,
+        col_id: LogicColId,
+    ) -> (SubarrayId, PhysicRowId, PhysicColId) {
+        let dense_id_mapping = self.dense_id_mapping.get(col_id.0).unwrap();
+        let subarray_id = dense_id_mapping.subarray_id;
+        let bank_id = dense_id_mapping.bank_id;
+        let subarray_id = bank_id << self.subarray_bits | subarray_id;
+        let shift = dense_id_mapping.shift;
+        let size = self.subarray_dense_size[subarray_id];
+        let real_shift = size * target_row_id.0 + shift;
+        let real_shift = real_shift * 4;
+        let row_id = real_shift >> self.col_bits;
+        let col_id = real_shift & ((1 << self.col_bits) - 1);
+
+        (subarray_id.into(), row_id.into(), col_id.into())
     }
 
-    fn get_tsv_id_from_ring(&self, ring_id: RingId) -> TsvId {
-        //     TsvId(ring_id.0)
-        // ring id is also the channel id
-        TsvId(ring_id.0)
-    }
+    fn get_matrix_b_location_with_shift(
+        &self,
+        mat_b_row_id: LogicRowId,
+        shift: usize,
+    ) -> (SubarrayId, PhysicRowId, PhysicColId) {
+        let location = self.row_id_mappings.get(mat_b_row_id.0).unwrap();
+        let col_id = location.col_id + shift * 4;
+        let row_id = location.row_id + col_id >> self.col_bits;
+        let col_id = col_id & ((1 << self.col_bits) - 1);
+        let subarray_id = location.subarray_id;
+        let bank_id = location.bank_id;
+        let subarray_id = bank_id << self.subarray_bits | subarray_id;
 
-    fn ring_port_from_subarray(&self, subarray_id: SubarrayId) -> RingPort {
-        //     RingPort(((subarray_id.0 / self.config.subarrays) % self.config.banks.num) as u8)
-        // ring port is the relative bank id
-        let id = (subarray_id.0 >> self.subarray_bits.bits) & ((1 << self.bank_bits.bits) - 1);
-        RingPort(id as u8)
-    }
-
-    fn ring_buffer_id(&self, subarray_id: SubarrayId) -> RingBufferId {
-        //     RingBufferId(subarray_id.0 / self.config.subarrays)
-        // ring buffer id is the absolute bank id
-        RingBufferId(subarray_id.0 >> self.subarray_bits.bits)
-    }
-
-    fn ring_id_from_subarray(&self, partition_id: SubarrayId) -> RingId {
-        // ring id is the channel id
-        RingId(partition_id.0 >> self.subarray_bits.bits >> self.bank_bits.bits)
-    }
-
-    fn get_row_id(&self, mat_b_row_id: LogicRowId, _col_id: LogicColId) -> PhysicRowId {
-        PhysicRowId(self.get_row_rowid(mat_b_row_id.0))
-    }
-
-    fn get_row_id_dense(&self, _target_row_id: LogicRowId, col_id: LogicColId) -> PhysicRowId {
-        //     let real_col_id =
-        //         target_row_id.0 * self.col_per_partition * 4 + col_id.0 % self.col_per_partition;
-        //     PhysicRowId(real_col_id / 256)
-        // frist calculate howmany bits are used for the entire row of dense addr
-
-        // then shift the row id to the left and plus the row addr.
-        // step 1, calculate the row size
-
-        PhysicRowId(self.get_col_rowid(col_id.0))
-    }
-
-    fn get_col_id_dense(&self, _target_row_id: LogicRowId, col_id: LogicColId) -> usize {
-        self.get_col_colid(col_id.0)
-    }
-
-    fn get_partition_id_row(&self, row_id: LogicRowId) -> SubarrayId {
-        SubarrayId(self.get_global_subarray_id(row_id.0))
-    }
-
-    fn get_partition_id_col(&self, col_id: LogicColId) -> SubarrayId {
-        SubarrayId(self.get_global_subarray_id(col_id.0))
+        (subarray_id.into(), row_id.into(), col_id.into())
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
+    use sprs::TriMatI;
+    use tracing::metadata::LevelFilter;
+
+    use crate::init_logger_stderr;
+
     use super::*;
     #[test]
-    fn test_mapping() {
-        let mapping = SameBankMapping::new(100, 4, 4, 4);
-        assert_eq!(mapping.subarray_bits, BitsField { bits: 2, offset: 0 });
-        assert_eq!(
-            mapping.inner_insubarray_bits,
-            BitsField { bits: 0, offset: 2 }
-        );
-        assert_eq!(mapping.bank_bits, BitsField { bits: 2, offset: 2 });
-        assert_eq!(mapping.channel_bits, BitsField { bits: 2, offset: 4 });
-        assert_eq!(
-            mapping.outer_insubarray_bits,
-            BitsField { bits: 1, offset: 6 }
-        );
-    }
-    #[test]
-    fn test_mapping_1000() {
-        let mapping = SameBankMapping::new(1000, 4, 4, 4);
-        assert_eq!(mapping.subarray_bits, BitsField { bits: 2, offset: 0 });
-        assert_eq!(
-            mapping.inner_insubarray_bits,
-            BitsField { bits: 3, offset: 2 }
-        );
-        assert_eq!(mapping.bank_bits, BitsField { bits: 2, offset: 5 });
-        assert_eq!(mapping.channel_bits, BitsField { bits: 2, offset: 7 });
-        assert_eq!(
-            mapping.outer_insubarray_bits,
-            BitsField { bits: 1, offset: 9 }
-        );
-    }
-    #[test]
-    fn test_row_id() {
-        let mapping = SameBankMapping::new(1000, 4, 4, 4);
-        let row_id = mapping.get_row_rowid(10);
-        assert_eq!(row_id, 2);
-        let sp_col_id = mapping.get_row_colid(row_id);
-        assert_eq!(sp_col_id, 0);
-
-        let dense_row_id = mapping.get_col_rowid(10);
-        // still the same row
-        assert_eq!(dense_row_id, 0);
-        let dense_col_id = mapping.get_col_colid(10);
-        // the col id is 2, each data have 4 bytes, so it's 8
-        assert_eq!(dense_col_id, 8);
-
-        let dense_row_id = mapping.get_col_rowid(100);
-        assert_eq!(dense_row_id, 0);
-        let dense_col_id = mapping.get_col_colid(100);
-        assert_eq!(dense_col_id, 4);
-
-        // test the outer
-        let dense_row_id = mapping.get_col_rowid(999);
-        assert_eq!(dense_row_id, 0);
-        let dense_col_id = mapping.get_col_colid(999);
-        assert_eq!(dense_col_id, 9 * 4);
+    fn test() {
+        init_logger_stderr(LevelFilter::DEBUG);
+        let matrix: TriMatI<Pattern, u32> =
+            sprs::io::read_matrix_market("mtx/bcspwr03.mtx").unwrap();
+        let matrix = matrix.to_csr();
+        let mapping = super::SameBankMapping::new(4, 4, 4, 4, &matrix);
+        println!("{:?}", mapping);
     }
 
     #[test]
-    fn test_row_id_10000() {
-        let mapping = SameBankMapping::new(10000, 4, 4, 4);
-
-        // test the outer
-        let dense_row_id = mapping.get_col_rowid(9999);
-        assert_eq!(dense_row_id, 3);
-        let dense_col_id = mapping.get_col_colid(9999);
-        assert_eq!(dense_col_id, 3 * 4);
-    }
-
-    #[test]
-    fn test_sp_row_id_10000() {
-        let mapping = SameBankMapping::new(10000, 4, 4, 4);
-
-        // test the outer
-        let dense_row_id = mapping.get_row_rowid(9999);
-        assert_eq!(dense_row_id, 195);
-    }
-
-    #[test]
-    fn test_global_subarray_id() {
-        let mapping = SameBankMapping::new(10000, 4, 4, 4);
-        let subarray_id = mapping.get_global_subarray_id(9999);
-        assert_eq!(subarray_id, 15);
+    fn test_dist() {
+        init_logger_stderr(LevelFilter::DEBUG);
+        let matrix: TriMatI<Pattern, u32> =
+            sprs::io::read_matrix_market("mtx/bcspwr03.mtx").unwrap();
+        let matrix = matrix.to_csr();
+        let mapping = super::SameBankMapping::new(4, 4, 4, 4, &matrix);
+        let mut bank_counts = BTreeMap::new();
+        let mut subarray_counts = BTreeMap::new();
+        for row_mapping in mapping.row_id_mappings.iter() {
+            let bank_id = row_mapping.bank_id;
+            let subarray_id = row_mapping.subarray_id;
+            let subarray_id = bank_id << mapping.subarray_bits | subarray_id;
+            *bank_counts.entry(bank_id).or_insert(0) += 1;
+            *subarray_counts.entry(subarray_id).or_insert(0) += 1;
+        }
+        println!("bank_counts: {:?}", bank_counts);
+        println!("subarray_counts: {:?}", subarray_counts);
     }
 }

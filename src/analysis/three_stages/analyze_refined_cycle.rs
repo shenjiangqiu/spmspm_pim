@@ -1229,9 +1229,9 @@ impl<'a, 'b, MP: Mapping> GearboxSim<'a, 'b, MP> {
                 update_stats(&mut self.hardware, &mut global_stats);
                 // the data for overflow:
             }
-            if (target_id + 1) / current_batch == 1000 {
-                break;
-            }
+            // if (target_id + 1) / current_batch == 1000 {
+            //     break;
+            // }
             // add the result to the total result and continue to the next line
         }
         global_stats

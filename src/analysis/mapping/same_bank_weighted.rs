@@ -289,6 +289,11 @@ mod tests {
         let mapping = super::SameBankWeightedMapping::new(4, 4, 4, 4, &matrix);
         println!("{:?}", mapping);
     }
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if now graph is found.
     #[test]
     fn test_dist() {
         let matrix: TriMatI<Pattern, u32> =

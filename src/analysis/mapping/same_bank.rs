@@ -5,7 +5,6 @@
 use std::fmt::Debug;
 
 use sprs::{num_kinds::Pattern, CsMatI};
-use tracing::debug;
 
 use crate::tools;
 

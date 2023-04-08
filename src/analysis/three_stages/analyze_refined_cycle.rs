@@ -963,20 +963,18 @@ impl<'a, MP: Mapping> Hardware<'a, MP> {
     fn distribute_local_evil_row(
         &mut self,
         target_row_id: LogicRowId,
-        mat_b_row_id: LogicRowId,
+        _mat_b_row_id: LogicRowId,
         col_id: LogicColId,
     ) {
         // just need to write to the local dense result
-        let source_location = self
-            .mapping
-            .get_result_dense_location(target_row_id, col_id);
+
         let result_location = self
             .mapping
             .get_result_dense_location(target_row_id, col_id);
 
-        self.sub_array[source_location.0 .0].add_task(
-            source_location.1,
-            source_location.2,
+        self.sub_array[result_location.0 .0].add_task(
+            0.into(),
+            0.into(),
             result_location.1,
             true,
             result_location.2,

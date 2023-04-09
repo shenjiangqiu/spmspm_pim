@@ -26,7 +26,7 @@ graph_path = [
   "mtx/outerspace/email-Enron/email-Enron.mtx",
   "mtx/outerspace/offshore/offshore.mtx",
 ]
-mapping = "SameBank"
+mapping = "SameBankWeightedMapping"
 output_path = 'output/gearbox_out_v2_all.json'
 precharge_cycle = 22
 rows = 512

@@ -214,7 +214,10 @@ impl SameBankWeightedMapping {
         }
 
         // now we have the row_id_mappings, we can create the mapping
-        debug!("the row_id_mappings is {:?}", row_id_mappings);
+        // debug!("the row_id_mappings is {:?}", row_id_mappings);
+        assert_eq!(row_id_mappings.len(), graph.rows());
+        assert_eq!(dense_id_mapping.len(), graph.rows());
+        assert_eq!(graph.rows(), graph.cols());
         let subarray_bits = tools::math::count_to_log(total_subarrays);
         let col_bits = tools::math::count_to_log(col_size);
         Self {

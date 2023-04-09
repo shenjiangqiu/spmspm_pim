@@ -48,7 +48,7 @@ use std::{
         RwLock,
     },
 };
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 use crate::{
     draw::DrawFn,
@@ -1416,6 +1416,14 @@ fn compute_gearbox(config: &ConfigV2, path: &str) -> Vec<SingleResult> {
     let _guard_sim = _guard.pop().unwrap();
 
     let tri_mat: TriMatI<Pattern, u32> = sprs::io::read_matrix_market(path).unwrap();
+    if tri_mat.rows() != tri_mat.cols() {
+        error!(
+            "graph: {} have different rows {} and cols: {}",
+            path,
+            tri_mat.rows(),
+            tri_mat.cols()
+        );
+    }
     info!(
         "finished read the matrix: time:{:.2} secs",
         read_time.elapsed().as_secs_f32()
@@ -1566,7 +1574,13 @@ where
     let total_tasks = total_graphs * total_configs;
     info!(?total_graphs, ?total_configs, ?total_tasks, "total tasks");
     *TOTAL_TASKS.write().unwrap() = total_tasks;
-
+    // frist test the graph struct
+    for g in &config.graph_path {
+        let graph: MatrixHead<Pattern, u32> = sprs::io::read_matrix_market_head(g).unwrap();
+        if graph.rows != graph.cols {
+            panic!("graph: {} rows:{},cols:{}", g, graph.rows, graph.cols);
+        }
+    }
     let results: Vec<_> = config
         .graph_path
         .par_iter()

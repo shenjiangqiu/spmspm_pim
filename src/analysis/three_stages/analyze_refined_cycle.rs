@@ -1300,6 +1300,22 @@ pub struct GlobalStatV2 {
     pub remote_cycle_mean: usize,
     pub real_cycle_max: usize,
 }
+impl GlobalStatV2 {
+    pub fn to_string(&self) -> String {
+        format!(
+            "{} {} {} {} {} {} {} {} {}",
+            self.local_cycle_max,
+            self.local_cycle_mean,
+            self.local_dist_cycle_max,
+            self.local_dist_cycle_mean,
+            self.dispatch_cycle_max,
+            self.dispatch_cycle_mean,
+            self.remote_cycle_max,
+            self.remote_cycle_mean,
+            self.real_cycle_max,
+        )
+    }
+}
 
 /// we need to get more infomation:
 ///

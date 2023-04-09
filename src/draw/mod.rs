@@ -153,7 +153,10 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
             todo!()
         }
         DrawType::DrawTraceSplitAll(gearbox_result) => {
-            refined::draw_trace_max_local_disp_all::draw(gearbox_result)?
+            refined::draw_new_mapping_cycle::draw(gearbox_result)?
+        }
+        DrawType::DrawSimpleCycle(gearbox_result) => {
+            refined::draw_new_mapping_cycle::draw(gearbox_result)?
         }
     }
     Ok(())

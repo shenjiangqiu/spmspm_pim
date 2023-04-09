@@ -121,6 +121,7 @@ pub enum DrawType {
     DrawTrace(ExecResult),
     DrawTraceSplit(ExecResult),
     DrawTraceSplitAll(ExecResult),
+    DrawSimpleCycle(ExecResult),
 }
 
 #[derive(Debug, Args)]

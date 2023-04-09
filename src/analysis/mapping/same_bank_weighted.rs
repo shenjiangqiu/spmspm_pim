@@ -102,40 +102,48 @@ impl SameBankWeightedMapping {
         let weight = graph.nnz();
         let global_total_banks = total_channels * total_banks;
 
-        let average_nnz = weight / global_total_banks;
-        if average_nnz == 0 {
-            panic!("the average_nnz should not be zero");
-        }
+        let average_nnz: f32 = weight as f32 / global_total_banks as f32;
+        debug!("total_nnz: {}", weight);
+        debug!("average_nnz: {}", average_nnz);
+
         // then map the rows into banks
         let mut bank_rows = vec![];
         let mut accumualted_nnz = 0;
-        let mut target_nnz = average_nnz;
         // setup the bank rows to contains the start row id of each bank
         //
         // will make sure each bank have similar weight
-        for (i, row) in graph.outer_iterator().enumerate() {
-            let nnz = row.nnz();
-            let new_nnz = accumualted_nnz + nnz;
-            if new_nnz > target_nnz {
-                // new can push a row to the config, but first we should decide
-                // if the current row to the bank or next bank?
-                let gap_right = new_nnz - target_nnz;
-                let gap_left = target_nnz - accumualted_nnz;
-                if gap_right < gap_left {
-                    // put this one to current bank
-                    bank_rows.push(i + 1);
-                } else {
-                    // no not push this one to the current bank, put this one to the next one
-                    //
-                    bank_rows.push(i);
-                }
-                target_nnz += average_nnz;
+        let mut row_id = 0;
+        let mut graph_iter = graph.outer_iterator();
+        'outer: for bank_id in 0..global_total_banks {
+            let target_nnz = (bank_id + 1) as f32 * average_nnz;
+            debug!("target_nnz for bank: {} :{}", bank_id, target_nnz);
+            if accumualted_nnz as f32 > target_nnz {
+                debug!(
+                    "accumulated_nnz: {} is larger than: {}, push {} to bank {}",
+                    accumualted_nnz, target_nnz, row_id, bank_id
+                );
+                bank_rows.push(row_id);
+                continue;
             }
-            accumualted_nnz = new_nnz;
+            while let Some(row) = graph_iter.next() {
+                row_id += 1;
+                accumualted_nnz += row.nnz();
+                if accumualted_nnz as f32 > target_nnz {
+                    debug!(
+                        "accumulated_nnz: {} is larger than: {}, push {} to bank {}",
+                        accumualted_nnz, target_nnz, row_id, bank_id
+                    );
+                    bank_rows.push(row_id);
+                    continue 'outer;
+                }
+            }
+            break;
         }
-        // now put all else to the last if exist
-        bank_rows.push(graph.rows());
+        while bank_rows.len() < global_total_banks {
+            bank_rows.push(graph.rows());
+        }
 
+        debug!("bank_rows: {}", bank_rows.len());
         // now all bank have the rows, distribute them to the subarrays
         let mut row_id_mappings = vec![];
         let mut dense_id_mapping = vec![];
@@ -296,6 +304,7 @@ mod tests {
     /// Panics if now graph is found.
     #[test]
     fn test_dist() {
+        init_logger_stderr(LevelFilter::DEBUG);
         let matrix: TriMatI<Pattern, u32> =
             sprs::io::read_matrix_market("mtx/bcspwr03.mtx").unwrap();
         let matrix = matrix.to_csr();

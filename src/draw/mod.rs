@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 pub mod show_global_dist;
 use std::{error::Error, fmt::Debug, path::Path};
 
@@ -146,9 +148,9 @@ pub fn draw_with_type(args: DrawType) -> eyre::Result<()> {
             todo!()
         }
         DrawType::ShowCycle(gearbox_result) => show_cycle::draw(gearbox_result)?,
-        DrawType::ShowAvgMax(gearbox_result) => todo!(),
+        DrawType::ShowAvgMax(_gearbox_result) => todo!(),
         DrawType::ShowDetailedAvgMax(gearbox_result) => show_global_dist::draw(gearbox_result)?,
-        DrawType::DrawTrace(gearbox_result) => todo!(),
+        DrawType::DrawTrace(_gearbox_result) => todo!(),
         DrawType::DrawTraceSplit(gearbox_result) => {
             todo!()
         }

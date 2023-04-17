@@ -19,6 +19,8 @@
 //!                ||----w |
 //!                ||     ||
 //! ```
+#![allow(unused)]
+
 use crate::analysis::mapping::same_bank::SameBankMapping;
 use crate::analysis::mapping::same_bank_weighted::SameBankWeightedMapping;
 use crate::analysis::mapping::*;

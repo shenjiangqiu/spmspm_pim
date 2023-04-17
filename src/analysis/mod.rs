@@ -318,7 +318,7 @@ pub fn do_analyze(
                     )?;
                 }
                 cli::AnalyzeType::AnalyzeRealOneHotJump => {
-                    let config_v2 = ConfigV2::new(config);
+                    // let config_v2 = ConfigV2::new(config);
                     // do_analyze_by_batch_and_topk(&config_v2, &config_v2.output_path, todo!())?;
                 }
                 cli::AnalyzeType::NewAnalysis => {

@@ -24,7 +24,6 @@ pub enum Direction {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
 
     use itertools::Itertools;
 
@@ -56,7 +55,7 @@ mod tests {
         let b = a
             .into_iter()
             .into_grouping_map_by(|k| k % 2)
-            .fold_first(|r, k, v| r + v);
+            .fold_first(|r, _k, v| r + v);
         println!("{:?}", b);
     }
 }

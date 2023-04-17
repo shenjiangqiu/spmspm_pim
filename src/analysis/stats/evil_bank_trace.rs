@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};

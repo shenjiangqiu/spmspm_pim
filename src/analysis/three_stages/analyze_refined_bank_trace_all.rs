@@ -19,6 +19,7 @@
 //!                ||----w |
 //!                ||     ||
 //! ```
+#![allow(unused)]
 use crate::analysis::mapping::*;
 use crate::tools::{self, stop_signal};
 use crate::{

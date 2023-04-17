@@ -1,10 +1,16 @@
+use eyre::Context;
+use itertools::Itertools;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use sprs::io::MatrixHead;
 use sprs::{num_kinds::Pattern, CsMatI, TriMatI};
 use std::io::BufWriter;
+use std::mem::size_of;
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs::File,
 };
+
 use tracing::{debug, info};
 
 use crate::analysis::translate_mapping;
@@ -376,32 +382,46 @@ fn run_with_mapping(
 }
 pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
     info!("start simulation");
-    let mut total_graph_results = Vec::new();
-    for graph in &config.graph_path {
-        info!("run graph: {}", graph);
-        let matrix_tri: TriMatI<Pattern, u32> =
-            sprs::io::read_matrix_market_from_bufread(&mut file_server::file_reader(&graph)?)?;
-        let rows = matrix_tri.rows();
-        let cols = matrix_tri.cols();
-        assert_eq!(rows, cols);
-        let row_evil_threshold = (rows as f32 * 0.0005) as usize;
-        let row_evil_threshold = row_evil_threshold.max(1);
-        let result = match config.mapping {
-            crate::pim::configv2::MappingType::SameSubarray => todo!(),
-            crate::pim::configv2::MappingType::SameBank => {
-                let (mapping, matrix_tri) = translate_mapping::same_bank::SameBankMapping::new(
-                    config.banks.num,
-                    config.channels.num,
-                    config.subarrays,
-                    row_evil_threshold,
-                    config.columns,
-                    &matrix_tri,
-                );
-                run_with_mapping(mapping, &config, &matrix_tri)?
-            }
-            crate::pim::configv2::MappingType::SameBankWeightedMapping => {
-                let (mapping, matrix_tri) =
-                    translate_mapping::weighted::SameBankWeightedMapping::new(
+    let total_graph_results: Vec<eyre::Result<RealJumpResult>> = config
+        .graph_path
+        .par_iter()
+        .map(|graph| {
+            info!("run graph: {}", graph);
+            // first allocate the memory quota
+            let matrix_head: MatrixHead<Pattern, u32> =
+                sprs::io::read_matrix_market_from_bufread_head(&mut file_server::file_reader(
+                    graph,
+                )?)?;
+            let rows = matrix_head.rows;
+            let nnz = matrix_head.nnz;
+
+            // allocate he hardware guard, for each subarray, there need at least 128 bytes to save the statistics
+            let hardware_size = config.channels.num
+                * config.bank_groups.num
+                * config.banks.num
+                * (size_of::<(usize, usize)>()
+                    + (config.subarrays
+                        * (size_of::<RowCycle>() * 3 + size_of::<(usize, usize)>() * 3)));
+            let matrix_size = rows * size_of::<usize>() + nnz * size_of::<u32>();
+            // there will be 4 copy of matrics during initialization
+            let mut memory_sections = vec![hardware_size];
+            memory_sections.extend([matrix_size; 4]);
+            let mut matrix_guard = crate::acquire_memory_sections(&memory_sections);
+
+            let matrix_tri: TriMatI<Pattern, u32> = sprs::io::read_matrix_market_from_bufread(
+                &mut file_server::file_reader(graph)
+                    .wrap_err(format!("fail to read path:{}", graph))?,
+            )
+            .wrap_err(format!("fail to parse mtx format in file {}", graph))?;
+            let rows = matrix_tri.rows();
+            let cols = matrix_tri.cols();
+            assert_eq!(rows, cols);
+            let row_evil_threshold = (rows as f32 * 0.0005) as usize;
+            let row_evil_threshold = row_evil_threshold.max(1);
+            let result = match config.mapping {
+                crate::pim::configv2::MappingType::SameSubarray => todo!(),
+                crate::pim::configv2::MappingType::SameBank => {
+                    let (mapping, matrix_tri) = translate_mapping::same_bank::SameBankMapping::new(
                         config.banks.num,
                         config.channels.num,
                         config.subarrays,
@@ -409,13 +429,45 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
                         config.columns,
                         &matrix_tri,
                     );
-                run_with_mapping(mapping, &config, &matrix_tri)?
-            }
-        };
-        total_graph_results.push((graph, result));
-        // let mut simualtor = RealJumpSimulator;
-        // let result = simualtor.run(matrix_tri_translated, filter)?;
-    }
+                    // after created the mapping, there will be 2 copy of the matrix remained
+                    matrix_guard.pop().unwrap();
+                    matrix_guard.pop().unwrap();
+
+                    run_with_mapping(mapping, &config, &matrix_tri)?
+                    // free the hardware guard here, it's automatically dropped
+                }
+                crate::pim::configv2::MappingType::SameBankWeightedMapping => {
+                    let (mapping, matrix_tri) =
+                        translate_mapping::weighted::SameBankWeightedMapping::new(
+                            config.banks.num,
+                            config.channels.num,
+                            config.subarrays,
+                            row_evil_threshold,
+                            config.columns,
+                            &matrix_tri,
+                        );
+                    // after created the mapping, there will be 2 copy of the matrix remained
+                    matrix_guard.pop().unwrap();
+                    matrix_guard.pop().unwrap();
+                    run_with_mapping(mapping, &config, &matrix_tri)
+                        .wrap_err("fail to run the real simulator")?
+                }
+            };
+            // it's automatically dropped, but we need to force drop it here to make sure the matrix drop before the matrix guard
+            //free the matrix
+            drop(matrix_tri);
+            // free the matrix guard
+            drop(matrix_guard);
+            Ok(result)
+        })
+        .collect();
+    let total_graph_results = total_graph_results
+        .into_iter()
+        .map(|r| r.wrap_err("fail to run experiemnt").unwrap())
+        .collect_vec();
+
+    // let mut simualtor = RealJumpSimulator;
+    // let result = simualtor.run(matrix_tri_translated, filter)?;
     serde_json::to_writer_pretty(
         BufWriter::new(File::create(&config.output_path)?),
         &total_graph_results,

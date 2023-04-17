@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 use sprs::{num_kinds::Pattern, TriMatI};
 use tracing::info;
 
-use crate::pim::configv2::{ConfigV2, ConfigV3};
+use crate::pim::configv2::ConfigV3;
 
-use super::{evil_filter::EvilFilter, translate_mapping::TranslateMapping};
+use super::translate_mapping::TranslateMapping;
 
 pub mod real_jump;
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
@@ -21,6 +21,7 @@ pub fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
             real_jump::run_simulation(config)?;
         }
     }
+    info!("analyze finished in {:?}", current_time.elapsed());
     Ok(())
 }
 

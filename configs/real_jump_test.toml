@@ -1,0 +1,60 @@
+
+activate_cycle = 22
+analysis = "RealJump"
+cas = 22
+columns = 16
+dram_type = 'DDR4'
+graph_path = [
+  "mtx/test_large.mtx",
+]
+# mapping = "SameSubarray"
+# mapping = "SameBank"
+mapping = "SameBankWeightedMapping"
+output_path = 'output/real_jump_test.json'
+precharge_cycle = 22
+rows = 512
+subarray_provider_size = 2
+subarray_task_queue_size = 2
+subarrays = 2
+window_size = 0
+
+[channels]
+max_msg_generated = 2
+max_msg_in = 2
+max_msg_out = 2
+merger_num = 16
+num = 1
+
+[ranks]
+max_msg_generated = 2
+max_msg_in = 2
+max_msg_out = 2
+merger_num = 12
+num = 1
+
+[chips]
+max_msg_generated = 2
+max_msg_in = 2
+max_msg_out = 2
+merger_num = 8
+num = 1
+
+[bank_groups]
+max_msg_generated = 2
+max_msg_in = 2
+max_msg_out = 2
+merger_num = 8
+num = 1
+
+[banks]
+max_msg_generated = 2
+max_msg_in = 2
+max_msg_out = 2
+merger_num = 8
+num = 2
+
+[gearbox_config]
+batch = [1, 2, 4, 8, 16]
+layers = 8
+stacks = 4
+topk = [0.0005]

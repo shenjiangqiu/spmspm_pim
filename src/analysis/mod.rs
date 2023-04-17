@@ -1,6 +1,10 @@
 //! # the analysis module
 //! show the key timing and bandwidth
-//!
+pub mod remap_analyze;
+
+pub mod evil_filter;
+pub mod translate_mapping;
+
 pub mod results;
 pub mod stats;
 pub mod traits;
@@ -11,7 +15,7 @@ use std::path::Path;
 use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
 
-use crate::pim::configv2::ConfigV2;
+use crate::pim::configv2::{ConfigV2, ConfigV3};
 use crate::{cli, pim::config::Config};
 use crate::{draw, init_logger, RunArgs, Simulator};
 use crate::{init_logger_stderr, AnalyzeArgs};
@@ -312,6 +316,14 @@ pub fn do_analyze(
                         &config_v2.output_path,
                         three_stages::analyze_refined_cycle::analyze_gearbox,
                     )?;
+                }
+                cli::AnalyzeType::AnalyzeRealOneHotJump => {
+                    let config_v2 = ConfigV2::new(config);
+                    // do_analyze_by_batch_and_topk(&config_v2, &config_v2.output_path, todo!())?;
+                }
+                cli::AnalyzeType::NewAnalysis => {
+                    let config_v2 = ConfigV3::new(config);
+                    remap_analyze::run_simulation(config_v2)?;
                 }
             }
         }

@@ -44,3 +44,10 @@ opt-level = 3
 [build-dependencies]
 clap = {version = "4.2.1", features = ["derive", "color"]}
 clap_complete = "4.2.0"
+
+[dev-dependencies]
+criterion = "0.4.0"
+
+[[bench]]
+harness = false
+name = "divbench"

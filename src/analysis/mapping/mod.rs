@@ -9,9 +9,14 @@ macro_rules! generate_id{
     ($t:ty;$($name:ident),+ $(,)?) => {
         $(
             /// a wrapper for the id
-            #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, )]
+            #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq,Hash )]
             #[repr(transparent)]
             pub struct $name(pub $t);
+            impl $name {
+                pub fn new(id: $t) -> Self {
+                    Self(id)
+                }
+            }
             impl std::fmt::Debug for $name {
                 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                     self.0.fmt(f)

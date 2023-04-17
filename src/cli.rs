@@ -92,6 +92,10 @@ pub enum AnalyzeType {
     AnalyzeBankTraceAll,
     /// the new mapping: real col mapping
     AnalyzeRefinedNewMappingCycle,
+    /// the mapping for real one-hot jump
+    AnalyzeRealOneHotJump,
+    ///
+    NewAnalysis,
 }
 
 #[derive(Debug, Subcommand)]

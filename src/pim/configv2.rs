@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::analysis::analyze_gearbox::GearboxConfigV2;
+use crate::analysis::{analyze_gearbox::GearboxConfigV2, remap_analyze::SimulationType};
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub enum DramType {
@@ -47,6 +47,32 @@ pub struct ConfigV2 {
     pub gearbox_config: GearboxConfigV2,
     pub mapping: MappingType,
 }
+
+#[allow(missing_docs)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct ConfigV3 {
+    // memory config
+    pub dram_type: DramType,
+    pub subarray_provider_size: usize,
+    pub subarray_task_queue_size: usize,
+    pub subarrays: usize,
+    pub precharge_cycle: u64,
+    pub activate_cycle: u64,
+    pub cas: u64,
+    pub rows: usize,
+    pub window_size: usize,
+    pub columns: usize,
+    pub graph_path: Vec<String>,
+    pub output_path: PathBuf,
+    pub channels: LevelConfig,
+    pub ranks: LevelConfig,
+    pub chips: LevelConfig,
+    pub bank_groups: LevelConfig,
+    pub banks: LevelConfig,
+    pub gearbox_config: GearboxConfigV2,
+    pub mapping: MappingType,
+    pub analysis: SimulationType,
+}
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub enum MappingType {
     #[default]
@@ -56,6 +82,11 @@ pub enum MappingType {
 }
 impl ConfigV2 {
     /// create a config from path
+    pub fn new(path: impl AsRef<Path>) -> Self {
+        toml::from_str(std::fs::read_to_string(path).unwrap().as_str()).unwrap()
+    }
+}
+impl ConfigV3 {
     pub fn new(path: impl AsRef<Path>) -> Self {
         toml::from_str(std::fs::read_to_string(path).unwrap().as_str()).unwrap()
     }

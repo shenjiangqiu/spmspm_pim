@@ -155,20 +155,133 @@ impl JumpCycle for MyJumpCycle {
 struct RowCycle {
     open_cycle: usize,
     normal_jump_cycle: NormalJumpCycle,
-    from_source_jump_cycle: FromSourceJumpCycle,
     ideal_jump_cycle: IdealJumpCycle,
+    from_source_jump_cycle: FromSourceJumpCycle,
     my_jump_cycle: MyJumpCycle,
     smart_jump_cycle: SmartJumpCycle,
 }
 
+///[normal, ideal, from_source, my, smart]
 #[derive(Serialize, Deserialize, Debug, Default)]
-struct FinalRowCycle {
+pub struct FinalRowCycle {
     normal_jump_cycle: (usize, NormalJumpCycle),
-    from_source_jump_cycle: (usize, FromSourceJumpCycle),
     ideal_jump_cycle: (usize, IdealJumpCycle),
+    from_source_jump_cycle: (usize, FromSourceJumpCycle),
     my_jump_cycle: (usize, MyJumpCycle),
     smart_jump_cycle: (usize, SmartJumpCycle),
 }
+
+impl FinalRowCycle {
+    pub fn into_split_iter(self) -> SplitIter {
+        SplitIter {
+            final_row_cycle: self,
+            index: 0,
+        }
+    }
+}
+
+pub struct SplitIter {
+    final_row_cycle: FinalRowCycle,
+    index: usize,
+}
+pub struct SplitItem {
+    pub oepn_row: usize,
+    pub one_jump: usize,
+    pub muliple_jump: usize,
+}
+impl Iterator for SplitIter {
+    type Item = SplitItem;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let result = match self.index {
+            0 => SplitItem {
+                oepn_row: self.final_row_cycle.normal_jump_cycle.0,
+                one_jump: self.final_row_cycle.normal_jump_cycle.1.jump_one_cycle,
+                muliple_jump: self.final_row_cycle.normal_jump_cycle.1.jump_multiple_cycle,
+            },
+            1 => SplitItem {
+                oepn_row: self.final_row_cycle.ideal_jump_cycle.0,
+                one_jump: self.final_row_cycle.ideal_jump_cycle.1.total_cycle,
+                muliple_jump: 0,
+            },
+            2 => SplitItem {
+                oepn_row: self.final_row_cycle.from_source_jump_cycle.0,
+                one_jump: self.final_row_cycle.from_source_jump_cycle.1.jump_one_cycle,
+                muliple_jump: self
+                    .final_row_cycle
+                    .from_source_jump_cycle
+                    .1
+                    .jump_multiple_cycle,
+            },
+            3 => SplitItem {
+                oepn_row: self.final_row_cycle.my_jump_cycle.0,
+                one_jump: self.final_row_cycle.my_jump_cycle.1.total_cycle,
+                muliple_jump: 0,
+            },
+            4 => SplitItem {
+                oepn_row: self.final_row_cycle.smart_jump_cycle.0,
+                one_jump: self.final_row_cycle.smart_jump_cycle.1.jump_one_cycle,
+                muliple_jump: self.final_row_cycle.smart_jump_cycle.1.jump_multiple_cycle,
+            },
+            _ => {
+                return None;
+            }
+        };
+        self.index += 1;
+        Some(result)
+    }
+}
+
+pub struct FinalRowCycleIter {
+    final_row_cycle: FinalRowCycle,
+    index: usize,
+}
+impl IntoIterator for FinalRowCycle {
+    type Item = usize;
+
+    type IntoIter = FinalRowCycleIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        FinalRowCycleIter {
+            final_row_cycle: self,
+            index: 0,
+        }
+    }
+}
+impl Iterator for FinalRowCycleIter {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index == 5 {
+            return None;
+        }
+        let total_cycle = match self.index {
+            0 => {
+                self.final_row_cycle.normal_jump_cycle.0
+                    + self.final_row_cycle.normal_jump_cycle.1.total()
+            }
+            1 => {
+                self.final_row_cycle.ideal_jump_cycle.0
+                    + self.final_row_cycle.ideal_jump_cycle.1.total()
+            }
+            2 => {
+                self.final_row_cycle.from_source_jump_cycle.0
+                    + self.final_row_cycle.from_source_jump_cycle.1.total()
+            }
+            3 => {
+                self.final_row_cycle.my_jump_cycle.0 + self.final_row_cycle.my_jump_cycle.1.total()
+            }
+            4 => {
+                self.final_row_cycle.smart_jump_cycle.0
+                    + self.final_row_cycle.smart_jump_cycle.1.total()
+            }
+            _ => return None,
+        };
+        self.index += 1;
+        Some(total_cycle)
+    }
+}
+
 impl RowCycle {
     fn update(&mut self, evil_row_status: (usize, usize), location: &RowLocation, size: usize) {
         // first update the open cycle
@@ -327,6 +440,7 @@ fn update_jump_cycle<T: JumpCycle>(
     final_jump_cycle.1.add(normal_jump_cycle);
     open_cycle + normal_jump_cycle.total()
 }
+///[normal, ideal, from_source, my, smart]
 fn update_row_cycle(
     current_round_cycle: &[RowCycle],
     final_cycle: &mut FinalRowCycle,
@@ -535,14 +649,17 @@ impl EvilColHandler {
         self.tasks
     }
 }
+///[normal, ideal, from_source, my, smart]
+
 #[derive(Serialize, Deserialize, Debug, Default)]
+
 pub struct RealJumpResult {
-    col_cycles: FinalRowCycle,
-    evil_row_cycles: FinalRowCycle,
-    row_cycles: FinalRowCycle,
-    dispatcher_sending_cycle: usize,
-    dispatcher_reading_cycle: usize,
-    real_cycle: [usize; 5],
+    pub col_cycles: FinalRowCycle,
+    pub evil_row_cycles: FinalRowCycle,
+    pub row_cycles: FinalRowCycle,
+    pub dispatcher_sending_cycle: usize,
+    pub dispatcher_reading_cycle: usize,
+    pub real_cycle: [usize; 5],
 }
 impl super::Simulator for RealJumpSimulator {
     type R = RealJumpResult;

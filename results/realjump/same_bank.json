@@ -1,0 +1,1626 @@
+[
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        980026164,
+        {
+          "jump_one_cycle": 1916735732,
+          "jump_multiple_cycle": 26460080176
+        }
+      ],
+      "from_source_jump_cycle": [
+        491681790,
+        {
+          "jump_one_cycle": 58243608,
+          "jump_multiple_cycle": 151423629588
+        }
+      ],
+      "ideal_jump_cycle": [
+        1369359162,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        1369359162,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        945233568,
+        {
+          "jump_one_cycle": 1935816552,
+          "jump_multiple_cycle": 14020710364
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        35797968,
+        {
+          "jump_one_cycle": 415572832,
+          "jump_multiple_cycle": 225794280
+        }
+      ],
+      "from_source_jump_cycle": [
+        38545218,
+        {
+          "jump_one_cycle": 479801548,
+          "jump_multiple_cycle": 351503992
+        }
+      ],
+      "ideal_jump_cycle": [
+        38732994,
+        {
+          "total_cycle": 491185048
+        }
+      ],
+      "my_jump_cycle": [
+        38732994,
+        {
+          "total_cycle": 491185048
+        }
+      ],
+      "smart_jump_cycle": [
+        36179118,
+        {
+          "jump_one_cycle": 431197376,
+          "jump_multiple_cycle": 166595204
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        39965598,
+        {
+          "jump_one_cycle": 14131367832,
+          "jump_multiple_cycle": 200729184
+        }
+      ],
+      "from_source_jump_cycle": [
+        39671028,
+        {
+          "jump_one_cycle": 14130508880,
+          "jump_multiple_cycle": 324727072
+        }
+      ],
+      "ideal_jump_cycle": [
+        39219588,
+        {
+          "total_cycle": 14136930132
+        }
+      ],
+      "my_jump_cycle": [
+        39219588,
+        {
+          "total_cycle": 14136930132
+        }
+      ],
+      "smart_jump_cycle": [
+        39624462,
+        {
+          "jump_one_cycle": 14134054780,
+          "jump_multiple_cycle": 145352608
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 33271183303,
+    "dispatcher_reading_cycle": 22646515299,
+    "real_cycle": [
+      35768000172,
+      35687193635,
+      35833964717,
+      35687193635,
+      35746134252
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        2186667144,
+        {
+          "jump_one_cycle": 442431328,
+          "jump_multiple_cycle": 27115146060
+        }
+      ],
+      "from_source_jump_cycle": [
+        1694380770,
+        {
+          "jump_one_cycle": 33862572,
+          "jump_multiple_cycle": 80799800408
+        }
+      ],
+      "ideal_jump_cycle": [
+        2381364954,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        2381364954,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        2204957700,
+        {
+          "jump_one_cycle": 459907656,
+          "jump_multiple_cycle": 16855449784
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        85148802,
+        {
+          "jump_one_cycle": 857486048,
+          "jump_multiple_cycle": 558683960
+        }
+      ],
+      "from_source_jump_cycle": [
+        85300686,
+        {
+          "jump_one_cycle": 851158364,
+          "jump_multiple_cycle": 745110388
+        }
+      ],
+      "ideal_jump_cycle": [
+        84678894,
+        {
+          "total_cycle": 903777600
+        }
+      ],
+      "my_jump_cycle": [
+        84678894,
+        {
+          "total_cycle": 903777600
+        }
+      ],
+      "smart_jump_cycle": [
+        85295538,
+        {
+          "jump_one_cycle": 874938572,
+          "jump_multiple_cycle": 387022788
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        59195502,
+        {
+          "jump_one_cycle": 7730545712,
+          "jump_multiple_cycle": 311792012
+        }
+      ],
+      "from_source_jump_cycle": [
+        58907772,
+        {
+          "jump_one_cycle": 7723484564,
+          "jump_multiple_cycle": 536437800
+        }
+      ],
+      "ideal_jump_cycle": [
+        56193930,
+        {
+          "total_cycle": 7755622520
+        }
+      ],
+      "my_jump_cycle": [
+        56193930,
+        {
+          "total_cycle": 7755622520
+        }
+      ],
+      "smart_jump_cycle": [
+        58409892,
+        {
+          "jump_one_cycle": 7739406280,
+          "jump_multiple_cycle": 226502368
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 5153886358,
+    "dispatcher_reading_cycle": 2879407869,
+    "real_cycle": [
+      10342241952,
+      9693141598,
+      10682556211,
+      9693141598,
+      10149725219
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        292760154,
+        {
+          "jump_one_cycle": 1173860,
+          "jump_multiple_cycle": 3306241112
+        }
+      ],
+      "from_source_jump_cycle": [
+        77838786,
+        {
+          "jump_one_cycle": 83928,
+          "jump_multiple_cycle": 8230804012
+        }
+      ],
+      "ideal_jump_cycle": [
+        352653534,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        352653534,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        235200240,
+        {
+          "jump_one_cycle": 1607560,
+          "jump_multiple_cycle": 2303521344
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        20142,
+        {
+          "jump_one_cycle": 29336,
+          "jump_multiple_cycle": 1590292
+        }
+      ],
+      "from_source_jump_cycle": [
+        19026,
+        {
+          "jump_one_cycle": 26896,
+          "jump_multiple_cycle": 2067132
+        }
+      ],
+      "ideal_jump_cycle": [
+        22716,
+        {
+          "total_cycle": 12424
+        }
+      ],
+      "my_jump_cycle": [
+        22716,
+        {
+          "total_cycle": 12424
+        }
+      ],
+      "smart_jump_cycle": [
+        19620,
+        {
+          "jump_one_cycle": 46512,
+          "jump_multiple_cycle": 1126472
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        330826626,
+        {
+          "jump_one_cycle": 173728044,
+          "jump_multiple_cycle": 2867328356
+        }
+      ],
+      "from_source_jump_cycle": [
+        270150282,
+        {
+          "jump_one_cycle": 173273216,
+          "jump_multiple_cycle": 4103183132
+        }
+      ],
+      "ideal_jump_cycle": [
+        377110404,
+        {
+          "total_cycle": 195905892
+        }
+      ],
+      "my_jump_cycle": [
+        377110404,
+        {
+          "total_cycle": 195905892
+        }
+      ],
+      "smart_jump_cycle": [
+        306029934,
+        {
+          "jump_one_cycle": 175212460,
+          "jump_multiple_cycle": 2089924200
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 108149940,
+    "dispatcher_reading_cycle": 91168266,
+    "real_cycle": [
+      3373522799,
+      573078184,
+      4548719685,
+      573078184,
+      2572359202
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 1107352,
+          "jump_multiple_cycle": 9495616
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 170508,
+          "jump_multiple_cycle": 25335160
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 1646328,
+          "jump_multiple_cycle": 5396444
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 2236,
+          "jump_multiple_cycle": 9372
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 964,
+          "jump_multiple_cycle": 19924
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 2828
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 2828
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 2712,
+          "jump_multiple_cycle": 5924
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        1153242,
+        {
+          "jump_one_cycle": 9253816,
+          "jump_multiple_cycle": 21212684
+        }
+      ],
+      "from_source_jump_cycle": [
+        853740,
+        {
+          "jump_one_cycle": 9188580,
+          "jump_multiple_cycle": 23809928
+        }
+      ],
+      "ideal_jump_cycle": [
+        1580958,
+        {
+          "total_cycle": 10561636
+        }
+      ],
+      "my_jump_cycle": [
+        1580958,
+        {
+          "total_cycle": 10561636
+        }
+      ],
+      "smart_jump_cycle": [
+        1098360,
+        {
+          "jump_one_cycle": 9106748,
+          "jump_multiple_cycle": 16144460
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 11365167,
+    "dispatcher_reading_cycle": 9358912,
+    "real_cycle": [
+      31634182,
+      13558667,
+      33877247,
+      13558667,
+      26388579
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 0,
+          "jump_multiple_cycle": 0
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 0,
+          "jump_multiple_cycle": 0
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 0,
+          "jump_multiple_cycle": 0
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 684,
+          "jump_multiple_cycle": 0
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 840,
+          "jump_multiple_cycle": 0
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 344,
+          "jump_multiple_cycle": 0
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 4082044,
+          "jump_multiple_cycle": 0
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 4082044,
+          "jump_multiple_cycle": 0
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 4082044
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 4082044
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 4082044,
+          "jump_multiple_cycle": 0
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 1882939,
+    "dispatcher_reading_cycle": 792350,
+    "real_cycle": [
+      4090768,
+      4090084,
+      4090920,
+      4090084,
+      4090428
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 499144,
+          "jump_multiple_cycle": 28954152
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 133248,
+          "jump_multiple_cycle": 47907040
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 1051624,
+          "jump_multiple_cycle": 15318892
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 18832,
+          "jump_multiple_cycle": 21112
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 4908,
+          "jump_multiple_cycle": 78760
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 23372
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 23372
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 19872,
+          "jump_multiple_cycle": 14200
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        1889460,
+        {
+          "jump_one_cycle": 25433240,
+          "jump_multiple_cycle": 20099816
+        }
+      ],
+      "from_source_jump_cycle": [
+        1242054,
+        {
+          "jump_one_cycle": 27416472,
+          "jump_multiple_cycle": 22566316
+        }
+      ],
+      "ideal_jump_cycle": [
+        1348056,
+        {
+          "total_cycle": 30721416
+        }
+      ],
+      "my_jump_cycle": [
+        1348056,
+        {
+          "total_cycle": 30721416
+        }
+      ],
+      "smart_jump_cycle": [
+        1693746,
+        {
+          "jump_one_cycle": 26492896,
+          "jump_multiple_cycle": 13562448
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 19208483,
+    "dispatcher_reading_cycle": 12596834,
+    "real_cycle": [
+      47484342,
+      32371771,
+      51330038,
+      32371771,
+      41842285
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        18058518,
+        {
+          "jump_one_cycle": 298872,
+          "jump_multiple_cycle": 246473032
+        }
+      ],
+      "from_source_jump_cycle": [
+        4880268,
+        {
+          "jump_one_cycle": 30396,
+          "jump_multiple_cycle": 734096088
+        }
+      ],
+      "ideal_jump_cycle": [
+        22114872,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        22114872,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        15558210,
+        {
+          "jump_one_cycle": 373848,
+          "jump_multiple_cycle": 167536564
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 12284,
+          "jump_multiple_cycle": 22928
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 10540,
+          "jump_multiple_cycle": 37820
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 4620
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 4620
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 12180,
+          "jump_multiple_cycle": 13448
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        23239854,
+        {
+          "jump_one_cycle": 17638548,
+          "jump_multiple_cycle": 230045740
+        }
+      ],
+      "from_source_jump_cycle": [
+        16211034,
+        {
+          "jump_one_cycle": 17715860,
+          "jump_multiple_cycle": 331853868
+        }
+      ],
+      "ideal_jump_cycle": [
+        27141228,
+        {
+          "total_cycle": 19215480
+        }
+      ],
+      "my_jump_cycle": [
+        27141228,
+        {
+          "total_cycle": 19215480
+        }
+      ],
+      "smart_jump_cycle": [
+        21028968,
+        {
+          "jump_one_cycle": 17827772,
+          "jump_multiple_cycle": 158430936
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 13368597,
+    "dispatcher_reading_cycle": 12351197,
+    "real_cycle": [
+      270959355,
+      46396642,
+      365829124,
+      46396642,
+      197313307
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 817104,
+          "jump_multiple_cycle": 13153732
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 259924,
+          "jump_multiple_cycle": 36881092
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 1331228,
+          "jump_multiple_cycle": 8175208
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 1368,
+          "jump_multiple_cycle": 104100
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 1252,
+          "jump_multiple_cycle": 162100
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 4916
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 4916
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 1612,
+          "jump_multiple_cycle": 73060
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        1960866,
+        {
+          "jump_one_cycle": 13485216,
+          "jump_multiple_cycle": 29574608
+        }
+      ],
+      "from_source_jump_cycle": [
+        1586772,
+        {
+          "jump_one_cycle": 13439772,
+          "jump_multiple_cycle": 34197764
+        }
+      ],
+      "ideal_jump_cycle": [
+        2245644,
+        {
+          "total_cycle": 14781620
+        }
+      ],
+      "my_jump_cycle": [
+        2245644,
+        {
+          "total_cycle": 14781620
+        }
+      ],
+      "smart_jump_cycle": [
+        1790550,
+        {
+          "jump_one_cycle": 13481644,
+          "jump_multiple_cycle": 21071992
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 10023491,
+    "dispatcher_reading_cycle": 5804706,
+    "real_cycle": [
+      45126242,
+      17263493,
+      49387670,
+      17263493,
+      36419614
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 499124,
+          "jump_multiple_cycle": 28954676
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 133256,
+          "jump_multiple_cycle": 47909076
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 1051664,
+          "jump_multiple_cycle": 15319168
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 18832,
+          "jump_multiple_cycle": 21112
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 4908,
+          "jump_multiple_cycle": 78760
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 23372
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 23372
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 19872,
+          "jump_multiple_cycle": 14200
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        1889532,
+        {
+          "jump_one_cycle": 25434164,
+          "jump_multiple_cycle": 20099964
+        }
+      ],
+      "from_source_jump_cycle": [
+        1242000,
+        {
+          "jump_one_cycle": 27417300,
+          "jump_multiple_cycle": 22566640
+        }
+      ],
+      "ideal_jump_cycle": [
+        1347246,
+        {
+          "total_cycle": 30723256
+        }
+      ],
+      "my_jump_cycle": [
+        1347246,
+        {
+          "total_cycle": 30723256
+        }
+      ],
+      "smart_jump_cycle": [
+        1693710,
+        {
+          "jump_one_cycle": 26494716,
+          "jump_multiple_cycle": 13561648
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 19209171,
+    "dispatcher_reading_cycle": 12597238,
+    "real_cycle": [
+      47485488,
+      32372783,
+      51331141,
+      32372783,
+      41843279
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 104952,
+          "jump_multiple_cycle": 9101928
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 19644,
+          "jump_multiple_cycle": 23579876
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 158304,
+          "jump_multiple_cycle": 5272020
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 82812,
+          "jump_multiple_cycle": 198372
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 50088,
+          "jump_multiple_cycle": 471844
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 105512
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 105512
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 84156,
+          "jump_multiple_cycle": 143052
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        365364,
+        {
+          "jump_one_cycle": 6226036,
+          "jump_multiple_cycle": 20166424
+        }
+      ],
+      "from_source_jump_cycle": [
+        134028,
+        {
+          "jump_one_cycle": 6876268,
+          "jump_multiple_cycle": 27504648
+        }
+      ],
+      "ideal_jump_cycle": [
+        354600,
+        {
+          "total_cycle": 9261572
+        }
+      ],
+      "my_jump_cycle": [
+        354600,
+        {
+          "total_cycle": 9261572
+        }
+      ],
+      "smart_jump_cycle": [
+        268542,
+        {
+          "jump_one_cycle": 7120100,
+          "jump_multiple_cycle": 12129580
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 3606117,
+    "dispatcher_reading_cycle": 2722795,
+    "real_cycle": [
+      27039359,
+      9745635,
+      35037008,
+      9745635,
+      19746942
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 39728,
+          "jump_multiple_cycle": 30534852
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 3536,
+          "jump_multiple_cycle": 122783348
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 58292,
+          "jump_multiple_cycle": 22562808
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        3834,
+        {
+          "jump_one_cycle": 9008,
+          "jump_multiple_cycle": 68528
+        }
+      ],
+      "from_source_jump_cycle": [
+        3672,
+        {
+          "jump_one_cycle": 8996,
+          "jump_multiple_cycle": 157276
+        }
+      ],
+      "ideal_jump_cycle": [
+        4500,
+        {
+          "total_cycle": 9056
+        }
+      ],
+      "my_jump_cycle": [
+        4500,
+        {
+          "total_cycle": 9056
+        }
+      ],
+      "smart_jump_cycle": [
+        3996,
+        {
+          "jump_one_cycle": 9184,
+          "jump_multiple_cycle": 47176
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        4556574,
+        {
+          "jump_one_cycle": 8687216,
+          "jump_multiple_cycle": 58501452
+        }
+      ],
+      "from_source_jump_cycle": [
+        3349692,
+        {
+          "jump_one_cycle": 8395144,
+          "jump_multiple_cycle": 74010240
+        }
+      ],
+      "ideal_jump_cycle": [
+        6336522,
+        {
+          "total_cycle": 9491676
+        }
+      ],
+      "my_jump_cycle": [
+        6336522,
+        {
+          "total_cycle": 9491676
+        }
+      ],
+      "smart_jump_cycle": [
+        4169610,
+        {
+          "jump_one_cycle": 8759624,
+          "jump_multiple_cycle": 43115144
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 6789210,
+    "dispatcher_reading_cycle": 4794325,
+    "real_cycle": [
+      71826612,
+      15863173,
+      85925020,
+      15863173,
+      56104734
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 202524,
+          "jump_multiple_cycle": 36283860
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 22644,
+          "jump_multiple_cycle": 56449108
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 351420,
+          "jump_multiple_cycle": 18388840
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 11508,
+          "jump_multiple_cycle": 22928
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 5632,
+          "jump_multiple_cycle": 71972
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 14492
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 14492
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 12640,
+          "jump_multiple_cycle": 14780
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        1815354,
+        {
+          "jump_one_cycle": 20271156,
+          "jump_multiple_cycle": 18581212
+        }
+      ],
+      "from_source_jump_cycle": [
+        1144134,
+        {
+          "jump_one_cycle": 22686732,
+          "jump_multiple_cycle": 20381252
+        }
+      ],
+      "ideal_jump_cycle": [
+        1366164,
+        {
+          "total_cycle": 25116312
+        }
+      ],
+      "my_jump_cycle": [
+        1366164,
+        {
+          "total_cycle": 25116312
+        }
+      ],
+      "smart_jump_cycle": [
+        1556262,
+        {
+          "jump_one_cycle": 21677408,
+          "jump_multiple_cycle": 12074684
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 18448016,
+    "dispatcher_reading_cycle": 12323584,
+    "real_cycle": [
+      40773354,
+      27310201,
+      44325122,
+      27310201,
+      35503750
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 518532,
+          "jump_multiple_cycle": 1089904
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 483412,
+          "jump_multiple_cycle": 1675200
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 517852,
+          "jump_multiple_cycle": 369376
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 109220,
+          "jump_multiple_cycle": 514252
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 94448,
+          "jump_multiple_cycle": 1382988
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 125000
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 125000
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 112348,
+          "jump_multiple_cycle": 344196
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        44442,
+        {
+          "jump_one_cycle": 32105484,
+          "jump_multiple_cycle": 477012
+        }
+      ],
+      "from_source_jump_cycle": [
+        38700,
+        {
+          "jump_one_cycle": 32102804,
+          "jump_multiple_cycle": 2011864
+        }
+      ],
+      "ideal_jump_cycle": [
+        37836,
+        {
+          "total_cycle": 32180836
+        }
+      ],
+      "my_jump_cycle": [
+        37836,
+        {
+          "total_cycle": 32180836
+        }
+      ],
+      "smart_jump_cycle": [
+        41292,
+        {
+          "jump_one_cycle": 32145800,
+          "jump_multiple_cycle": 262040
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 10433090,
+    "dispatcher_reading_cycle": 2618570,
+    "real_cycle": [
+      33413400,
+      32584070,
+      35764862,
+      32584070,
+      33099170
+    ]
+  },
+  {
+    "col_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 808316,
+          "jump_multiple_cycle": 59903728
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 111300,
+          "jump_multiple_cycle": 177046404
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 0
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 1419808,
+          "jump_multiple_cycle": 39558932
+        }
+      ]
+    },
+    "evil_row_cycles": {
+      "normal_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 8832,
+          "jump_multiple_cycle": 24544
+        }
+      ],
+      "from_source_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 2556,
+          "jump_multiple_cycle": 114056
+        }
+      ],
+      "ideal_jump_cycle": [
+        0,
+        {
+          "total_cycle": 10664
+        }
+      ],
+      "my_jump_cycle": [
+        0,
+        {
+          "total_cycle": 10664
+        }
+      ],
+      "smart_jump_cycle": [
+        0,
+        {
+          "jump_one_cycle": 9240,
+          "jump_multiple_cycle": 18884
+        }
+      ]
+    },
+    "row_cycles": {
+      "normal_jump_cycle": [
+        4852026,
+        {
+          "jump_one_cycle": 22948752,
+          "jump_multiple_cycle": 54693068
+        }
+      ],
+      "from_source_jump_cycle": [
+        4407660,
+        {
+          "jump_one_cycle": 23541128,
+          "jump_multiple_cycle": 65461448
+        }
+      ],
+      "ideal_jump_cycle": [
+        5430024,
+        {
+          "total_cycle": 26680304
+        }
+      ],
+      "my_jump_cycle": [
+        5430024,
+        {
+          "total_cycle": 26680304
+        }
+      ],
+      "smart_jump_cycle": [
+        4569012,
+        {
+          "jump_one_cycle": 22621928,
+          "jump_multiple_cycle": 44171896
+        }
+      ]
+    },
+    "dispatcher_sending_cycle": 25587349,
+    "dispatcher_reading_cycle": 20009664,
+    "real_cycle": [
+      82528505,
+      33763307,
+      93527143,
+      33763307,
+      71399573
+    ]
+  }
+]

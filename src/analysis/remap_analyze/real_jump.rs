@@ -497,6 +497,7 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
             drop(matrix_tri);
             // free the matrix guard
             drop(matrix_guard);
+            info!("finish graph: {}", graph);
             Ok(result)
         })
         .collect();

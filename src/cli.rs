@@ -4,10 +4,18 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
+#[derive(Debug, Clone, ValueEnum)]
+pub enum LogType {
+    File,
+    Stderr,
+}
 /// the command line interface of the simulator
 #[derive(Parser, Debug)]
 #[command(author, about, version)]
 pub struct Cli {
+    /// the log type
+    #[clap(short, long)]
+    pub log_type: Option<LogType>,
     /// subcommand
     #[clap(subcommand)]
     pub subcmd: Operation,

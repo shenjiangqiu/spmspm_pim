@@ -15,6 +15,7 @@ use std::path::Path;
 use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
 
+use crate::cli::LogType;
 use crate::pim::configv2::{ConfigV2, ConfigV3};
 use crate::{cli, pim::config::Config};
 use crate::{draw, init_logger, RunArgs, Simulator};
@@ -27,6 +28,8 @@ use self::three_stages::analyze_refined_dispatcher_overflow;
 pub mod old;
 pub use old::*;
 pub mod three_stages;
+
+pub const EVIL_RATE: f32 = 0.0005;
 
 pub(self) static TOTAL_FINISHED_TASKS: AtomicUsize = AtomicUsize::new(0);
 pub(self) static TOTAL_TASKS: RwLock<usize> = RwLock::new(0);
@@ -63,9 +66,16 @@ pub fn do_analyze(
     cli: crate::Cli,
     non_blocking: tracing_appender::non_blocking::NonBlocking,
 ) -> Result<(), eyre::ErrReport> {
+    match cli.log_type.unwrap_or(LogType::File) {
+        LogType::File => {
+            init_logger(LevelFilter::INFO, non_blocking);
+        }
+        LogType::Stderr => {
+            init_logger_stderr(LevelFilter::INFO);
+        }
+    }
     match cli.subcmd {
         cli::Operation::Run(RunArgs { config }) => {
-            init_logger(LevelFilter::INFO, non_blocking);
             println!("run with config: {:?}", config);
             let config = Config::new(config);
             info!("building simulator");
@@ -76,7 +86,6 @@ pub fn do_analyze(
         }
 
         cli::Operation::Analyze(AnalyzeArgs { analyze, config }) => {
-            init_logger(LevelFilter::INFO, non_blocking);
             match analyze {
                 cli::AnalyzeType::All => {
                     println!("analyze with config: {:?}", config);
@@ -327,10 +336,7 @@ pub fn do_analyze(
                 }
             }
         }
-        cli::Operation::Draw(draw_args) => {
-            init_logger_stderr(LevelFilter::INFO);
-            draw::draw_with_type(draw_args.subcmd)?
-        }
+        cli::Operation::Draw(draw_args) => draw::draw_with_type(draw_args.subcmd)?,
     };
     Ok(())
 }

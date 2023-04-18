@@ -116,8 +116,9 @@ impl AverageMapping {
 
         // then handle the evil row
         // for each evil row, we biuld a subgraph for it
+        // fix the bug here, the row if the partial graph is evil_rows, otherwise the size will be too large!(2000GB+)
         let mut evil_row_sub_graph: Vec<TriMatI<Pattern, u32>> = (0..subarrays)
-            .map(|_| TriMatI::new((graph.rows(), graph.cols())))
+            .map(|_| TriMatI::new((evil_rows, graph.cols())))
             .collect();
         for (row_id, evil_row) in graph.outer_iterator().enumerate().take(evil_rows) {
             for col_id in evil_row.indices() {

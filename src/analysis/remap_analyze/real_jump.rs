@@ -13,7 +13,7 @@ use std::{
 
 use tracing::{debug, info};
 
-use crate::analysis::translate_mapping;
+use crate::analysis::{translate_mapping, EVIL_RATE};
 use crate::{
     analysis::{
         mapping::{LogicColId, LogicRowId, SubarrayId},
@@ -403,11 +403,51 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
                     + (config.subarrays
                         * (size_of::<RowCycle>() * 3 + size_of::<(usize, usize)>() * 3)));
             let matrix_size = rows * size_of::<usize>() + nnz * size_of::<u32>();
-            // there will be 4 copy of matrics during initialization
-            let mut memory_sections = vec![hardware_size];
-            memory_sections.extend([matrix_size; 4]);
-            let mut matrix_guard = crate::acquire_memory_sections(&memory_sections);
+            let row_evil_threshold = (rows as f32 * EVIL_RATE) as usize;
+            let row_evil_threshold = row_evil_threshold.max(1);
+            // for each subarray, it should keep a subgraph, the ind size is rows*size_of::<usize>(), the data size is nnz*size_of::<u32>()
+            let subarray_matrix_size = config.channels.num
+                * config.bank_groups.num
+                * config.banks.num
+                * config.subarrays
+                * row_evil_threshold
+                * size_of::<usize>()
+                + nnz * size_of::<u32>();
 
+            // there will be 4 copy of matrics during initialization
+            let mut memory_sections = vec![hardware_size, subarray_matrix_size];
+            memory_sections.extend([matrix_size; 4]);
+            info!("memory sections: {:?}", memory_sections);
+            let total_memory = memory_sections.iter().sum::<usize>();
+            let kb = total_memory / 1024;
+            let mb = kb / 1024;
+            let gb = mb / 1024;
+            if gb > 0 {
+                info!(
+                    "total memory: {} GB, {} MB, for graph:{}",
+                    gb,
+                    mb % 1024,
+                    graph
+                );
+            } else if mb > 0 {
+                info!(
+                    "total memory: {} MB, {} KB, for graph:{}",
+                    mb,
+                    kb % 1024,
+                    graph
+                );
+            } else if kb > 0 {
+                info!(
+                    "total memory: {} KB {} B  for graph:{}",
+                    kb,
+                    total_memory % 1024,
+                    graph
+                );
+            } else {
+                info!("total memory: {} B  for graph:{}", total_memory, graph);
+            }
+            let mut matrix_guard = crate::acquire_memory_sections(&memory_sections);
+            info!("Memory allocation succeed for graph: {}", graph);
             let matrix_tri: TriMatI<Pattern, u32> = sprs::io::read_matrix_market_from_bufread(
                 &mut file_server::file_reader(graph)
                     .wrap_err(format!("fail to read path:{}", graph))?,
@@ -416,8 +456,7 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
             let rows = matrix_tri.rows();
             let cols = matrix_tri.cols();
             assert_eq!(rows, cols);
-            let row_evil_threshold = (rows as f32 * 0.0005) as usize;
-            let row_evil_threshold = row_evil_threshold.max(1);
+
             let result = match config.mapping {
                 crate::pim::configv2::MappingType::SameSubarray => todo!(),
                 crate::pim::configv2::MappingType::SameBank => {

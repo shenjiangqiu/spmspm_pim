@@ -1,6 +1,6 @@
 pub mod jump;
 use serde::{Deserialize, Serialize};
-use sprs::{num_kinds::Pattern, TriMatI};
+use sprs::{num_kinds::Pattern, CsMatI};
 use tracing::info;
 
 use crate::pim::configv2::ConfigV3;
@@ -30,7 +30,7 @@ pub trait Simulator {
     type R;
     fn run(
         &mut self,
-        mapping: impl TranslateMapping,
-        matrix_tri_translated: &TriMatI<Pattern, u32>,
+        mapping: &impl TranslateMapping,
+        matrix_tri_translated: &CsMatI<Pattern, u32>,
     ) -> eyre::Result<Self::R>;
 }

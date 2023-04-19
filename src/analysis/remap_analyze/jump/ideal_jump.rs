@@ -9,13 +9,8 @@ pub struct IdealJumpCycle {
     pub total_cycle: usize,
 }
 impl IdealJumpCycle {
-    pub fn update(
-        &mut self,
-        _evil_row_status: (usize, usize),
-        _location: &RowLocation,
-        size: usize,
-    ) {
-        if _location.col_id.0 != _evil_row_status.1 {
+    pub fn update(&mut self, row_status: &(usize, usize), loc: &RowLocation, size: usize) {
+        if loc.col_id.0 != row_status.1 {
             // it' not the same col
             self.total_cycle += 1;
         }

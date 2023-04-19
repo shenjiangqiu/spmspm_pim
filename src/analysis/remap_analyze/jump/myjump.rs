@@ -18,7 +18,7 @@ pub struct MyJumpCycle {
 impl MyJumpCycle {
     pub fn update(
         &mut self,
-        evil_row_status: (usize, usize),
+        evil_row_status: &(usize, usize),
         location: &RowLocation,
         size: usize,
         remap_unit: usize,

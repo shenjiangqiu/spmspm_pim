@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use sprs::{num_kinds::Pattern, TriMatI};
+use sprs::{num_kinds::Pattern, CsMatI, TriMatI};
 use tracing::debug;
 
 use crate::tools;
@@ -29,12 +29,12 @@ impl SameBankMapping {
         evil_threshold: usize,
         cols: usize,
         graph: &TriMatI<Pattern, u32>,
-    ) -> (Self, TriMatI<Pattern, u32>) {
+        graph_csr: &CsMatI<Pattern, u32>,
+    ) -> (Self, CsMatI<Pattern, u32>) {
         // step 1, select the evil rows
-        let graph_csr = graph.to_csr();
         let initial_mapping =
             super::evil_mapping::build_evil_row_mapping(&graph_csr, evil_threshold);
-
+        drop(graph_csr);
         //step 2, create mapping for remaining rows
         let (initial_evil, initial_non_evil) = initial_mapping.split_at(evil_threshold);
         let non_evil_mapping = build_non_evil_mapping(
@@ -49,10 +49,11 @@ impl SameBankMapping {
             .chain(non_evil_mapping)
             .collect_vec();
 
-        let translated_graph = tools::remapping_translate::translate(graph.view(), &mapping);
+        let translated_graph =
+            tools::remapping_translate::translate(graph.view(), &mapping).to_csr();
 
         let row_sub_mapping = super::AverageMapping::new(
-            translated_graph.to_csr().view(),
+            translated_graph.view(),
             evil_threshold,
             total_subarrays * total_banks * total_channels,
             cols,
@@ -137,7 +138,8 @@ mod tests {
         init_logger_stderr(LevelFilter::DEBUG);
         let matrix: TriMatI<Pattern, u32> =
             sprs::io::read_matrix_market("mtx/bcspwr03.mtx").unwrap();
-        let (mapping, translated_matrix) = super::SameBankMapping::new(1, 2, 2, 16, 16, &matrix);
+        let (mapping, translated_matrix) =
+            super::SameBankMapping::new(1, 2, 2, 16, 16, &matrix, &matrix.to_csr());
         let translated_matrix_csr = translated_matrix.to_csr();
         // test the evil mapping
         for row in 0..16 {

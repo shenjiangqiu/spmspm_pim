@@ -13,6 +13,8 @@ use std::{
 
 use tracing::{debug, info};
 
+use crate::analysis::translate_mapping::same_bank::SameBankMapping;
+use crate::analysis::translate_mapping::weighted::SameBankWeightedMapping;
 use crate::analysis::{translate_mapping, EVIL_RATE};
 use crate::{
     analysis::{
@@ -163,41 +165,48 @@ impl Iterator for FinalRowCycleIter {
 impl RowCycle {
     fn update(
         &mut self,
-        evil_row_status: (usize, usize),
+        row_status: &(usize, usize),
         location: &RowLocation,
         size: usize,
         remap_cycle: usize,
         gap: usize,
     ) {
         // first update the open cycle
-        if evil_row_status.0 == location.row_id.0 {
+        if row_status.0 == location.row_id.0 {
             // no need to open row
         } else {
             self.open_cycle += 18;
         }
         // then calulate the jump cycle
-        self.normal_jump_cycle
-            .update(evil_row_status, location, size);
+        self.normal_jump_cycle.update(row_status, location, size);
         self.from_source_jump_cycle
-            .update(evil_row_status, location, size);
-        self.ideal_jump_cycle
-            .update(evil_row_status, location, size);
+            .update(row_status, location, size);
+        self.ideal_jump_cycle.update(row_status, location, size);
         self.my_jump_cycle
-            .update(evil_row_status, location, size, remap_cycle, gap);
-        self.smart_jump_cycle
-            .update(evil_row_status, location, size);
+            .update(row_status, location, size, remap_cycle, gap);
+        self.smart_jump_cycle.update(row_status, location, size);
     }
 }
 struct RealJumpSimulator {
+    /// the local read of evil row
     evil_row_status: Vec<(usize, usize)>,
     evil_row_cycles: Vec<RowCycle>,
+    /// the local read of non evil row
     non_evil_status: Vec<(usize, usize)>,
     non_evil_row_cycles: Vec<RowCycle>,
-    col_status: Vec<(usize, usize)>,
-    col_cycles: Vec<RowCycle>,
+    /// the remote write
+    col_status_remote: Vec<(usize, usize)>,
+    col_cycles_remote: Vec<RowCycle>,
+    /// the local write
+    col_status_local: Vec<(usize, usize)>,
+    col_cycles_local: Vec<RowCycle>,
+    /// the number of bits of subarrays
     subarray_bits: usize,
+    /// the (sending,receiving) status of each bank
     dispatcher_status: Vec<(usize, usize)>,
+    /// the cycle of each remap calculation
     remap_cycle: usize,
+    /// the gap between each remap stop
     gap: usize,
 }
 
@@ -224,8 +233,10 @@ impl RealJumpSimulator {
         let subarray_bits = tools::math::count_to_log(subarray_size);
         Self {
             subarray_bits,
-            col_cycles: vec![Default::default(); global_subarray_size],
-            col_status: vec![(0, 0); global_subarray_size],
+            col_cycles_local: vec![Default::default(); global_subarray_size],
+            col_status_local: vec![(0, 0); global_subarray_size],
+            col_cycles_remote: vec![Default::default(); global_subarray_size],
+            col_status_remote: vec![(0, 0); global_subarray_size],
             dispatcher_status: vec![(0, 0); global_bank_size],
             evil_row_cycles: vec![Default::default(); global_subarray_size],
             evil_row_status: vec![Default::default(); global_subarray_size],
@@ -245,7 +256,7 @@ impl RealJumpSimulator {
         );
         // it's the same row
         self.evil_row_cycles[location.subarray_id.0].update(
-            self.evil_row_status[location.subarray_id.0],
+            self.evil_row_status.get(location.subarray_id.0).unwrap(),
             location,
             size,
             self.remap_cycle,
@@ -257,35 +268,78 @@ impl RealJumpSimulator {
         debug!(?new_status);
     }
 
-    fn write_local(
-        &mut self,
+    fn write_dense(
         _target_id: LogicRowId,
         _target_col: LogicColId,
         col_location: &RowLocation,
+        status: &mut (usize, usize),
+        cycle: &mut RowCycle,
+        remap_cycle: usize,
+        gap: usize,
     ) {
-        let current_status = self.col_status[col_location.subarray_id.0];
-
         debug!(
-            ?current_status,
+            ?status,
             "write col for subarray{}: {:?}", col_location.subarray_id.0, col_location
         );
-        let remap_cycle = self.remap_cycle;
-        let gap = self.gap;
-        self.col_cycles[col_location.subarray_id.0].update(
-            current_status,
+        cycle.update(status, col_location, 1, remap_cycle, gap);
+        *status = (col_location.row_id.0, col_location.col_id.0);
+        debug!(?status);
+    }
+    fn write_dense_remote(
+        &mut self,
+        target_id: LogicRowId,
+        target_col: LogicColId,
+        col_location: &RowLocation,
+    ) {
+        let current_status = self
+            .col_status_remote
+            .get_mut(col_location.subarray_id.0)
+            .unwrap();
+
+        let current_cycle = self
+            .col_cycles_remote
+            .get_mut(col_location.subarray_id.0)
+            .unwrap();
+
+        Self::write_dense(
+            target_id,
+            target_col,
             col_location,
-            1,
-            remap_cycle,
-            gap,
+            current_status,
+            current_cycle,
+            self.remap_cycle,
+            self.gap,
         );
-        self.col_status[col_location.subarray_id.0] =
-            (col_location.row_id.0, col_location.col_id.0);
-        let new_status = self.col_status[col_location.subarray_id.0];
-        debug!(?new_status);
+    }
+    fn write_dense_local(
+        &mut self,
+        target_id: LogicRowId,
+        target_col: LogicColId,
+        col_location: &RowLocation,
+    ) {
+        let current_status = self
+            .col_status_local
+            .get_mut(col_location.subarray_id.0)
+            .unwrap();
+
+        let current_cycle = self
+            .col_cycles_local
+            .get_mut(col_location.subarray_id.0)
+            .unwrap();
+
+        Self::write_dense(
+            target_id,
+            target_col,
+            col_location,
+            current_status,
+            current_cycle,
+            self.remap_cycle,
+            self.gap,
+        );
     }
 
     fn read_local(&mut self, location: &RowLocation, nnz: usize) {
-        let current_status = self.non_evil_status[location.subarray_id.0];
+        let current_status = &self.non_evil_status[location.subarray_id.0];
         debug!(
             ?current_status,
             "read local for subarray{}: {:?}", location.subarray_id.0, location
@@ -317,7 +371,8 @@ impl RealJumpSimulator {
     }
 
     fn update_result(&mut self, result: &mut RealJumpResult) {
-        update_row_cycle(&self.col_cycles, &mut result.col_cycles);
+        update_row_cycle(&self.col_cycles_local, &mut result.local_dense_col_cycles);
+        update_row_cycle(&self.col_cycles_remote, &mut result.remote_dense_col_cycles);
         let evil_max = update_row_cycle(&self.evil_row_cycles, &mut result.evil_row_cycles);
         let non_evil_max = update_row_cycle(&self.non_evil_row_cycles, &mut result.row_cycles);
 
@@ -339,7 +394,8 @@ impl RealJumpSimulator {
         }
 
         // reset the cycle
-        self.col_cycles = vec![Default::default(); self.col_cycles.len()];
+        self.col_cycles_local = vec![Default::default(); self.col_cycles_local.len()];
+        self.col_cycles_remote = vec![Default::default(); self.col_cycles_remote.len()];
         self.evil_row_cycles = vec![Default::default(); self.evil_row_cycles.len()];
         self.non_evil_row_cycles = vec![Default::default(); self.non_evil_row_cycles.len()];
         self.dispatcher_status = vec![(0, 0); self.dispatcher_status.len()];
@@ -407,10 +463,10 @@ fn update_row_cycle(
     //
 }
 
-fn run_with_mapping(
-    mapping: impl TranslateMapping,
+pub fn run_with_mapping(
+    mapping: &impl TranslateMapping,
     config: &ConfigV3,
-    matrix_tri: &TriMatI<Pattern, u32>,
+    matrix_csr: &CsMatI<Pattern, u32>,
 ) -> eyre::Result<RealJumpResult> {
     let remap_cycle = config.remap_cycle;
     let remap_gap = config.remap_gap;
@@ -423,8 +479,41 @@ fn run_with_mapping(
         remap_cycle,
         remap_gap,
     );
-    simulator.run(mapping, matrix_tri)
+    simulator.run(mapping, matrix_csr)
 }
+pub fn build_same_bank_mapping(
+    config: &ConfigV3,
+    matrix_tri: &TriMatI<Pattern, u32>,
+    matrix_csr: &CsMatI<Pattern, u32>,
+) -> (SameBankMapping, CsMatI<Pattern, u32>) {
+    let row_evil_threshold = (matrix_tri.rows() as f32 * EVIL_RATE) as usize;
+    translate_mapping::same_bank::SameBankMapping::new(
+        config.banks.num,
+        config.channels.num,
+        config.subarrays,
+        row_evil_threshold,
+        config.columns,
+        matrix_tri,
+        matrix_csr,
+    )
+}
+pub fn build_weighted_mapping(
+    config: &ConfigV3,
+    matrix_tri: &TriMatI<Pattern, u32>,
+    matrix_csr: &CsMatI<Pattern, u32>,
+) -> (SameBankWeightedMapping, CsMatI<Pattern, u32>) {
+    let row_evil_threshold = (matrix_tri.rows() as f32 * EVIL_RATE) as usize;
+    translate_mapping::weighted::SameBankWeightedMapping::new(
+        config.banks.num,
+        config.channels.num,
+        config.subarrays,
+        row_evil_threshold,
+        config.columns,
+        matrix_tri,
+        matrix_csr,
+    )
+}
+
 pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
     info!("start simulation");
     let total_graph_results: Vec<eyre::Result<RealJumpResult>> = config
@@ -446,12 +535,15 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
                 * config.banks.num
                 * (size_of::<(usize, usize)>()
                     + (config.subarrays
-                        * (size_of::<RowCycle>() * 3 + size_of::<(usize, usize)>() * 3)));
-            let matrix_size = rows * size_of::<usize>() + nnz * size_of::<u32>();
+                        * (size_of::<RowCycle>() * 3 + size_of::<(usize, usize)>() * 3)))
+                * 2;
+            let csr_matrix_size = rows * size_of::<usize>() + nnz * size_of::<u32>();
+            let tri_matrix_size = nnz * size_of::<u32>() * 2;
             let row_evil_threshold = (rows as f32 * EVIL_RATE) as usize;
             let row_evil_threshold = row_evil_threshold.max(1);
             // for each subarray, it should keep a subgraph, the ind size is rows*size_of::<usize>(), the data size is nnz*size_of::<u32>()
-            let subarray_matrix_size = config.channels.num
+            let subarray_matrix_size = 2
+                * config.channels.num
                 * config.bank_groups.num
                 * config.banks.num
                 * config.subarrays
@@ -460,10 +552,11 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
                 + nnz * size_of::<u32>();
 
             // there will be 4 copy of matrics during initialization
-            let mut memory_sections = vec![hardware_size, subarray_matrix_size];
-            memory_sections.extend([matrix_size; 4]);
+            let mut memory_sections = vec![hardware_size as u64, subarray_matrix_size as u64];
+            memory_sections.extend([csr_matrix_size as u64; 2]);
+            memory_sections.extend([tri_matrix_size as u64; 2]);
             info!("memory sections: {:?}", memory_sections);
-            let total_memory = memory_sections.iter().sum::<usize>();
+            let total_memory = memory_sections.iter().sum::<u64>();
             let kb = total_memory / 1024;
             let mb = kb / 1024;
             let gb = mb / 1024;
@@ -491,7 +584,7 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
             } else {
                 info!("total memory: {} B  for graph:{}", total_memory, graph);
             }
-            let mut matrix_guard = crate::acquire_memory_sections(&memory_sections);
+            let mut matrix_guard = crate::acquire_memory_sections(memory_sections);
             info!("Memory allocation succeed for graph: {}", graph);
             let matrix_tri: TriMatI<Pattern, u32> = sprs::io::read_matrix_market_from_bufread(
                 &mut file_server::file_reader(graph)
@@ -505,23 +598,26 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
             let result = match config.mapping {
                 crate::pim::configv2::MappingType::SameSubarray => todo!(),
                 crate::pim::configv2::MappingType::SameBank => {
-                    let (mapping, matrix_tri) = translate_mapping::same_bank::SameBankMapping::new(
-                        config.banks.num,
-                        config.channels.num,
-                        config.subarrays,
-                        row_evil_threshold,
-                        config.columns,
-                        &matrix_tri,
-                    );
+                    let (mapping, translated_csr) =
+                        translate_mapping::same_bank::SameBankMapping::new(
+                            config.banks.num,
+                            config.channels.num,
+                            config.subarrays,
+                            row_evil_threshold,
+                            config.columns,
+                            &matrix_tri,
+                            &matrix_tri.to_csr(),
+                        );
                     // after created the mapping, there will be 2 copy of the matrix remained
                     matrix_guard.pop().unwrap();
                     matrix_guard.pop().unwrap();
+                    matrix_guard.pop().unwrap();
 
-                    run_with_mapping(mapping, &config, &matrix_tri)?
+                    run_with_mapping(&mapping, &config, &translated_csr)?
                     // free the hardware guard here, it's automatically dropped
                 }
                 crate::pim::configv2::MappingType::SameBankWeightedMapping => {
-                    let (mapping, matrix_tri) =
+                    let (mapping, translated_csr) =
                         translate_mapping::weighted::SameBankWeightedMapping::new(
                             config.banks.num,
                             config.channels.num,
@@ -529,11 +625,13 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
                             row_evil_threshold,
                             config.columns,
                             &matrix_tri,
+                            &matrix_tri.to_csr(),
                         );
                     // after created the mapping, there will be 2 copy of the matrix remained
                     matrix_guard.pop().unwrap();
                     matrix_guard.pop().unwrap();
-                    run_with_mapping(mapping, &config, &matrix_tri)
+                    matrix_guard.pop().unwrap();
+                    run_with_mapping(&mapping, &config, &translated_csr)
                         .wrap_err("fail to run the real simulator")?
                 }
             };
@@ -585,7 +683,8 @@ impl EvilColHandler {
 #[derive(Serialize, Deserialize, Debug, Default)]
 
 pub struct RealJumpResult {
-    pub col_cycles: FinalRowCycle,
+    pub local_dense_col_cycles: FinalRowCycle,
+    pub remote_dense_col_cycles: FinalRowCycle,
     pub evil_row_cycles: FinalRowCycle,
     pub row_cycles: FinalRowCycle,
     pub dispatcher_sending_cycle: usize,
@@ -596,20 +695,19 @@ impl super::Simulator for RealJumpSimulator {
     type R = RealJumpResult;
     fn run(
         &mut self,
-        mapping: impl TranslateMapping,
-        matrix_tri_translated: &TriMatI<Pattern, u32>,
+        mapping: &impl TranslateMapping,
+        csr_translated: &CsMatI<Pattern, u32>,
     ) -> eyre::Result<Self::R> {
-        let matrix_csr: CsMatI<Pattern, u32> = matrix_tri_translated.to_csr();
         let mut result = RealJumpResult::default();
-        for (target_id, target_row) in matrix_csr.outer_iterator().enumerate() {
+        for (target_id, target_row) in csr_translated.outer_iterator().enumerate() {
             let mut evil_col_handler = EvilColHandler::new();
             // this is a single task
             for &matrix_b_row_id in target_row.indices() {
                 let matrix_b_row_id = LogicRowId::new(matrix_b_row_id as usize);
-                let matrix_b_row = matrix_csr.outer_view(matrix_b_row_id.0).unwrap();
+                let matrix_b_row = csr_translated.outer_view(matrix_b_row_id.0).unwrap();
                 if mapping.is_evil(matrix_b_row_id) {
                     let evil_location =
-                        mapping.get_location_evil(matrix_b_row_id, matrix_csr.view());
+                        mapping.get_location_evil(matrix_b_row_id, csr_translated.view());
                     for (_subarray_id, row_location, row_vec) in evil_location {
                         // send evil tasks to location
 
@@ -620,15 +718,15 @@ impl super::Simulator for RealJumpSimulator {
                             let col_location = mapping.get_dense_location(
                                 target_id.into(),
                                 target_col,
-                                matrix_csr.view(),
+                                csr_translated.view(),
                             );
                             // send write task to subarray
-                            self.write_local(target_id.into(), target_col, &col_location);
+                            self.write_dense_local(target_id.into(), target_col, &col_location);
                         }
                     }
                 } else {
                     // it's not evil, so read the row
-                    let location = mapping.get_location(matrix_b_row_id, matrix_csr.view());
+                    let location = mapping.get_location(matrix_b_row_id, csr_translated.view());
                     // send read task to subarray
                     self.read_local(&location, matrix_b_row.nnz());
                     // for each column , send write task to subarray
@@ -637,7 +735,7 @@ impl super::Simulator for RealJumpSimulator {
                         let dense_location = mapping.get_dense_location(
                             target_id.into(),
                             LogicColId::new(target_col as usize),
-                            matrix_csr.view(),
+                            csr_translated.view(),
                         );
                         if mapping.is_evil((target_col as usize).into()) {
                             // this is the evil col, should be handled differently
@@ -649,7 +747,7 @@ impl super::Simulator for RealJumpSimulator {
                         } else {
                             if location.subarray_id == dense_location.subarray_id {
                                 // send write task to subarray
-                                self.write_local(
+                                self.write_dense_local(
                                     target_id.into(),
                                     LogicColId(target_col as usize),
                                     &dense_location,
@@ -658,7 +756,7 @@ impl super::Simulator for RealJumpSimulator {
                                 // first send to the remote dispacher, ring and tsv,
                                 self.write_tsv_sending(location.subarray_id);
                                 self.write_tsv_reading(dense_location.subarray_id);
-                                self.write_local(
+                                self.write_dense_remote(
                                     target_id.into(),
                                     LogicColId(target_col as usize),
                                     &dense_location,
@@ -670,11 +768,18 @@ impl super::Simulator for RealJumpSimulator {
                 }
             }
             let all_tasks = evil_col_handler.finish();
-            for (_subarray_id, cols) in all_tasks {
+            for (subarray_id, cols) in all_tasks {
                 for col in cols {
                     let col_location =
-                        mapping.get_dense_location(target_id.into(), col, matrix_csr.view());
-                    self.write_local(target_id.into(), col, &col_location);
+                        mapping.get_dense_location(target_id.into(), col, csr_translated.view());
+                    if subarray_id == col_location.subarray_id {
+                        self.write_dense_local(target_id.into(), col, &col_location);
+                    } else {
+                        // first send to the remote dispacher, ring and tsv,
+                        self.write_tsv_sending(subarray_id);
+                        self.write_tsv_reading(col_location.subarray_id);
+                        self.write_dense_remote(target_id.into(), col, &col_location);
+                    }
                 }
             }
             // after each target_id, update the result and clear current status.

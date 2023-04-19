@@ -33,8 +33,13 @@ fn print_result(weighted_result: Vec<RealJumpResult>) {
             print!("{} ", evil_cycles);
         }
         println!();
-        print!("col_cycles: ");
-        for col_cycle in r.col_cycles {
+        print!("local col_cycles: ");
+        for col_cycle in r.local_dense_col_cycles {
+            print!("{} ", col_cycle);
+        }
+        println!();
+        print!("remote col_cycles: ");
+        for col_cycle in r.remote_dense_col_cycles {
             print!("{} ", col_cycle);
         }
         println!();

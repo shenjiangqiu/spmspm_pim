@@ -41,8 +41,16 @@ fn print_result(weighted_result: Vec<RealJumpResult>) {
             );
         }
         println!();
-        print!("col_cycles: ");
-        for col_cycle in r.col_cycles.into_split_iter() {
+        print!("local col_cycles: ");
+        for col_cycle in r.local_dense_col_cycles.into_split_iter() {
+            print!(
+                "{} {} {} ",
+                col_cycle.oepn_row, col_cycle.one_jump, col_cycle.muliple_jump
+            );
+        }
+        println!();
+        print!("remote col_cycles: ");
+        for col_cycle in r.remote_dense_col_cycles.into_split_iter() {
             print!(
                 "{} {} {} ",
                 col_cycle.oepn_row, col_cycle.one_jump, col_cycle.muliple_jump

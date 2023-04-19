@@ -369,7 +369,7 @@ pub trait AnalyzeTool {
             "info there will be {} bytes,start acquire the space",
             sim_size + temp_size
         );
-        let mut _guard = crate::acquire_memory_sections(&[sim_size, temp_size]);
+        let mut _guard = crate::acquire_memory_sections([sim_size, temp_size]);
         let _guard_temp = _guard.pop().unwrap();
         let _guard_sim = _guard.pop().unwrap();
 

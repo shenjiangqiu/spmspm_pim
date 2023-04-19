@@ -75,7 +75,7 @@ pub struct ConfigV3 {
     pub mapping: MappingType,
     pub analysis: SimulationType,
 }
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MappingType {
     #[default]
     SameSubarray,

@@ -54,8 +54,8 @@ impl SameBankWeightedMapping {
         evil_threshold: usize,
         cols: usize,
         graph: &TriMatI<Pattern, u32>,
-    ) -> (Self, TriMatI<Pattern, u32>) {
-        let graph_csr: CsMatI<Pattern, u32> = graph.to_csr();
+        graph_csr: &CsMatI<Pattern, u32>,
+    ) -> (Self, CsMatI<Pattern, u32>) {
         let mut row_id_nnz = graph_csr
             .outer_iterator()
             .enumerate()
@@ -99,10 +99,10 @@ impl SameBankWeightedMapping {
             .chain(non_evil_mapping)
             .collect_vec();
         let matrix_translated =
-            crate::tools::remapping_translate::translate(graph.view(), &mapping);
+            crate::tools::remapping_translate::translate(graph.view(), &mapping).to_csr();
 
         let row_sub_mapping = super::AverageMapping::new(
-            matrix_translated.to_csr().view(),
+            matrix_translated.view(),
             evil_threshold,
             total_subarrays,
             cols,
@@ -128,7 +128,7 @@ mod tests {
         let matrix: TriMatI<Pattern, u32> =
             sprs::io::read_matrix_market("mtx/bcspwr03.mtx").unwrap();
         let (mapping, translated_matrix) =
-            super::SameBankWeightedMapping::new(2, 2, 2, 4, 16, &matrix);
+            super::SameBankWeightedMapping::new(2, 2, 2, 4, 16, &matrix, &matrix.to_csr());
         let translated_csr = translated_matrix.to_csr();
 
         for (row_id, row) in translated_csr.outer_iterator().enumerate() {

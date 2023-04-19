@@ -9,6 +9,8 @@ use eyre::Result;
 use once_cell::sync::Lazy;
 pub use pim::Simulator;
 pub mod tools;
+use crate::tools::stop_signal;
+use lazy_static::lazy_static;
 use std::{
     env,
     ffi::OsString,
@@ -20,8 +22,6 @@ use std::{
 use sysinfo::SystemExt;
 use tracing::{error, info, metadata::LevelFilter};
 use tracing_subscriber::fmt::MakeWriter;
-use lazy_static::lazy_static;
-use crate::tools::stop_signal;
 pub mod cli;
 pub mod draw;
 
@@ -62,39 +62,36 @@ pub fn init_logger(
 ) {
     init_logger_with_ansi(filter, writter, false);
 }
-static CURRENT_MEMORY_USAGE: Mutex<usize> = Mutex::new(0);
+static CURRENT_MEMORY_USAGE: Mutex<u64> = Mutex::new(0);
 static MEMORY_CONDVAR: Condvar = Condvar::new();
-fn get_memory_free() -> usize {
+fn get_memory_free() -> u64 {
     let mut sysinfo = sysinfo::System::new_all();
     sysinfo.refresh_memory();
-    sysinfo.available_memory() as usize
+    sysinfo.available_memory()
 }
 /// parse the memory limit from the environment variable MEMORY_LIMIT, if error, return the current memory available
-fn parse_memory_limit() -> usize {
+fn parse_memory_limit() -> u64 {
     let limit = match env::var("MEMORY_LIMIT") {
-        Ok(limmit) => parse_size::parse_size(&limmit)
-            .map(|x| x as usize)
-            .unwrap_or_else(|e| {
-                eprintln!("failed to parse memory limit: {}", e);
-                get_memory_free()
-            }),
+        Ok(limmit) => parse_size::parse_size(&limmit).unwrap_or_else(|e| {
+            eprintln!("failed to parse memory limit: {}", e);
+            get_memory_free()
+        }),
         Err(_) => get_memory_free(),
     };
     info!("memory limit: {} bytes", limit);
     limit
 }
-lazy_static!{
-    
-}
-static TOTAL_MEMORY: Lazy<usize> = Lazy::new(parse_memory_limit);
-pub struct MemoryGuard(usize);
+lazy_static! {}
+static TOTAL_MEMORY: Lazy<u64> = Lazy::new(parse_memory_limit);
+pub struct MemoryGuard(u64);
 
 ///acquire memory, if the memory limit is exceeded, wait until the memory is released
 ///
 ///
 ///  the returned value is a guard, when the guard is dropped, the memory is released
 #[must_use]
-pub fn acquire_memory(size: usize) -> MemoryGuard {
+pub fn acquire_memory<T: IntoU64>(size: T) -> MemoryGuard {
+    let size = size.into_u64();
     info!("trying to acquire memory: {} bytes", size);
     if size > *TOTAL_MEMORY {
         panic!("memory limit exceeded");
@@ -108,11 +105,41 @@ pub fn acquire_memory(size: usize) -> MemoryGuard {
     MemoryGuard(size)
 }
 
+pub trait IntoU64 {
+    fn into_u64(self) -> u64;
+}
+
+impl IntoU64 for usize {
+    fn into_u64(self) -> u64 {
+        self as u64
+    }
+}
+impl IntoU64 for u64 {
+    fn into_u64(self) -> u64 {
+        self
+    }
+}
+impl IntoU64 for u32 {
+    fn into_u64(self) -> u64 {
+        self as u64
+    }
+}
+
+impl IntoU64 for i32 {
+    fn into_u64(self) -> u64 {
+        self as u64
+    }
+}
+
 #[must_use]
-pub fn acquire_memory_sections(size: &[usize]) -> Vec<MemoryGuard> {
-    assert!(!size.is_empty());
-    let total_size = size.iter().sum::<usize>();
-    info!("trying to acquire memory: {} bytes", total_size);
+pub fn acquire_memory_sections<T: IntoU64>(size: impl IntoIterator<Item = T>) -> Vec<MemoryGuard> {
+    let size = size.into_iter().map(IntoU64::into_u64).collect::<Vec<_>>();
+    assert!(!size.is_empty(), "size is empty");
+    let total_size = size.iter().sum::<u64>();
+    info!(
+        "trying to acquire memory: {} GB",
+        total_size as f32 / 1024.0 / 1024.0 / 1024.0
+    );
     if total_size > *TOTAL_MEMORY {
         panic!("memory limit exceeded");
     }
@@ -120,9 +147,13 @@ pub fn acquire_memory_sections(size: &[usize]) -> Vec<MemoryGuard> {
     while *memory + total_size > *TOTAL_MEMORY {
         memory = MEMORY_CONDVAR.wait(memory).unwrap();
     }
-    info!("memory acquired");
+    info!(
+        "memory {} GB acquired, {} GB reamaining",
+        total_size as f32 / 1024.0 / 1024.0 / 1024.0,
+        (*TOTAL_MEMORY - *memory - total_size) as f32 / 1024.0 / 1024.0 / 1024.0
+    );
     *memory += total_size;
-    size.iter().map(|x| MemoryGuard(*x)).collect()
+    size.into_iter().map(MemoryGuard).collect()
 }
 
 impl Drop for MemoryGuard {

@@ -37,17 +37,10 @@ struct RowCycle {
     my_jump_cycle: MyJumpCycle,
     smart_jump_cycle: SmartJumpCycle,
 }
-impl RowCycle {
-    pub fn new(calculate_remap_cycle: usize, gap: usize) -> Self {
-        Self {
-            my_jump_cycle: MyJumpCycle::new(calculate_remap_cycle, gap),
-            ..Default::default()
-        }
-    }
-}
+impl RowCycle {}
 
 ///[normal, ideal, from_source, my, smart]
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Default, Serialize, Deserialize, Debug)]
 pub struct FinalRowCycle {
     pub normal_jump_cycle: (usize, NormalJumpCycle),
     pub ideal_jump_cycle: (usize, IdealJumpCycle),
@@ -168,7 +161,14 @@ impl Iterator for FinalRowCycleIter {
 }
 
 impl RowCycle {
-    fn update(&mut self, evil_row_status: (usize, usize), location: &RowLocation, size: usize) {
+    fn update(
+        &mut self,
+        evil_row_status: (usize, usize),
+        location: &RowLocation,
+        size: usize,
+        remap_cycle: usize,
+        gap: usize,
+    ) {
         // first update the open cycle
         if evil_row_status.0 == location.row_id.0 {
             // no need to open row
@@ -182,7 +182,8 @@ impl RowCycle {
             .update(evil_row_status, location, size);
         self.ideal_jump_cycle
             .update(evil_row_status, location, size);
-        self.my_jump_cycle.update(evil_row_status, location, size);
+        self.my_jump_cycle
+            .update(evil_row_status, location, size, remap_cycle, gap);
         self.smart_jump_cycle
             .update(evil_row_status, location, size);
     }
@@ -196,6 +197,8 @@ struct RealJumpSimulator {
     col_cycles: Vec<RowCycle>,
     subarray_bits: usize,
     dispatcher_status: Vec<(usize, usize)>,
+    remap_cycle: usize,
+    gap: usize,
 }
 
 impl RealJumpSimulator {
@@ -206,18 +209,30 @@ impl RealJumpSimulator {
         remap_cycle: usize,
         gap: usize,
     ) -> Self {
+        assert!(remap_cycle > 0);
+        assert!(gap > 0);
+        assert!(
+            gap % 2 == 0
+                || gap % 4 == 0
+                || gap % 8 == 0
+                || gap % 16 == 0
+                || gap % 32 == 0
+                || gap % 64 == 0
+        );
         let global_subarray_size = subarray_size * bank_size * channel_size;
         let global_bank_size = bank_size * channel_size;
         let subarray_bits = tools::math::count_to_log(subarray_size);
         Self {
             subarray_bits,
-            col_cycles: vec![RowCycle::new(remap_cycle, gap); global_subarray_size],
+            col_cycles: vec![Default::default(); global_subarray_size],
             col_status: vec![(0, 0); global_subarray_size],
             dispatcher_status: vec![(0, 0); global_bank_size],
-            evil_row_cycles: vec![RowCycle::new(remap_cycle, gap); global_subarray_size],
+            evil_row_cycles: vec![Default::default(); global_subarray_size],
             evil_row_status: vec![Default::default(); global_subarray_size],
-            non_evil_row_cycles: vec![RowCycle::new(remap_cycle, gap); global_subarray_size],
+            non_evil_row_cycles: vec![Default::default(); global_subarray_size],
             non_evil_status: vec![Default::default(); global_subarray_size],
+            remap_cycle,
+            gap,
         }
     }
 
@@ -233,6 +248,8 @@ impl RealJumpSimulator {
             self.evil_row_status[location.subarray_id.0],
             location,
             size,
+            self.remap_cycle,
+            self.gap,
         );
         // update the evil row status
         self.evil_row_status[location.subarray_id.0] = (location.row_id.0, location.col_id.0);
@@ -252,7 +269,15 @@ impl RealJumpSimulator {
             ?current_status,
             "write col for subarray{}: {:?}", col_location.subarray_id.0, col_location
         );
-        self.col_cycles[col_location.subarray_id.0].update(current_status, col_location, 1);
+        let remap_cycle = self.remap_cycle;
+        let gap = self.gap;
+        self.col_cycles[col_location.subarray_id.0].update(
+            current_status,
+            col_location,
+            1,
+            remap_cycle,
+            gap,
+        );
         self.col_status[col_location.subarray_id.0] =
             (col_location.row_id.0, col_location.col_id.0);
         let new_status = self.col_status[col_location.subarray_id.0];
@@ -265,7 +290,13 @@ impl RealJumpSimulator {
             ?current_status,
             "read local for subarray{}: {:?}", location.subarray_id.0, location
         );
-        self.non_evil_row_cycles[location.subarray_id.0].update(current_status, &location, nnz);
+        self.non_evil_row_cycles[location.subarray_id.0].update(
+            current_status,
+            &location,
+            nnz,
+            self.remap_cycle,
+            self.gap,
+        );
         self.non_evil_status[location.subarray_id.0] = (location.row_id.0, location.col_id.0);
         let new_status = self.non_evil_status[location.subarray_id.0];
         debug!(?new_status);
@@ -383,6 +414,8 @@ fn run_with_mapping(
 ) -> eyre::Result<RealJumpResult> {
     let remap_cycle = config.remap_cycle;
     let remap_gap = config.remap_gap;
+    info!("remap cycle: {}", remap_cycle);
+    info!("remap gap: {}", remap_gap);
     let mut simulator = RealJumpSimulator::new(
         config.subarrays,
         config.banks.num,

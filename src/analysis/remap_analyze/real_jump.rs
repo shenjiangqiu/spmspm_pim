@@ -23,134 +23,11 @@ use crate::{
     pim::configv2::ConfigV3,
     tools::{self, file_server},
 };
-trait JumpCycle {
-    fn total(&self) -> usize;
-    fn add(&mut self, other: &Self);
-}
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
-struct SmartJumpCycle {
-    jump_one_cycle: usize,
-    jump_multiple_cycle: usize,
-}
-impl SmartJumpCycle {
-    fn update(&mut self, evil_row_status: (usize, usize), location: &RowLocation, size: usize) {
-        let current_col = evil_row_status.1;
-        let target_col = location.col_id.0;
-        let jumps = (current_col as isize - target_col as isize).abs() as usize;
-        let jumps = jumps.min(target_col);
-        // the jump of size
-        if jumps > 4 {
-            self.jump_multiple_cycle += jumps;
-        } else {
-            self.jump_one_cycle += jumps;
-        }
-        self.jump_one_cycle += (size - 1) * 4;
-    }
-}
-impl JumpCycle for SmartJumpCycle {
-    fn total(&self) -> usize {
-        self.jump_multiple_cycle + self.jump_one_cycle
-    }
 
-    fn add(&mut self, smart_jump_cycle: &SmartJumpCycle) {
-        self.jump_one_cycle += smart_jump_cycle.jump_one_cycle;
-        self.jump_multiple_cycle += smart_jump_cycle.jump_multiple_cycle;
-    }
-}
+use super::jump::{
+    FromSourceJumpCycle, IdealJumpCycle, JumpCycle, MyJumpCycle, NormalJumpCycle, SmartJumpCycle,
+};
 
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
-struct NormalJumpCycle {
-    jump_one_cycle: usize,
-    jump_multiple_cycle: usize,
-}
-impl NormalJumpCycle {
-    fn update(&mut self, evil_row_status: (usize, usize), location: &RowLocation, size: usize) {
-        let current_col = evil_row_status.1;
-        let target_col = location.col_id.0;
-        let jumps = (current_col as isize - target_col as isize).abs() as usize;
-        // the jump of size
-        if jumps > 4 {
-            self.jump_multiple_cycle += jumps;
-        } else {
-            self.jump_one_cycle += jumps;
-        }
-        self.jump_one_cycle += (size - 1) * 4;
-    }
-}
-impl JumpCycle for NormalJumpCycle {
-    fn total(&self) -> usize {
-        self.jump_multiple_cycle + self.jump_one_cycle
-    }
-
-    fn add(&mut self, normal_jump_cycle: &NormalJumpCycle) {
-        self.jump_one_cycle += normal_jump_cycle.jump_one_cycle;
-        self.jump_multiple_cycle += normal_jump_cycle.jump_multiple_cycle;
-    }
-}
-
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
-struct FromSourceJumpCycle {
-    jump_one_cycle: usize,
-    jump_multiple_cycle: usize,
-}
-impl FromSourceJumpCycle {
-    fn update(&mut self, _evil_row_status: (usize, usize), location: &RowLocation, size: usize) {
-        if location.col_id.0 > 4 {
-            self.jump_multiple_cycle += location.col_id.0;
-        } else {
-            self.jump_one_cycle += location.col_id.0;
-        }
-        self.jump_one_cycle += (size - 1) * 4;
-    }
-}
-impl JumpCycle for FromSourceJumpCycle {
-    fn add(&mut self, from_source_jump_cycle: &FromSourceJumpCycle) {
-        self.jump_one_cycle += from_source_jump_cycle.jump_one_cycle;
-        self.jump_multiple_cycle += from_source_jump_cycle.jump_multiple_cycle;
-    }
-
-    fn total(&self) -> usize {
-        self.jump_one_cycle + self.jump_multiple_cycle
-    }
-}
-
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
-struct IdealJumpCycle {
-    total_cycle: usize,
-}
-impl IdealJumpCycle {
-    fn update(&mut self, _evil_row_status: (usize, usize), _location: &RowLocation, size: usize) {
-        self.total_cycle += (size - 1) * 4;
-    }
-}
-impl JumpCycle for IdealJumpCycle {
-    fn add(&mut self, ideal_jump_cycle: &IdealJumpCycle) {
-        self.total_cycle += ideal_jump_cycle.total_cycle;
-    }
-
-    fn total(&self) -> usize {
-        self.total_cycle
-    }
-}
-
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
-struct MyJumpCycle {
-    total_cycle: usize,
-}
-impl MyJumpCycle {
-    fn update(&mut self, _evil_row_status: (usize, usize), _location: &RowLocation, size: usize) {
-        self.total_cycle += (size - 1) * 4;
-    }
-}
-impl JumpCycle for MyJumpCycle {
-    fn add(&mut self, my_jump_cycle: &MyJumpCycle) {
-        self.total_cycle += my_jump_cycle.total_cycle;
-    }
-
-    fn total(&self) -> usize {
-        self.total_cycle
-    }
-}
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 struct RowCycle {
     open_cycle: usize,
@@ -160,15 +37,23 @@ struct RowCycle {
     my_jump_cycle: MyJumpCycle,
     smart_jump_cycle: SmartJumpCycle,
 }
+impl RowCycle {
+    pub fn new(calculate_remap_cycle: usize, gap: usize) -> Self {
+        Self {
+            my_jump_cycle: MyJumpCycle::new(calculate_remap_cycle, gap),
+            ..Default::default()
+        }
+    }
+}
 
 ///[normal, ideal, from_source, my, smart]
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct FinalRowCycle {
-    normal_jump_cycle: (usize, NormalJumpCycle),
-    ideal_jump_cycle: (usize, IdealJumpCycle),
-    from_source_jump_cycle: (usize, FromSourceJumpCycle),
-    my_jump_cycle: (usize, MyJumpCycle),
-    smart_jump_cycle: (usize, SmartJumpCycle),
+    pub normal_jump_cycle: (usize, NormalJumpCycle),
+    pub ideal_jump_cycle: (usize, IdealJumpCycle),
+    pub from_source_jump_cycle: (usize, FromSourceJumpCycle),
+    pub my_jump_cycle: (usize, MyJumpCycle),
+    pub smart_jump_cycle: (usize, SmartJumpCycle),
 }
 
 impl FinalRowCycle {
@@ -215,8 +100,8 @@ impl Iterator for SplitIter {
             },
             3 => SplitItem {
                 oepn_row: self.final_row_cycle.my_jump_cycle.0,
-                one_jump: self.final_row_cycle.my_jump_cycle.1.total_cycle,
-                muliple_jump: 0,
+                one_jump: self.final_row_cycle.my_jump_cycle.1.one_jump_cycle,
+                muliple_jump: self.final_row_cycle.my_jump_cycle.1.multi_jump_cycle,
             },
             4 => SplitItem {
                 oepn_row: self.final_row_cycle.smart_jump_cycle.0,
@@ -314,18 +199,24 @@ struct RealJumpSimulator {
 }
 
 impl RealJumpSimulator {
-    pub fn new(subarray_size: usize, bank_size: usize, channel_size: usize) -> Self {
+    pub fn new(
+        subarray_size: usize,
+        bank_size: usize,
+        channel_size: usize,
+        remap_cycle: usize,
+        gap: usize,
+    ) -> Self {
         let global_subarray_size = subarray_size * bank_size * channel_size;
         let global_bank_size = bank_size * channel_size;
         let subarray_bits = tools::math::count_to_log(subarray_size);
         Self {
             subarray_bits,
-            col_cycles: vec![Default::default(); global_subarray_size],
+            col_cycles: vec![RowCycle::new(remap_cycle, gap); global_subarray_size],
             col_status: vec![(0, 0); global_subarray_size],
             dispatcher_status: vec![(0, 0); global_bank_size],
-            evil_row_cycles: vec![Default::default(); global_subarray_size],
+            evil_row_cycles: vec![RowCycle::new(remap_cycle, gap); global_subarray_size],
             evil_row_status: vec![Default::default(); global_subarray_size],
-            non_evil_row_cycles: vec![Default::default(); global_subarray_size],
+            non_evil_row_cycles: vec![RowCycle::new(remap_cycle, gap); global_subarray_size],
             non_evil_status: vec![Default::default(); global_subarray_size],
         }
     }
@@ -490,8 +381,15 @@ fn run_with_mapping(
     config: &ConfigV3,
     matrix_tri: &TriMatI<Pattern, u32>,
 ) -> eyre::Result<RealJumpResult> {
-    let mut simulator =
-        RealJumpSimulator::new(config.subarrays, config.banks.num, config.channels.num);
+    let remap_cycle = config.remap_cycle;
+    let remap_gap = config.remap_gap;
+    let mut simulator = RealJumpSimulator::new(
+        config.subarrays,
+        config.banks.num,
+        config.channels.num,
+        remap_cycle,
+        remap_gap,
+    );
     simulator.run(mapping, matrix_tri)
 }
 pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {

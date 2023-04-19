@@ -4,8 +4,6 @@ pub mod show_global_dist;
 use std::{error::Error, fmt::Debug, path::Path};
 
 use plotters::{coord::Shift, prelude::*};
-use plotters_text::TextDrawingBackend;
-use terminal_size::{Height, Width};
 use tracing::info;
 mod channel;
 mod cycle_dist;
@@ -44,15 +42,6 @@ pub trait DrawFn {
         data: &Self::DATA,
     ) -> Result<(), Box<dyn Error + 'a>>;
 }
-fn check_terminal_size(terminal_size: (Width, Height)) {
-    if terminal_size.0 .0 < MIN_CONSOLE_WIDTH || terminal_size.1 .0 < MIN_CONSOLE_HEIGHT {
-        eprintln!(
-            "terminal size is too small,current size is {}x{}, require {MIN_CONSOLE_WIDTH}x{MIN_CONSOLE_HEIGHT}",
-            terminal_size.0.0, terminal_size.1.0
-        );
-        std::process::exit(1);
-    };
-}
 
 pub fn get_ext(output_path: &Path) -> Ext {
     let ext = match output_path.extension() {
@@ -60,15 +49,11 @@ pub fn get_ext(output_path: &Path) -> Ext {
             "png" => Ext::Png,
             "svg" => Ext::Svg,
             _ => {
-                let terminal_size = terminal_size::terminal_size().unwrap();
-                check_terminal_size(terminal_size);
-                Ext::Console
+                panic!("unsupported file extension: {}", ext.to_str().unwrap());
             }
         },
         None => {
-            let terminal_size = terminal_size::terminal_size().unwrap();
-            check_terminal_size(terminal_size);
-            Ext::Console
+            panic!("no file extension");
         }
     };
     ext
@@ -105,17 +90,7 @@ pub fn draw_data_with_size<DATA: ?Sized, F: DrawFn<DATA = DATA>>(
             })
         }
         Ext::Console => {
-            let terminal_size = terminal_size::terminal_size().unwrap();
-
-            F::draw_apply(
-                TextDrawingBackend::new(terminal_size.0 .0 as u32, terminal_size.1 .0 as u32)
-                    .into_drawing_area(),
-                split_result,
-            )
-            .unwrap_or_else(|err| {
-                eprintln!("error: {}", err);
-                std::process::exit(1);
-            })
+            unimplemented!();
         }
     };
     Ok(())

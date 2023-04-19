@@ -1,16 +1,14 @@
-use std::fs::File;
-
-use spmspm_pim::analysis::remap_analyze::real_jump::RealJumpResult;
+use spmspm_pim::{analysis::remap_analyze::real_jump::RealJumpResult, tools::file_server};
 
 fn main() -> eyre::Result<()> {
     //[normal, ideal, from_source, my, smart]
     println!("jumptypes: normal ideal from_source my smart");
     let weighted_result: Vec<RealJumpResult> =
-        serde_json::from_reader(File::open("results/realjump/weighted.json")?)?;
+        serde_json::from_reader(file_server::file_reader("results/realjump/weighted.json")?)?;
     println!("weighted:");
     print_result(weighted_result);
     let samebank_result: Vec<RealJumpResult> =
-        serde_json::from_reader(File::open("results/realjump/same_bank.json")?)?;
+        serde_json::from_reader(file_server::file_reader("results/realjump/same_bank.json")?)?;
     println!("samebank:");
     print_result(samebank_result);
     Ok(())

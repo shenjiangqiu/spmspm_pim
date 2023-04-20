@@ -1,4 +1,9 @@
-use std::{collections::BTreeMap, fs::File, io::BufWriter};
+use std::{
+    collections::BTreeMap,
+    fs::File,
+    io::BufWriter,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use rayon::prelude::*;
 use spmspm_pim::{
@@ -8,10 +13,17 @@ use spmspm_pim::{
     tools::file_server,
 };
 use sprs::{num_kinds::Pattern, CsMatI, TriMatI};
+use tracing::info;
+static RUNNING_TASKS: AtomicUsize = AtomicUsize::new(0);
+static FINISHED_TASKS: AtomicUsize = AtomicUsize::new(0);
+static TOTAL_TASKS: AtomicUsize = AtomicUsize::new(0);
 fn main() -> eyre::Result<()> {
     init_logger_info();
     let config: ConfigV3 =
         toml::from_str(include_str!("../../configs/real_jump_same_bank-1-16.toml")).unwrap();
+    let total_graphs = config.graph_path.len() * 2 * 3;
+    TOTAL_TASKS.store(total_graphs, Ordering::SeqCst);
+
     let result: BTreeMap<_, _> = config
         .graph_path
         .clone()
@@ -80,10 +92,22 @@ fn run_with_different_gap<T: TranslateMapping + Sync>(
             let mut config = config.clone();
             config.mapping = map.clone();
             config.remap_gap = gap;
-            (
+
+            RUNNING_TASKS.fetch_add(1, Ordering::SeqCst);
+
+            let reuslt = (
                 gap,
                 real_jump::run_with_mapping(mapping, &config, matrix_csr).unwrap(),
-            )
+            );
+            RUNNING_TASKS.fetch_sub(1, Ordering::SeqCst);
+            FINISHED_TASKS.fetch_add(1, Ordering::SeqCst);
+            info!(
+                "finished {}/{} tasks, {} tasks running",
+                FINISHED_TASKS.load(Ordering::SeqCst),
+                TOTAL_TASKS.load(Ordering::SeqCst),
+                RUNNING_TASKS.load(Ordering::SeqCst)
+            );
+            reuslt
         })
         .collect()
 }

@@ -705,18 +705,16 @@ impl super::Simulator for RealJumpSimulator {
         let mut result = RealJumpResult::default();
         let total_rows = csr_translated.rows();
         for (target_id, target_row) in csr_translated.outer_iterator().enumerate() {
-            if target_id % 1000 == 0 {
+            if (target_id + 1) % 1000 == 0 {
                 let elapsed = start_time.elapsed();
-                let remaining = elapsed.as_secs_f32() * (total_rows as f32 - target_id as f32)
-                    / target_id as f32;
-                let remaining = Duration::from_secs_f32(remaining);
+                let remaining = elapsed * (total_rows as u32 - target_id as u32) / target_id as u32;
                 if elapsed > next_print_time {
                     info!(
                         "finish {}/{} rows, elapsed: {:?}, estimated reamining_time: {:?}",
                         target_id,
                         total_rows,
-                        humantime::format_duration(elapsed),
-                        humantime::format_duration(remaining)
+                        humantime::format_duration(elapsed).to_string(),
+                        humantime::format_duration(remaining).to_string()
                     );
                     next_print_time += Duration::from_secs(60);
                 }

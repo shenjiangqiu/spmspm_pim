@@ -13,7 +13,7 @@ use spmspm_pim::{
     tools::file_server,
 };
 use sprs::{num_kinds::Pattern, CsMatI, TriMatI};
-use tracing::info;
+use tracing::{info, span::EnteredSpan};
 static RUNNING_TASKS: AtomicUsize = AtomicUsize::new(0);
 static FINISHED_TASKS: AtomicUsize = AtomicUsize::new(0);
 static TOTAL_TASKS: AtomicUsize = AtomicUsize::new(0);
@@ -45,6 +45,8 @@ fn run_with_graph_path(
     String,
     BTreeMap<MappingType, BTreeMap<usize, real_jump::RealJumpResult>>,
 ) {
+    let graph_path_file_name = graph_path.split('/').last().unwrap();
+    let _span = tracing::span!(tracing::Level::INFO, "", g = graph_path_file_name).entered();
     let matrix_tri: TriMatI<Pattern, u32> = sprs::io::read_matrix_market_from_bufread(
         &mut file_server::file_reader(&graph_path).unwrap(),
     )
@@ -52,7 +54,7 @@ fn run_with_graph_path(
     let matrix_csr: CsMatI<Pattern, u32> = matrix_tri.to_csr();
     let result: BTreeMap<_, _> = [MappingType::SameBank, MappingType::SameBankWeightedMapping]
         .into_par_iter()
-        .map(|map| run_with_mapping(map, config, &matrix_tri, &matrix_csr))
+        .map(|map| run_with_mapping(map, config, &matrix_tri, &matrix_csr, &_span))
         .collect();
     (graph_path, result)
 }
@@ -62,18 +64,20 @@ fn run_with_mapping(
     config: &ConfigV3,
     matrix_tri: &TriMatI<Pattern, u32>,
     matrix_csr: &CsMatI<Pattern, u32>,
+    parent_span: &EnteredSpan,
 ) -> (MappingType, BTreeMap<usize, real_jump::RealJumpResult>) {
     // first build the mapping for the graph
+    let _span = tracing::span!(parent: parent_span, tracing::Level::INFO, "", m=?map).entered();
     let result = match map {
         MappingType::SameBank => {
             let (mapping, matrix_csr) =
                 real_jump::build_same_bank_mapping(&config, matrix_tri, matrix_csr);
-            run_with_different_gap(&config, &map, &mapping, &matrix_csr)
+            run_with_different_gap(&config, &map, &mapping, &matrix_csr, &_span)
         }
         MappingType::SameBankWeightedMapping => {
             let (mapping, matrix_csr) =
                 real_jump::build_weighted_mapping(&config, matrix_tri, matrix_csr);
-            run_with_different_gap(&config, &map, &mapping, &matrix_csr)
+            run_with_different_gap(&config, &map, &mapping, &matrix_csr, &_span)
         }
         _ => unreachable!(),
     };
@@ -85,10 +89,13 @@ fn run_with_different_gap<T: TranslateMapping + Sync>(
     map: &MappingType,
     mapping: &T,
     matrix_csr: &CsMatI<Pattern, u32>,
+    parent_span: &EnteredSpan,
 ) -> BTreeMap<usize, real_jump::RealJumpResult> {
     [16, 32, 64]
         .into_par_iter()
         .map(|gap| {
+            let _span =
+                tracing::span!(parent: parent_span, tracing::Level::INFO, "", gp=?gap,).entered();
             let mut config = config.clone();
             config.mapping = map.clone();
             config.remap_gap = gap;

@@ -6,6 +6,7 @@ use sprs::io::MatrixHead;
 use sprs::{num_kinds::Pattern, CsMatI, TriMatI};
 use std::io::BufWriter;
 use std::mem::size_of;
+use std::time::{Duration, Instant};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs::File,
@@ -479,6 +480,7 @@ pub fn run_with_mapping(
         remap_cycle,
         remap_gap,
     );
+    info!("start to run simulator");
     simulator.run(mapping, matrix_csr)
 }
 pub fn build_same_bank_mapping(
@@ -698,8 +700,27 @@ impl super::Simulator for RealJumpSimulator {
         mapping: &impl TranslateMapping,
         csr_translated: &CsMatI<Pattern, u32>,
     ) -> eyre::Result<Self::R> {
+        let start_time = Instant::now();
+        let mut next_print_time = Duration::from_secs(60);
         let mut result = RealJumpResult::default();
+        let total_rows = csr_translated.rows();
         for (target_id, target_row) in csr_translated.outer_iterator().enumerate() {
+            if target_id % 1000 == 0 {
+                let elapsed = start_time.elapsed();
+                let remaining = elapsed.as_secs_f32() * (total_rows as f32 - target_id as f32)
+                    / target_id as f32;
+                let remaining = Duration::from_secs_f32(remaining);
+                if elapsed > next_print_time {
+                    info!(
+                        "finish {}/{} rows, elapsed: {:?}, estimated reamining_time: {:?}",
+                        target_id,
+                        total_rows,
+                        humantime::format_duration(elapsed),
+                        humantime::format_duration(remaining)
+                    );
+                    next_print_time += Duration::from_secs(60);
+                }
+            }
             let mut evil_col_handler = EvilColHandler::new();
             // this is a single task
             for &matrix_b_row_id in target_row.indices() {

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use sprs::io::MatrixHead;
 use sprs::{num_kinds::Pattern, CsMatI, TriMatI};
 use std::io::BufWriter;
+use std::iter::repeat;
 use std::mem::size_of;
 use std::time::{Duration, Instant};
 use std::{
@@ -43,7 +44,7 @@ struct RowCycle {
 impl RowCycle {}
 
 ///[normal, ideal, from_source, my, smart]
-#[derive(Default, Serialize, Deserialize, Debug)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct FinalRowCycle {
     pub normal_jump_cycle: (usize, NormalJumpCycle),
     pub ideal_jump_cycle: (usize, IdealJumpCycle),
@@ -371,11 +372,61 @@ impl RealJumpSimulator {
         subarray_id.0 >> self.subarray_bits
     }
 
+    ///[normal, ideal, from_source, my, smart]
     fn update_result(&mut self, result: &mut RealJumpResult) {
         update_row_cycle(&self.col_cycles_local, &mut result.local_dense_col_cycles);
         update_row_cycle(&self.col_cycles_remote, &mut result.remote_dense_col_cycles);
         let evil_max = update_row_cycle(&self.evil_row_cycles, &mut result.evil_row_cycles);
         let non_evil_max = update_row_cycle(&self.non_evil_row_cycles, &mut result.row_cycles);
+        // we need to get the slowest subarray
+        let subarrays = self.non_evil_row_cycles.len() / self.dispatcher_status.len();
+        let dispatcher_expand = self
+            .dispatcher_status
+            .iter()
+            .map(|x| repeat(x.0).take(subarrays))
+            .flatten();
+
+        let local_stage = itertools::izip!(
+            self.col_cycles_local.iter(),
+            self.non_evil_row_cycles.iter(),
+            self.evil_row_cycles.iter(),
+            dispatcher_expand
+        );
+
+        local_stage
+            .map(|(local_write, row, evil_row, dispatcher_send)| {
+                let normal = local_write.normal_jump_cycle.total()
+                    + row.normal_jump_cycle.total()
+                    + evil_row.normal_jump_cycle.total()
+                    + dispatcher_send;
+                let ideal = local_write.ideal_jump_cycle.total()
+                    + row.ideal_jump_cycle.total()
+                    + evil_row.ideal_jump_cycle.total()
+                    + dispatcher_send;
+                let from_source = local_write.from_source_jump_cycle.total()
+                    + row.from_source_jump_cycle.total()
+                    + evil_row.from_source_jump_cycle.total()
+                    + dispatcher_send;
+                let my = local_write.my_jump_cycle.total()
+                    + row.my_jump_cycle.total()
+                    + evil_row.my_jump_cycle.total()
+                    + dispatcher_send;
+                let smart = local_write.smart_jump_cycle.total()
+                    + row.smart_jump_cycle.total()
+                    + evil_row.smart_jump_cycle.total()
+                    + dispatcher_send;
+                (normal, ideal, from_source, my, smart)
+            })
+            .reduce(|a, b| {
+                (
+                    a.0.max(b.0),
+                    a.1.max(b.1),
+                    a.2.max(b.2),
+                    a.3.max(b.3),
+                    a.4.max(b.4),
+                )
+            })
+            .unwrap();
 
         let max_sending_cycle = self.dispatcher_status.iter().map(|x| x.0).max().unwrap();
         let max_receive_cycle = self.dispatcher_status.iter().map(|x| x.1).max().unwrap();
@@ -682,7 +733,7 @@ impl EvilColHandler {
 }
 ///[normal, ideal, from_source, my, smart]
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
 
 pub struct RealJumpResult {
     pub local_dense_col_cycles: FinalRowCycle,

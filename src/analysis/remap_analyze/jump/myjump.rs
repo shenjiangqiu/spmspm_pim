@@ -4,7 +4,7 @@ use crate::analysis::translate_mapping::RowLocation;
 
 use super::JumpCycle;
 
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
+#[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
 pub struct MyJumpCycle {
     /// the cycle to calculate the remap location(0xgap or 1xgap...)
     pub calculate_remap_cycle: usize,

@@ -4,7 +4,7 @@ use crate::analysis::translate_mapping::RowLocation;
 
 use super::JumpCycle;
 
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
+#[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
 pub struct NormalJumpCycle {
     pub jump_one_cycle: usize,
     pub jump_multiple_cycle: usize,

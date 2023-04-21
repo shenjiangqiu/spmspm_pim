@@ -4,7 +4,7 @@ use std::{
     io::BufWriter,
     sync::atomic::{AtomicUsize, Ordering},
 };
-
+mod common;
 use rayon::prelude::*;
 use spmspm_pim::{
     analysis::{remap_analyze::real_jump, translate_mapping::TranslateMapping},
@@ -24,7 +24,7 @@ fn main() -> eyre::Result<()> {
     let total_graphs = config.graph_path.len() * 2 * 3;
     TOTAL_TASKS.store(total_graphs, Ordering::SeqCst);
 
-    let result: BTreeMap<_, _> = config
+    let result: common::RealJumpResultMap = config
         .graph_path
         .clone()
         .into_par_iter()
@@ -101,7 +101,10 @@ fn run_with_different_gap<T: TranslateMapping + Sync>(
             config.remap_gap = gap;
 
             RUNNING_TASKS.fetch_add(1, Ordering::SeqCst);
-
+            info!(
+                "started;  {} tasks running",
+                RUNNING_TASKS.load(Ordering::SeqCst)
+            );
             let reuslt = (
                 gap,
                 real_jump::run_with_mapping(mapping, &config, matrix_csr).unwrap(),

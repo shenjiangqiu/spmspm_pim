@@ -386,45 +386,47 @@ impl RealJumpSimulator {
             .map(|x| repeat(x.0).take(subarrays))
             .flatten();
 
-        let local_stage = itertools::izip!(
-            self.col_cycles_local.iter(),
-            self.non_evil_row_cycles.iter(),
-            self.evil_row_cycles.iter(),
-            dispatcher_expand
-        );
+        let local_stage = self
+            .col_cycles_local
+            .iter()
+            .zip(self.non_evil_row_cycles.iter())
+            .zip(self.evil_row_cycles.iter())
+            .zip(dispatcher_expand)
+            .map(|(((a, b), c), d)| (a, b, c, d));
 
-        local_stage
+        let local_max = local_stage
             .map(|(local_write, row, evil_row, dispatcher_send)| {
-                let normal = local_write.normal_jump_cycle.total()
+                let normal = (local_write.normal_jump_cycle.total()
                     + row.normal_jump_cycle.total()
-                    + evil_row.normal_jump_cycle.total()
-                    + dispatcher_send;
-                let ideal = local_write.ideal_jump_cycle.total()
+                    + evil_row.normal_jump_cycle.total())
+                .max(dispatcher_send);
+                let ideal = (local_write.ideal_jump_cycle.total()
                     + row.ideal_jump_cycle.total()
-                    + evil_row.ideal_jump_cycle.total()
-                    + dispatcher_send;
-                let from_source = local_write.from_source_jump_cycle.total()
+                    + evil_row.ideal_jump_cycle.total())
+                .max(dispatcher_send);
+                let from_source = (local_write.from_source_jump_cycle.total()
                     + row.from_source_jump_cycle.total()
-                    + evil_row.from_source_jump_cycle.total()
-                    + dispatcher_send;
-                let my = local_write.my_jump_cycle.total()
+                    + evil_row.from_source_jump_cycle.total())
+                .max(dispatcher_send);
+                let my = (local_write.my_jump_cycle.total()
                     + row.my_jump_cycle.total()
-                    + evil_row.my_jump_cycle.total()
-                    + dispatcher_send;
-                let smart = local_write.smart_jump_cycle.total()
+                    + evil_row.my_jump_cycle.total())
+                .max(dispatcher_send);
+                let smart = (local_write.smart_jump_cycle.total()
                     + row.smart_jump_cycle.total()
-                    + evil_row.smart_jump_cycle.total()
-                    + dispatcher_send;
-                (normal, ideal, from_source, my, smart)
+                    + evil_row.smart_jump_cycle.total())
+                .max(dispatcher_send);
+
+                [normal, ideal, from_source, my, smart]
             })
             .reduce(|a, b| {
-                (
-                    a.0.max(b.0),
-                    a.1.max(b.1),
-                    a.2.max(b.2),
-                    a.3.max(b.3),
-                    a.4.max(b.4),
-                )
+                [
+                    a[0].max(b[0]),
+                    a[1].max(b[1]),
+                    a[2].max(b[2]),
+                    a[3].max(b[3]),
+                    a[4].max(b[4]),
+                ]
             })
             .unwrap();
 
@@ -444,6 +446,13 @@ impl RealJumpSimulator {
             );
             *result_cycle += max_sending_cycle.max(*evil_max + *non_evil_max);
         }
+        result
+            .real_local_cycle
+            .iter_mut()
+            .zip(local_max)
+            .for_each(|(r, l)| {
+                *r += l;
+            });
 
         // reset the cycle
         self.col_cycles_local = vec![Default::default(); self.col_cycles_local.len()];
@@ -743,6 +752,7 @@ pub struct RealJumpResult {
     pub dispatcher_sending_cycle: usize,
     pub dispatcher_reading_cycle: usize,
     pub real_cycle: [usize; 5],
+    pub real_local_cycle: [usize; 5],
 }
 impl super::Simulator for RealJumpSimulator {
     type R = RealJumpResult;

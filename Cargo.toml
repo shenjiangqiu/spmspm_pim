@@ -34,9 +34,8 @@ tracing-subscriber = {version = "0.3.16", features = ["env-filter"]}
 walkdir = "2.3.3"
 [profile.release]
 # lto = true
+debug = 1
 opt-level = 3
-strip = true
-
 [lib]
 # crate-type = ["cdylib", "rlib","staticlib"]
 

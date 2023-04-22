@@ -27,34 +27,22 @@ fn print_result(weighted_result: Vec<RealJumpResult>) {
         println!();
         print!("row_cycles: ");
         for row_cycle in r.row_cycles.into_split_iter() {
-            print!(
-                "{} {} {} ",
-                row_cycle.oepn_row, row_cycle.one_jump, row_cycle.muliple_jump
-            );
+            print!("{} {} ", row_cycle.one_jump, row_cycle.muliple_jump);
         }
         println!();
         print!("evil_row_cycles: ");
         for evil_cycles in r.evil_row_cycles.into_split_iter() {
-            print!(
-                "{} {} {} ",
-                evil_cycles.oepn_row, evil_cycles.one_jump, evil_cycles.muliple_jump
-            );
+            print!("{} {} ", evil_cycles.one_jump, evil_cycles.muliple_jump);
         }
         println!();
         print!("local col_cycles: ");
         for col_cycle in r.local_dense_col_cycles.into_split_iter() {
-            print!(
-                "{} {} {} ",
-                col_cycle.oepn_row, col_cycle.one_jump, col_cycle.muliple_jump
-            );
+            print!("{} {} ", col_cycle.one_jump, col_cycle.muliple_jump);
         }
         println!();
         print!("remote col_cycles: ");
         for col_cycle in r.remote_dense_col_cycles.into_split_iter() {
-            print!(
-                "{} {} {} ",
-                col_cycle.oepn_row, col_cycle.one_jump, col_cycle.muliple_jump
-            );
+            print!("{} {} ", col_cycle.one_jump, col_cycle.muliple_jump);
         }
         println!();
         print!("dispatching: ");

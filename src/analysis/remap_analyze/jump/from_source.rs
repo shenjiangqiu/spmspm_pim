@@ -11,10 +11,16 @@ pub struct FromSourceJumpCycle {
 }
 impl FromSourceJumpCycle {
     pub fn update(&mut self, _row_status: &(usize, usize), location: &RowLocation, size: usize) {
-        if location.col_id.0 > 4 {
-            self.jump_multiple_cycle += location.col_id.0 + 1;
+        let row_cycle = if location.row_id.0 == _row_status.0 {
+            0
         } else {
-            self.jump_one_cycle += location.col_id.0 + 1;
+            18
+        };
+
+        if location.col_id.0 > 4 {
+            self.jump_multiple_cycle += (location.col_id.0 + 1).max(row_cycle);
+        } else {
+            self.jump_one_cycle += (location.col_id.0 + 1).max(row_cycle);
         }
         self.jump_one_cycle += size * 4;
     }

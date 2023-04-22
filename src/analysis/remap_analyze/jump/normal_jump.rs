@@ -16,14 +16,19 @@ impl NormalJumpCycle {
         location: &RowLocation,
         size: usize,
     ) {
+        let row_cycle = if location.row_id.0 == evil_row_status.0 {
+            0
+        } else {
+            18
+        };
         let current_col = evil_row_status.1;
         let target_col = location.col_id.0;
         let jumps = (current_col as isize - target_col as isize).abs() as usize;
         // the jump of size
         if jumps > 4 {
-            self.jump_multiple_cycle += jumps;
+            self.jump_multiple_cycle += jumps.max(row_cycle);
         } else {
-            self.jump_one_cycle += jumps;
+            self.jump_one_cycle += jumps.max(row_cycle);
         }
         self.jump_one_cycle += size * 4;
     }

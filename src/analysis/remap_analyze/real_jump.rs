@@ -34,7 +34,6 @@ use super::jump::{
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 struct RowCycle {
-    open_cycle: usize,
     normal_jump_cycle: NormalJumpCycle,
     ideal_jump_cycle: IdealJumpCycle,
     from_source_jump_cycle: FromSourceJumpCycle,
@@ -46,11 +45,11 @@ impl RowCycle {}
 ///[normal, ideal, from_source, my, smart]
 #[derive(Default, Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct FinalRowCycle {
-    pub normal_jump_cycle: (usize, NormalJumpCycle),
-    pub ideal_jump_cycle: (usize, IdealJumpCycle),
-    pub from_source_jump_cycle: (usize, FromSourceJumpCycle),
-    pub my_jump_cycle: (usize, MyJumpCycle),
-    pub smart_jump_cycle: (usize, SmartJumpCycle),
+    pub normal_jump_cycle: NormalJumpCycle,
+    pub ideal_jump_cycle: IdealJumpCycle,
+    pub from_source_jump_cycle: FromSourceJumpCycle,
+    pub my_jump_cycle: MyJumpCycle,
+    pub smart_jump_cycle: SmartJumpCycle,
 }
 
 impl FinalRowCycle {
@@ -67,7 +66,6 @@ pub struct SplitIter {
     index: usize,
 }
 pub struct SplitItem {
-    pub oepn_row: usize,
     pub one_jump: usize,
     pub muliple_jump: usize,
 }
@@ -77,33 +75,27 @@ impl Iterator for SplitIter {
     fn next(&mut self) -> Option<Self::Item> {
         let result = match self.index {
             0 => SplitItem {
-                oepn_row: self.final_row_cycle.normal_jump_cycle.0,
-                one_jump: self.final_row_cycle.normal_jump_cycle.1.jump_one_cycle,
-                muliple_jump: self.final_row_cycle.normal_jump_cycle.1.jump_multiple_cycle,
+                one_jump: self.final_row_cycle.normal_jump_cycle.jump_one_cycle,
+                muliple_jump: self.final_row_cycle.normal_jump_cycle.jump_multiple_cycle,
             },
             1 => SplitItem {
-                oepn_row: self.final_row_cycle.ideal_jump_cycle.0,
-                one_jump: self.final_row_cycle.ideal_jump_cycle.1.total_cycle,
+                one_jump: self.final_row_cycle.ideal_jump_cycle.total_cycle,
                 muliple_jump: 0,
             },
             2 => SplitItem {
-                oepn_row: self.final_row_cycle.from_source_jump_cycle.0,
-                one_jump: self.final_row_cycle.from_source_jump_cycle.1.jump_one_cycle,
+                one_jump: self.final_row_cycle.from_source_jump_cycle.jump_one_cycle,
                 muliple_jump: self
                     .final_row_cycle
                     .from_source_jump_cycle
-                    .1
                     .jump_multiple_cycle,
             },
             3 => SplitItem {
-                oepn_row: self.final_row_cycle.my_jump_cycle.0,
-                one_jump: self.final_row_cycle.my_jump_cycle.1.one_jump_cycle,
-                muliple_jump: self.final_row_cycle.my_jump_cycle.1.multi_jump_cycle,
+                one_jump: self.final_row_cycle.my_jump_cycle.one_jump_cycle,
+                muliple_jump: self.final_row_cycle.my_jump_cycle.multi_jump_cycle,
             },
             4 => SplitItem {
-                oepn_row: self.final_row_cycle.smart_jump_cycle.0,
-                one_jump: self.final_row_cycle.smart_jump_cycle.1.jump_one_cycle,
-                muliple_jump: self.final_row_cycle.smart_jump_cycle.1.jump_multiple_cycle,
+                one_jump: self.final_row_cycle.smart_jump_cycle.jump_one_cycle,
+                muliple_jump: self.final_row_cycle.smart_jump_cycle.jump_multiple_cycle,
             },
             _ => {
                 return None;
@@ -138,25 +130,11 @@ impl Iterator for FinalRowCycleIter {
             return None;
         }
         let total_cycle = match self.index {
-            0 => {
-                self.final_row_cycle.normal_jump_cycle.0
-                    + self.final_row_cycle.normal_jump_cycle.1.total()
-            }
-            1 => {
-                self.final_row_cycle.ideal_jump_cycle.0
-                    + self.final_row_cycle.ideal_jump_cycle.1.total()
-            }
-            2 => {
-                self.final_row_cycle.from_source_jump_cycle.0
-                    + self.final_row_cycle.from_source_jump_cycle.1.total()
-            }
-            3 => {
-                self.final_row_cycle.my_jump_cycle.0 + self.final_row_cycle.my_jump_cycle.1.total()
-            }
-            4 => {
-                self.final_row_cycle.smart_jump_cycle.0
-                    + self.final_row_cycle.smart_jump_cycle.1.total()
-            }
+            0 => self.final_row_cycle.normal_jump_cycle.total(),
+            1 => self.final_row_cycle.ideal_jump_cycle.total(),
+            2 => self.final_row_cycle.from_source_jump_cycle.total(),
+            3 => self.final_row_cycle.my_jump_cycle.total(),
+            4 => self.final_row_cycle.smart_jump_cycle.total(),
             _ => return None,
         };
         self.index += 1;
@@ -173,12 +151,6 @@ impl RowCycle {
         remap_cycle: usize,
         gap: usize,
     ) {
-        // first update the open cycle
-        if row_status.0 == location.row_id.0 {
-            // no need to open row
-        } else {
-            self.open_cycle += 18;
-        }
         // then calulate the jump cycle
         self.normal_jump_cycle.update(row_status, location, size);
         self.from_source_jump_cycle
@@ -467,17 +439,16 @@ fn update_jump_cycle<T: JumpCycle>(
     current_round_cycle: &[RowCycle],
     mut specific_jump_cycle: impl FnMut(&RowCycle) -> &T,
     final_cycle: &mut FinalRowCycle,
-    mut final_jump: impl FnMut(&mut FinalRowCycle) -> &mut (usize, T),
+    mut final_jump: impl FnMut(&mut FinalRowCycle) -> &mut T,
 ) -> usize {
-    let (open_cycle, normal_jump_cycle) = current_round_cycle
+    let normal_jump_cycle = current_round_cycle
         .iter()
-        .map(|x| (x.open_cycle, specific_jump_cycle(x)))
-        .max_by_key(|x| x.0 + x.1.total())
+        .map(|x| specific_jump_cycle(x))
+        .max_by_key(|x| x.total())
         .unwrap();
     let final_jump_cycle = final_jump(final_cycle);
-    final_jump_cycle.0 += open_cycle;
-    final_jump_cycle.1.add(normal_jump_cycle);
-    open_cycle + normal_jump_cycle.total()
+    final_jump_cycle.add(normal_jump_cycle);
+    normal_jump_cycle.total()
 }
 ///[normal, ideal, from_source, my, smart]
 fn update_row_cycle(

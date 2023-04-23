@@ -6,18 +6,12 @@ columns = 256
 dram_type = 'DDR4'
 graph_path = [
   "mtx/gearbox/ca-hollywood-2009.mtx",
-  "mtx/gearbox/soc-orkut.mtx",
-  "mtx/gearbox/road_usa.mtx",
   "mtx/outerspace/2cubes_sphere/2cubes_sphere.mtx",
-  "mtx/outerspace/poisson3Da/poisson3Da.mtx",
   "mtx/outerspace/filter3D/filter3D_E.mtx",
-  "mtx/outerspace/roadNet-CA/roadNet-CA.mtx",
   "mtx/outerspace/cage12/cage12.mtx",
   "mtx/outerspace/filter3D/filter3D.mtx",
   "mtx/outerspace/scircuit/scircuit.mtx",
   "mtx/outerspace/mario002/mario002.mtx",
-  "mtx/outerspace/cop20k_A/cop20k_A.mtx",
-  "mtx/outerspace/email-Enron/email-Enron.mtx",
   "mtx/outerspace/offshore/offshore.mtx",
 ]
 # mapping = "SameSubarray"

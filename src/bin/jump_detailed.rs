@@ -19,10 +19,6 @@ fn main() -> eyre::Result<()> {
 fn print_result(weighted_result: Vec<RealJumpResult>) {
     for r in weighted_result {
         println!();
-        print!("real_cycle: ");
-        for real_cycle in r.real_cycle {
-            print!("{} ", real_cycle);
-        }
 
         println!();
         print!("row_cycles: ");

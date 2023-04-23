@@ -37,7 +37,9 @@ struct RowCycle {
     normal_jump_cycle: NormalJumpCycle,
     ideal_jump_cycle: IdealJumpCycle,
     from_source_jump_cycle: FromSourceJumpCycle,
-    my_jump_cycle: MyJumpCycle,
+    my_jump_cycle_16: MyJumpCycle,
+    my_jump_cycle_32: MyJumpCycle,
+    my_jump_cycle_64: MyJumpCycle,
     smart_jump_cycle: SmartJumpCycle,
 }
 impl RowCycle {}
@@ -48,7 +50,9 @@ pub struct FinalRowCycle {
     pub normal_jump_cycle: NormalJumpCycle,
     pub ideal_jump_cycle: IdealJumpCycle,
     pub from_source_jump_cycle: FromSourceJumpCycle,
-    pub my_jump_cycle: MyJumpCycle,
+    pub my_jump_cycle_16: MyJumpCycle,
+    pub my_jump_cycle_32: MyJumpCycle,
+    pub my_jump_cycle_64: MyJumpCycle,
     pub smart_jump_cycle: SmartJumpCycle,
 }
 
@@ -90,10 +94,18 @@ impl Iterator for SplitIter {
                     .jump_multiple_cycle,
             },
             3 => SplitItem {
-                one_jump: self.final_row_cycle.my_jump_cycle.one_jump_cycle,
-                muliple_jump: self.final_row_cycle.my_jump_cycle.multi_jump_cycle,
+                one_jump: self.final_row_cycle.my_jump_cycle_16.one_jump_cycle,
+                muliple_jump: self.final_row_cycle.my_jump_cycle_16.multi_jump_cycle,
             },
             4 => SplitItem {
+                one_jump: self.final_row_cycle.my_jump_cycle_32.one_jump_cycle,
+                muliple_jump: self.final_row_cycle.my_jump_cycle_32.multi_jump_cycle,
+            },
+            5 => SplitItem {
+                one_jump: self.final_row_cycle.my_jump_cycle_64.one_jump_cycle,
+                muliple_jump: self.final_row_cycle.my_jump_cycle_64.multi_jump_cycle,
+            },
+            6 => SplitItem {
                 one_jump: self.final_row_cycle.smart_jump_cycle.jump_one_cycle,
                 muliple_jump: self.final_row_cycle.smart_jump_cycle.jump_multiple_cycle,
             },
@@ -126,15 +138,17 @@ impl Iterator for FinalRowCycleIter {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index == 5 {
+        if self.index == 7 {
             return None;
         }
         let total_cycle = match self.index {
             0 => self.final_row_cycle.normal_jump_cycle.total(),
             1 => self.final_row_cycle.ideal_jump_cycle.total(),
             2 => self.final_row_cycle.from_source_jump_cycle.total(),
-            3 => self.final_row_cycle.my_jump_cycle.total(),
-            4 => self.final_row_cycle.smart_jump_cycle.total(),
+            3 => self.final_row_cycle.my_jump_cycle_16.total(),
+            4 => self.final_row_cycle.my_jump_cycle_32.total(),
+            5 => self.final_row_cycle.my_jump_cycle_64.total(),
+            6 => self.final_row_cycle.smart_jump_cycle.total(),
             _ => return None,
         };
         self.index += 1;
@@ -149,15 +163,18 @@ impl RowCycle {
         location: &RowLocation,
         size: usize,
         remap_cycle: usize,
-        gap: usize,
     ) {
         // then calulate the jump cycle
         self.normal_jump_cycle.update(row_status, location, size);
         self.from_source_jump_cycle
             .update(row_status, location, size);
         self.ideal_jump_cycle.update(row_status, location, size);
-        self.my_jump_cycle
-            .update(row_status, location, size, remap_cycle, gap);
+        self.my_jump_cycle_16
+            .update(row_status, location, size, remap_cycle, 16);
+        self.my_jump_cycle_32
+            .update(row_status, location, size, remap_cycle, 32);
+        self.my_jump_cycle_64
+            .update(row_status, location, size, remap_cycle, 64);
         self.smart_jump_cycle.update(row_status, location, size);
     }
 }
@@ -180,8 +197,6 @@ struct RealJumpSimulator {
     dispatcher_status: Vec<(usize, usize)>,
     /// the cycle of each remap calculation
     remap_cycle: usize,
-    /// the gap between each remap stop
-    gap: usize,
 }
 
 impl RealJumpSimulator {
@@ -190,18 +205,9 @@ impl RealJumpSimulator {
         bank_size: usize,
         channel_size: usize,
         remap_cycle: usize,
-        gap: usize,
     ) -> Self {
         assert!(remap_cycle > 0);
-        assert!(gap > 0);
-        assert!(
-            gap % 2 == 0
-                || gap % 4 == 0
-                || gap % 8 == 0
-                || gap % 16 == 0
-                || gap % 32 == 0
-                || gap % 64 == 0
-        );
+
         let global_subarray_size = subarray_size * bank_size * channel_size;
         let global_bank_size = bank_size * channel_size;
         let subarray_bits = tools::math::count_to_log(subarray_size);
@@ -217,7 +223,6 @@ impl RealJumpSimulator {
             non_evil_row_cycles: vec![Default::default(); global_subarray_size],
             non_evil_status: vec![Default::default(); global_subarray_size],
             remap_cycle,
-            gap,
         }
     }
 
@@ -234,7 +239,6 @@ impl RealJumpSimulator {
             location,
             size,
             self.remap_cycle,
-            self.gap,
         );
         // update the evil row status
         self.evil_row_status[location.subarray_id.0] = (location.row_id.0, location.col_id.0);
@@ -249,13 +253,12 @@ impl RealJumpSimulator {
         status: &mut (usize, usize),
         cycle: &mut RowCycle,
         remap_cycle: usize,
-        gap: usize,
     ) {
         debug!(
             ?status,
             "write col for subarray{}: {:?}", col_location.subarray_id.0, col_location
         );
-        cycle.update(status, col_location, 1, remap_cycle, gap);
+        cycle.update(status, col_location, 1, remap_cycle);
         *status = (col_location.row_id.0, col_location.col_id.0);
         debug!(?status);
     }
@@ -282,7 +285,6 @@ impl RealJumpSimulator {
             current_status,
             current_cycle,
             self.remap_cycle,
-            self.gap,
         );
     }
     fn write_dense_local(
@@ -308,7 +310,6 @@ impl RealJumpSimulator {
             current_status,
             current_cycle,
             self.remap_cycle,
-            self.gap,
         );
     }
 
@@ -323,7 +324,6 @@ impl RealJumpSimulator {
             &location,
             nnz,
             self.remap_cycle,
-            self.gap,
         );
         self.non_evil_status[location.subarray_id.0] = (location.row_id.0, location.col_id.0);
         let new_status = self.non_evil_status[location.subarray_id.0];
@@ -348,9 +348,7 @@ impl RealJumpSimulator {
     fn update_result(&mut self, result: &mut RealJumpResult) {
         update_row_cycle(&self.col_cycles_local, &mut result.local_dense_col_cycles);
         update_row_cycle(&self.col_cycles_remote, &mut result.remote_dense_col_cycles);
-        let evil_max = update_row_cycle(&self.evil_row_cycles, &mut result.evil_row_cycles);
-        let non_evil_max = update_row_cycle(&self.non_evil_row_cycles, &mut result.row_cycles);
-        // we need to get the slowest subarray
+
         let subarrays = self.non_evil_row_cycles.len() / self.dispatcher_status.len();
         let dispatcher_expand = self
             .dispatcher_status
@@ -380,16 +378,24 @@ impl RealJumpSimulator {
                     + row.from_source_jump_cycle.total()
                     + evil_row.from_source_jump_cycle.total())
                 .max(dispatcher_send);
-                let my = (local_write.my_jump_cycle.total()
-                    + row.my_jump_cycle.total()
-                    + evil_row.my_jump_cycle.total())
+                let my_16 = (local_write.my_jump_cycle_16.total()
+                    + row.my_jump_cycle_16.total()
+                    + evil_row.my_jump_cycle_16.total())
+                .max(dispatcher_send);
+                let my_32 = (local_write.my_jump_cycle_32.total()
+                    + row.my_jump_cycle_32.total()
+                    + evil_row.my_jump_cycle_32.total())
+                .max(dispatcher_send);
+                let my_64 = (local_write.my_jump_cycle_64.total()
+                    + row.my_jump_cycle_64.total()
+                    + evil_row.my_jump_cycle_64.total())
                 .max(dispatcher_send);
                 let smart = (local_write.smart_jump_cycle.total()
                     + row.smart_jump_cycle.total()
                     + evil_row.smart_jump_cycle.total())
                 .max(dispatcher_send);
 
-                [normal, ideal, from_source, my, smart]
+                [normal, ideal, from_source, my_16, my_32, my_64, smart]
             })
             .reduce(|a, b| {
                 [
@@ -398,6 +404,8 @@ impl RealJumpSimulator {
                     a[2].max(b[2]),
                     a[3].max(b[3]),
                     a[4].max(b[4]),
+                    a[5].max(b[5]),
+                    a[6].max(b[6]),
                 ]
             })
             .unwrap();
@@ -407,17 +415,17 @@ impl RealJumpSimulator {
         result.dispatcher_sending_cycle += max_sending_cycle;
         result.dispatcher_reading_cycle += max_receive_cycle;
 
-        for (result_cycle, evil_max, non_evil_max) in itertools::izip!(
-            result.real_cycle.iter_mut(),
-            evil_max.iter(),
-            non_evil_max.iter()
-        ) {
-            debug!(
-                "the sending cycle is {}, the evil is {},the non evil is {}",
-                max_sending_cycle, evil_max, non_evil_max
-            );
-            *result_cycle += max_sending_cycle.max(*evil_max + *non_evil_max);
-        }
+        // for (result_cycle, evil_max, non_evil_max) in itertools::izip!(
+        //     result.real_cycle.iter_mut(),
+        //     evil_max.iter(),
+        //     non_evil_max.iter()
+        // ) {
+        //     debug!(
+        //         "the sending cycle is {}, the evil is {},the non evil is {}",
+        //         max_sending_cycle, evil_max, non_evil_max
+        //     );
+        //     *result_cycle += max_sending_cycle.max(*evil_max + *non_evil_max);
+        // }
         result
             .real_local_cycle
             .iter_mut()
@@ -454,7 +462,7 @@ fn update_jump_cycle<T: JumpCycle>(
 fn update_row_cycle(
     current_round_cycle: &[RowCycle],
     final_cycle: &mut FinalRowCycle,
-) -> [usize; 5] {
+) -> [usize; 7] {
     // first select the max cycle
     //the normal jump cycle
     let normal = update_jump_cycle(
@@ -478,11 +486,23 @@ fn update_row_cycle(
         |x| &mut x.from_source_jump_cycle,
     );
     // my jump cycle
-    let my = update_jump_cycle(
+    let my_16 = update_jump_cycle(
         current_round_cycle,
-        |x| &x.my_jump_cycle,
+        |x| &x.my_jump_cycle_16,
         final_cycle,
-        |x| &mut x.my_jump_cycle,
+        |x| &mut x.my_jump_cycle_16,
+    );
+    let my_32 = update_jump_cycle(
+        current_round_cycle,
+        |x| &x.my_jump_cycle_32,
+        final_cycle,
+        |x| &mut x.my_jump_cycle_32,
+    );
+    let my_64 = update_jump_cycle(
+        current_round_cycle,
+        |x| &x.my_jump_cycle_64,
+        final_cycle,
+        |x| &mut x.my_jump_cycle_64,
     );
     let smart = update_jump_cycle(
         current_round_cycle,
@@ -490,7 +510,7 @@ fn update_row_cycle(
         final_cycle,
         |x| &mut x.smart_jump_cycle,
     );
-    [normal, ideal, from_source, my, smart]
+    [normal, ideal, from_source, my_16, my_32, my_64, smart]
 
     //
 }
@@ -501,15 +521,12 @@ pub fn run_with_mapping(
     matrix_csr: &CsMatI<Pattern, u32>,
 ) -> eyre::Result<RealJumpResult> {
     let remap_cycle = config.remap_cycle;
-    let remap_gap = config.remap_gap;
     info!("remap cycle: {}", remap_cycle);
-    info!("remap gap: {}", remap_gap);
     let mut simulator = RealJumpSimulator::new(
         config.subarrays,
         config.banks.num,
         config.channels.num,
         remap_cycle,
-        remap_gap,
     );
     info!("start to run simulator");
     simulator.run(mapping, matrix_csr)
@@ -722,8 +739,8 @@ pub struct RealJumpResult {
     pub row_cycles: FinalRowCycle,
     pub dispatcher_sending_cycle: usize,
     pub dispatcher_reading_cycle: usize,
-    pub real_cycle: [usize; 5],
-    pub real_local_cycle: [usize; 5],
+    // pub real_cycle: [usize; 7],
+    pub real_local_cycle: [usize; 7],
 }
 impl super::Simulator for RealJumpSimulator {
     type R = RealJumpResult;
@@ -749,6 +766,9 @@ impl super::Simulator for RealJumpSimulator {
                         humantime::format_duration(remaining).to_string()
                     );
                     next_print_time += Duration::from_secs(60);
+                }
+                if target_id >= 50000 {
+                    break;
                 }
             }
             let mut evil_col_handler = EvilColHandler::new();

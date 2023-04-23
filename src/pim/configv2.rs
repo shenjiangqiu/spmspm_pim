@@ -63,7 +63,7 @@ pub struct ConfigV3 {
     pub window_size: usize,
     pub columns: usize,
     pub remap_cycle: usize,
-    pub remap_gap: usize,
+    // pub remap_gap: usize,
     pub graph_path: Vec<String>,
     pub output_path: PathBuf,
     pub channels: LevelConfig,

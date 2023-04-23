@@ -175,6 +175,7 @@ impl RowCycle {
             .update(row_status, location, size, remap_cycle, 32);
         self.my_jump_cycle_64
             .update(row_status, location, size, remap_cycle, 64);
+
         self.smart_jump_cycle.update(row_status, location, size);
     }
 }
@@ -395,6 +396,47 @@ impl RealJumpSimulator {
                     + evil_row.smart_jump_cycle.total())
                 .max(dispatcher_send);
 
+                debug_assert!(
+                    local_write.my_jump_cycle_16.total() <= local_write.my_jump_cycle_32.total(),
+                    "{} {}",
+                    local_write.my_jump_cycle_16.total(),
+                    local_write.my_jump_cycle_32.total()
+                );
+                debug_assert!(
+                    local_write.my_jump_cycle_32.total() <= local_write.my_jump_cycle_64.total(),
+                    "{} {}",
+                    local_write.my_jump_cycle_32.total(),
+                    local_write.my_jump_cycle_64.total()
+                );
+
+                debug_assert!(
+                    row.my_jump_cycle_16.total() <= row.my_jump_cycle_32.total(),
+                    "{} {}",
+                    row.my_jump_cycle_16.total(),
+                    row.my_jump_cycle_32.total()
+                );
+                debug_assert!(
+                    row.my_jump_cycle_32.total() <= row.my_jump_cycle_64.total(),
+                    "{} {}",
+                    row.my_jump_cycle_32.total(),
+                    row.my_jump_cycle_64.total()
+                );
+
+                debug_assert!(
+                    evil_row.my_jump_cycle_16.total() <= evil_row.my_jump_cycle_32.total(),
+                    "{} {}",
+                    evil_row.my_jump_cycle_16.total(),
+                    evil_row.my_jump_cycle_32.total()
+                );
+                debug_assert!(
+                    evil_row.my_jump_cycle_32.total() <= evil_row.my_jump_cycle_64.total(),
+                    "{} {}",
+                    evil_row.my_jump_cycle_32.total(),
+                    evil_row.my_jump_cycle_64.total()
+                );
+
+                debug_assert!(my_16 <= my_32, "{} {}", my_16, my_32);
+                debug_assert!(my_32 <= my_64, "{} {}", my_32, my_64);
                 [normal, ideal, from_source, my_16, my_32, my_64, smart]
             })
             .reduce(|a, b| {
@@ -409,7 +451,8 @@ impl RealJumpSimulator {
                 ]
             })
             .unwrap();
-
+        debug_assert!(local_max[3] <= local_max[4]);
+        debug_assert!(local_max[4] <= local_max[5]);
         let max_sending_cycle = self.dispatcher_status.iter().map(|x| x.0).max().unwrap();
         let max_receive_cycle = self.dispatcher_status.iter().map(|x| x.1).max().unwrap();
         result.dispatcher_sending_cycle += max_sending_cycle;
@@ -439,6 +482,7 @@ impl RealJumpSimulator {
         self.col_cycles_remote = vec![Default::default(); self.col_cycles_remote.len()];
         self.evil_row_cycles = vec![Default::default(); self.evil_row_cycles.len()];
         self.non_evil_row_cycles = vec![Default::default(); self.non_evil_row_cycles.len()];
+
         self.dispatcher_status = vec![(0, 0); self.dispatcher_status.len()];
     }
 }
@@ -510,6 +554,8 @@ fn update_row_cycle(
         final_cycle,
         |x| &mut x.smart_jump_cycle,
     );
+    debug_assert!(my_16 <= my_32, "my_16 is {}, my_32 is {}", my_16, my_32);
+    debug_assert!(my_32 <= my_64, "my_32 is {}, my_64 is {}", my_32, my_64);
     [normal, ideal, from_source, my_16, my_32, my_64, smart]
 
     //

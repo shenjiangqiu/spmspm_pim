@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::translate_mapping::RowLocation;
 
-use super::JumpCycle;
+use super::{AddableJumpCycle, JumpCycle};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
 pub struct NormalJumpCycle {
@@ -56,6 +56,23 @@ impl JumpCycle for NormalJumpCycle {
         self.jump_multiple_cycle + self.jump_one_cycle
     }
 
+    fn get_one_jump(&self) -> usize {
+        self.jump_one_cycle
+    }
+
+    fn get_multi_jump(&self) -> usize {
+        self.jump_multiple_cycle
+    }
+
+    fn get_one_jump_mut(&mut self) -> &mut usize {
+        &mut self.jump_one_cycle
+    }
+
+    fn get_multi_jump_mut(&mut self) -> &mut usize {
+        &mut self.jump_multiple_cycle
+    }
+}
+impl AddableJumpCycle for NormalJumpCycle {
     fn add(&mut self, normal_jump_cycle: &NormalJumpCycle) {
         self.jump_one_cycle += normal_jump_cycle.jump_one_cycle;
         self.jump_multiple_cycle += normal_jump_cycle.jump_multiple_cycle;

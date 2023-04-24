@@ -12,7 +12,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     fs::File,
 };
-
+type AllJumpResult = [usize; 13];
 use tracing::{debug, info};
 
 use crate::analysis::translate_mapping::same_bank::SameBankMapping;
@@ -29,130 +29,173 @@ use crate::{
 };
 
 use super::jump::{
-    FromSourceJumpCycle, IdealJumpCycle, JumpCycle, MyJumpCycle, NormalJumpCycle, SmartJumpCycle,
+    AddableJumpCycle, FromSourceJumpCycle, IdealJumpCycle, JumpCycle, MyJumpCycle,
+    MyJumpNoOverhead, MyJumpOpt, NormalJumpCycle, SmartJumpCycle,
 };
 
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
-struct RowCycle {
-    normal_jump_cycle: NormalJumpCycle,
-    ideal_jump_cycle: IdealJumpCycle,
-    from_source_jump_cycle: FromSourceJumpCycle,
-    my_jump_cycle_16: MyJumpCycle,
-    my_jump_cycle_32: MyJumpCycle,
-    my_jump_cycle_64: MyJumpCycle,
-    smart_jump_cycle: SmartJumpCycle,
-}
-impl RowCycle {}
+#[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
 
-///[normal, ideal, from_source, my, smart]
-#[derive(Default, Serialize, Deserialize, Debug, Clone, Copy)]
-pub struct FinalRowCycle {
+pub struct RowCycle {
     pub normal_jump_cycle: NormalJumpCycle,
     pub ideal_jump_cycle: IdealJumpCycle,
     pub from_source_jump_cycle: FromSourceJumpCycle,
     pub my_jump_cycle_16: MyJumpCycle,
     pub my_jump_cycle_32: MyJumpCycle,
     pub my_jump_cycle_64: MyJumpCycle,
+    pub my_jump_cycle_16_no_overhead: MyJumpNoOverhead,
+    pub my_jump_cycle_32_no_overhead: MyJumpNoOverhead,
+    pub my_jump_cycle_64_no_overhead: MyJumpNoOverhead,
+    pub my_jump_cycle_16_opt: MyJumpOpt,
+    pub my_jump_cycle_32_opt: MyJumpOpt,
+    pub my_jump_cycle_64_opt: MyJumpOpt,
     pub smart_jump_cycle: SmartJumpCycle,
 }
 
-impl FinalRowCycle {
-    pub fn into_split_iter(self) -> SplitIter {
-        SplitIter {
-            final_row_cycle: self,
-            index: 0,
-        }
-    }
+pub struct RowCycleIterator {
+    row_cycle: RowCycle,
+    jump_type: JumpTypes,
 }
-
-pub struct SplitIter {
-    final_row_cycle: FinalRowCycle,
-    index: usize,
-}
-pub struct SplitItem {
-    pub one_jump: usize,
-    pub muliple_jump: usize,
-}
-impl Iterator for SplitIter {
-    type Item = SplitItem;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let result = match self.index {
-            0 => SplitItem {
-                one_jump: self.final_row_cycle.normal_jump_cycle.jump_one_cycle,
-                muliple_jump: self.final_row_cycle.normal_jump_cycle.jump_multiple_cycle,
-            },
-            1 => SplitItem {
-                one_jump: self.final_row_cycle.ideal_jump_cycle.total_cycle,
-                muliple_jump: 0,
-            },
-            2 => SplitItem {
-                one_jump: self.final_row_cycle.from_source_jump_cycle.jump_one_cycle,
-                muliple_jump: self
-                    .final_row_cycle
-                    .from_source_jump_cycle
-                    .jump_multiple_cycle,
-            },
-            3 => SplitItem {
-                one_jump: self.final_row_cycle.my_jump_cycle_16.one_jump_cycle,
-                muliple_jump: self.final_row_cycle.my_jump_cycle_16.multi_jump_cycle,
-            },
-            4 => SplitItem {
-                one_jump: self.final_row_cycle.my_jump_cycle_32.one_jump_cycle,
-                muliple_jump: self.final_row_cycle.my_jump_cycle_32.multi_jump_cycle,
-            },
-            5 => SplitItem {
-                one_jump: self.final_row_cycle.my_jump_cycle_64.one_jump_cycle,
-                muliple_jump: self.final_row_cycle.my_jump_cycle_64.multi_jump_cycle,
-            },
-            6 => SplitItem {
-                one_jump: self.final_row_cycle.smart_jump_cycle.jump_one_cycle,
-                muliple_jump: self.final_row_cycle.smart_jump_cycle.jump_multiple_cycle,
-            },
-            _ => {
-                return None;
-            }
-        };
-        self.index += 1;
-        Some(result)
-    }
-}
-
-pub struct FinalRowCycleIter {
-    final_row_cycle: FinalRowCycle,
-    index: usize,
-}
-impl IntoIterator for FinalRowCycle {
+impl IntoIterator for RowCycle {
     type Item = usize;
-
-    type IntoIter = FinalRowCycleIter;
-
+    type IntoIter = RowCycleIterator;
     fn into_iter(self) -> Self::IntoIter {
-        FinalRowCycleIter {
-            final_row_cycle: self,
-            index: 0,
+        RowCycleIterator {
+            row_cycle: self,
+            jump_type: JumpTypes::Normal,
         }
     }
 }
-impl Iterator for FinalRowCycleIter {
+impl Iterator for RowCycleIterator {
     type Item = usize;
-
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index == 7 {
-            return None;
-        }
-        let total_cycle = match self.index {
-            0 => self.final_row_cycle.normal_jump_cycle.total(),
-            1 => self.final_row_cycle.ideal_jump_cycle.total(),
-            2 => self.final_row_cycle.from_source_jump_cycle.total(),
-            3 => self.final_row_cycle.my_jump_cycle_16.total(),
-            4 => self.final_row_cycle.my_jump_cycle_32.total(),
-            5 => self.final_row_cycle.my_jump_cycle_64.total(),
-            6 => self.final_row_cycle.smart_jump_cycle.total(),
-            _ => return None,
+        let ret = match self.jump_type {
+            JumpTypes::Normal => self.row_cycle.normal_jump_cycle.total(),
+            JumpTypes::Ideal => self.row_cycle.ideal_jump_cycle.total(),
+            JumpTypes::FromSource => self.row_cycle.from_source_jump_cycle.total(),
+            JumpTypes::My16 => self.row_cycle.my_jump_cycle_16.total(),
+            JumpTypes::My32 => self.row_cycle.my_jump_cycle_32.total(),
+            JumpTypes::My64 => self.row_cycle.my_jump_cycle_64.total(),
+            JumpTypes::My16NoOverhead => self.row_cycle.my_jump_cycle_16_no_overhead.total(),
+            JumpTypes::My32NoOverhead => self.row_cycle.my_jump_cycle_32_no_overhead.total(),
+            JumpTypes::My64NoOverhead => self.row_cycle.my_jump_cycle_64_no_overhead.total(),
+            JumpTypes::My16Opt => self.row_cycle.my_jump_cycle_16_opt.total(),
+            JumpTypes::My32Opt => self.row_cycle.my_jump_cycle_32_opt.total(),
+            JumpTypes::My64Opt => self.row_cycle.my_jump_cycle_64_opt.total(),
+            JumpTypes::Smart => self.row_cycle.smart_jump_cycle.total(),
+            JumpTypes::End => return None,
         };
-        self.index += 1;
-        Some(total_cycle)
+        self.jump_type.next();
+        Some(ret)
+    }
+}
+impl RowCycle {
+    pub fn into_split_iter(self) -> RowCycleSplitIter {
+        RowCycleSplitIter {
+            row_cycle: self,
+            jump_type: JumpTypes::Normal,
+        }
+    }
+}
+pub struct RowCycleSplitIter {
+    row_cycle: RowCycle,
+    jump_type: JumpTypes,
+}
+impl Iterator for RowCycleSplitIter {
+    type Item = (usize, usize);
+    fn next(&mut self) -> Option<Self::Item> {
+        let cycle = match self.jump_type {
+            JumpTypes::Normal => (
+                self.row_cycle.normal_jump_cycle.get_one_jump(),
+                self.row_cycle.normal_jump_cycle.get_multi_jump(),
+            ),
+            JumpTypes::Ideal => (
+                self.row_cycle.ideal_jump_cycle.get_one_jump(),
+                self.row_cycle.ideal_jump_cycle.get_multi_jump(),
+            ),
+            JumpTypes::FromSource => (
+                self.row_cycle.from_source_jump_cycle.get_one_jump(),
+                self.row_cycle.from_source_jump_cycle.get_multi_jump(),
+            ),
+            JumpTypes::My16 => (
+                self.row_cycle.my_jump_cycle_16.get_one_jump(),
+                self.row_cycle.my_jump_cycle_16.get_multi_jump(),
+            ),
+            JumpTypes::My32 => (
+                self.row_cycle.my_jump_cycle_32.get_one_jump(),
+                self.row_cycle.my_jump_cycle_32.get_multi_jump(),
+            ),
+            JumpTypes::My64 => (
+                self.row_cycle.my_jump_cycle_64.get_one_jump(),
+                self.row_cycle.my_jump_cycle_64.get_multi_jump(),
+            ),
+            JumpTypes::My16NoOverhead => (
+                self.row_cycle.my_jump_cycle_16_no_overhead.get_one_jump(),
+                self.row_cycle.my_jump_cycle_16_no_overhead.get_multi_jump(),
+            ),
+            JumpTypes::My32NoOverhead => (
+                self.row_cycle.my_jump_cycle_32_no_overhead.get_one_jump(),
+                self.row_cycle.my_jump_cycle_32_no_overhead.get_multi_jump(),
+            ),
+            JumpTypes::My64NoOverhead => (
+                self.row_cycle.my_jump_cycle_64_no_overhead.get_one_jump(),
+                self.row_cycle.my_jump_cycle_64_no_overhead.get_multi_jump(),
+            ),
+            JumpTypes::My16Opt => (
+                self.row_cycle.my_jump_cycle_16_opt.get_one_jump(),
+                self.row_cycle.my_jump_cycle_16_opt.get_multi_jump(),
+            ),
+            JumpTypes::My32Opt => (
+                self.row_cycle.my_jump_cycle_32_opt.get_one_jump(),
+                self.row_cycle.my_jump_cycle_32_opt.get_multi_jump(),
+            ),
+            JumpTypes::My64Opt => (
+                self.row_cycle.my_jump_cycle_64_opt.get_one_jump(),
+                self.row_cycle.my_jump_cycle_64_opt.get_multi_jump(),
+            ),
+            JumpTypes::Smart => (
+                self.row_cycle.smart_jump_cycle.get_one_jump(),
+                self.row_cycle.smart_jump_cycle.get_multi_jump(),
+            ),
+            JumpTypes::End => return None,
+        };
+        self.jump_type.next();
+        Some(cycle)
+    }
+}
+enum JumpTypes {
+    Normal,
+    Ideal,
+    FromSource,
+    My16,
+    My32,
+    My64,
+    My16NoOverhead,
+    My32NoOverhead,
+    My64NoOverhead,
+    My16Opt,
+    My32Opt,
+    My64Opt,
+    Smart,
+    End,
+}
+impl JumpTypes {
+    fn next(&mut self) {
+        *self = match self {
+            JumpTypes::Normal => JumpTypes::Ideal,
+            JumpTypes::Ideal => JumpTypes::FromSource,
+            JumpTypes::FromSource => JumpTypes::My16,
+            JumpTypes::My16 => JumpTypes::My32,
+            JumpTypes::My32 => JumpTypes::My64,
+            JumpTypes::My64 => JumpTypes::My16NoOverhead,
+            JumpTypes::My16NoOverhead => JumpTypes::My32NoOverhead,
+            JumpTypes::My32NoOverhead => JumpTypes::My64NoOverhead,
+            JumpTypes::My64NoOverhead => JumpTypes::My16Opt,
+            JumpTypes::My16Opt => JumpTypes::My32Opt,
+            JumpTypes::My32Opt => JumpTypes::My64Opt,
+            JumpTypes::My64Opt => JumpTypes::Smart,
+            JumpTypes::Smart => JumpTypes::End,
+            JumpTypes::End => JumpTypes::End,
+        }
     }
 }
 
@@ -369,97 +412,31 @@ impl RealJumpSimulator {
 
         let local_max = local_stage
             .map(|(local_write, row, evil_row, dispatcher_send)| {
-                let normal = (local_write.normal_jump_cycle.total()
-                    + row.normal_jump_cycle.total()
-                    + evil_row.normal_jump_cycle.total())
-                .max(dispatcher_send);
-                let ideal = (local_write.ideal_jump_cycle.total()
-                    + row.ideal_jump_cycle.total()
-                    + evil_row.ideal_jump_cycle.total())
-                .max(dispatcher_send);
-                let from_source = (local_write.from_source_jump_cycle.total()
-                    + row.from_source_jump_cycle.total()
-                    + evil_row.from_source_jump_cycle.total())
-                .max(dispatcher_send);
-                let my_16 = (local_write.my_jump_cycle_16.total()
-                    + row.my_jump_cycle_16.total()
-                    + evil_row.my_jump_cycle_16.total())
-                .max(dispatcher_send);
-                let my_32 = (local_write.my_jump_cycle_32.total()
-                    + row.my_jump_cycle_32.total()
-                    + evil_row.my_jump_cycle_32.total())
-                .max(dispatcher_send);
-                let my_64 = (local_write.my_jump_cycle_64.total()
-                    + row.my_jump_cycle_64.total()
-                    + evil_row.my_jump_cycle_64.total())
-                .max(dispatcher_send);
-                let smart = (local_write.smart_jump_cycle.total()
-                    + row.smart_jump_cycle.total()
-                    + evil_row.smart_jump_cycle.total())
-                .max(dispatcher_send);
-
-                debug_assert!(
-                    local_write.my_jump_cycle_16.total() <= local_write.my_jump_cycle_32.total(),
-                    "{} {}",
-                    local_write.my_jump_cycle_16.total(),
-                    local_write.my_jump_cycle_32.total()
-                );
-                debug_assert!(
-                    local_write.my_jump_cycle_32.total() <= local_write.my_jump_cycle_64.total(),
-                    "{} {}",
-                    local_write.my_jump_cycle_32.total(),
-                    local_write.my_jump_cycle_64.total()
-                );
-
-                debug_assert!(
-                    row.my_jump_cycle_16.total() <= row.my_jump_cycle_32.total(),
-                    "{} {}",
-                    row.my_jump_cycle_16.total(),
-                    row.my_jump_cycle_32.total()
-                );
-                debug_assert!(
-                    row.my_jump_cycle_32.total() <= row.my_jump_cycle_64.total(),
-                    "{} {}",
-                    row.my_jump_cycle_32.total(),
-                    row.my_jump_cycle_64.total()
-                );
-
-                debug_assert!(
-                    evil_row.my_jump_cycle_16.total() <= evil_row.my_jump_cycle_32.total(),
-                    "{} {}",
-                    evil_row.my_jump_cycle_16.total(),
-                    evil_row.my_jump_cycle_32.total()
-                );
-                debug_assert!(
-                    evil_row.my_jump_cycle_32.total() <= evil_row.my_jump_cycle_64.total(),
-                    "{} {}",
-                    evil_row.my_jump_cycle_32.total(),
-                    evil_row.my_jump_cycle_64.total()
-                );
-
-                debug_assert!(my_16 <= my_32, "{} {}", my_16, my_32);
-                debug_assert!(my_32 <= my_64, "{} {}", my_32, my_64);
-                [normal, ideal, from_source, my_16, my_32, my_64, smart]
+                let local_total = local_write.clone().into_iter().collect_vec();
+                let row_total = row.clone().into_iter().collect_vec();
+                let evil_row_total = evil_row.clone().into_iter().collect_vec();
+                local_total
+                    .into_iter()
+                    .zip(row_total)
+                    .zip(evil_row_total)
+                    .map(|((lc, r), evr)| {
+                        let total = lc + r + evr;
+                        total.max(dispatcher_send)
+                    })
+                    .collect_vec()
             })
-            .reduce(|a, b| {
-                [
-                    a[0].max(b[0]),
-                    a[1].max(b[1]),
-                    a[2].max(b[2]),
-                    a[3].max(b[3]),
-                    a[4].max(b[4]),
-                    a[5].max(b[5]),
-                    a[6].max(b[6]),
-                ]
+            .reduce(|mut va, vb| {
+                va.iter_mut().zip(vb).for_each(|(a, b)| *a = (*a).max(b));
+                va
             })
             .unwrap();
-        debug_assert!(local_max[3] <= local_max[4]);
-        debug_assert!(local_max[4] <= local_max[5]);
+
         let max_sending_cycle = self.dispatcher_status.iter().map(|x| x.0).max().unwrap();
         let max_receive_cycle = self.dispatcher_status.iter().map(|x| x.1).max().unwrap();
         result.dispatcher_sending_cycle += max_sending_cycle;
         result.dispatcher_reading_cycle += max_receive_cycle;
 
+        assert!(result.real_local_cycle.len() == local_max.len());
         result
             .real_local_cycle
             .iter_mut()
@@ -478,11 +455,11 @@ impl RealJumpSimulator {
     }
 }
 
-fn update_jump_cycle<T: JumpCycle>(
+fn update_jump_cycle<T: AddableJumpCycle>(
     current_round_cycle: &[RowCycle],
     mut specific_jump_cycle: impl FnMut(&RowCycle) -> &T,
-    final_cycle: &mut FinalRowCycle,
-    mut final_jump: impl FnMut(&mut FinalRowCycle) -> &mut T,
+    final_cycle: &mut RowCycle,
+    mut final_jump: impl FnMut(&mut RowCycle) -> &mut T,
 ) -> usize {
     let normal_jump_cycle = current_round_cycle
         .iter()
@@ -495,10 +472,7 @@ fn update_jump_cycle<T: JumpCycle>(
 }
 ///[normal, ideal, from_source, my, smart]
 /// find the slowest cycle and accumulate it to the final cycle
-fn update_row_cycle(
-    current_round_cycle: &[RowCycle],
-    final_cycle: &mut FinalRowCycle,
-) -> [usize; 7] {
+fn update_row_cycle(current_round_cycle: &[RowCycle], final_cycle: &mut RowCycle) -> AllJumpResult {
     // first select the max cycle
     //the normal jump cycle
     let normal = update_jump_cycle(
@@ -540,15 +514,68 @@ fn update_row_cycle(
         final_cycle,
         |x| &mut x.my_jump_cycle_64,
     );
+
+    // my jump cycle
+    let my_16_no_overhead = update_jump_cycle(
+        current_round_cycle,
+        |x| &x.my_jump_cycle_16_no_overhead,
+        final_cycle,
+        |x| &mut x.my_jump_cycle_16_no_overhead,
+    );
+    let my_32_no_overhead = update_jump_cycle(
+        current_round_cycle,
+        |x| &x.my_jump_cycle_32_no_overhead,
+        final_cycle,
+        |x| &mut x.my_jump_cycle_32_no_overhead,
+    );
+    let my_64_no_overhead = update_jump_cycle(
+        current_round_cycle,
+        |x| &x.my_jump_cycle_64_no_overhead,
+        final_cycle,
+        |x| &mut x.my_jump_cycle_64_no_overhead,
+    );
+
+    // my jump cycle
+    let my_16_opt = update_jump_cycle(
+        current_round_cycle,
+        |x| &x.my_jump_cycle_16_opt,
+        final_cycle,
+        |x| &mut x.my_jump_cycle_16_opt,
+    );
+    let my_32_opt = update_jump_cycle(
+        current_round_cycle,
+        |x| &x.my_jump_cycle_32_opt,
+        final_cycle,
+        |x| &mut x.my_jump_cycle_32_opt,
+    );
+    let my_64_opt = update_jump_cycle(
+        current_round_cycle,
+        |x| &x.my_jump_cycle_64_opt,
+        final_cycle,
+        |x| &mut x.my_jump_cycle_64_opt,
+    );
     let smart = update_jump_cycle(
         current_round_cycle,
         |x| &x.smart_jump_cycle,
         final_cycle,
         |x| &mut x.smart_jump_cycle,
     );
-    debug_assert!(my_16 <= my_32, "my_16 is {}, my_32 is {}", my_16, my_32);
-    debug_assert!(my_32 <= my_64, "my_32 is {}, my_64 is {}", my_32, my_64);
-    [normal, ideal, from_source, my_16, my_32, my_64, smart]
+
+    [
+        normal,
+        ideal,
+        from_source,
+        my_16,
+        my_32,
+        my_64,
+        my_16_no_overhead,
+        my_32_no_overhead,
+        my_64_no_overhead,
+        my_16_opt,
+        my_32_opt,
+        my_64_opt,
+        smart,
+    ]
 
     //
 }
@@ -771,14 +798,14 @@ impl EvilColHandler {
 #[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
 
 pub struct RealJumpResult {
-    pub local_dense_col_cycles: FinalRowCycle,
-    pub remote_dense_col_cycles: FinalRowCycle,
-    pub evil_row_cycles: FinalRowCycle,
-    pub row_cycles: FinalRowCycle,
+    pub local_dense_col_cycles: RowCycle,
+    pub remote_dense_col_cycles: RowCycle,
+    pub evil_row_cycles: RowCycle,
+    pub row_cycles: RowCycle,
     pub dispatcher_sending_cycle: usize,
     pub dispatcher_reading_cycle: usize,
     // pub real_cycle: [usize; 7],
-    pub real_local_cycle: [usize; 7],
+    pub real_local_cycle: AllJumpResult,
 }
 impl super::Simulator for RealJumpSimulator {
     type R = RealJumpResult;

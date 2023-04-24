@@ -5,23 +5,19 @@ use crate::analysis::translate_mapping::RowLocation;
 use super::{AddableJumpCycle, JumpCycle};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
-pub struct MyJumpCycle {
-    /// the cycle to calculate the remap location(0xgap or 1xgap...)
-    pub calculate_remap_cycle: usize,
-
+pub struct MyJumpNoOverhead {
     /// the cycle that jump to the target location
     pub multi_jump_cycle: usize,
 
     /// the cycle that perform stream data read(one jump)
     pub one_jump_cycle: usize,
 }
-impl MyJumpCycle {
+impl MyJumpNoOverhead {
     pub fn update(
         &mut self,
         row_status: &(usize, usize),
         location: &RowLocation,
         size: usize,
-        remap_unit: usize,
         gap: usize,
     ) {
         let row_cycle = if location.row_id.0 == row_status.0 {
@@ -29,7 +25,6 @@ impl MyJumpCycle {
         } else {
             18
         };
-        self.calculate_remap_cycle += remap_unit;
 
         // first find the nearest stop
         let re_map_times = (location.col_id.0 % gap).min(gap - location.col_id.0 % gap);
@@ -46,9 +41,9 @@ impl MyJumpCycle {
         self.one_jump_cycle += size * 4;
     }
 }
-impl JumpCycle for MyJumpCycle {
+impl JumpCycle for MyJumpNoOverhead {
     fn total(&self) -> usize {
-        self.calculate_remap_cycle + self.multi_jump_cycle + self.one_jump_cycle
+        self.multi_jump_cycle + self.one_jump_cycle
     }
 
     fn get_one_jump(&self) -> usize {
@@ -67,10 +62,10 @@ impl JumpCycle for MyJumpCycle {
         &mut self.multi_jump_cycle
     }
 }
-impl AddableJumpCycle for MyJumpCycle {
-    fn add(&mut self, other: &Self) {
-        self.calculate_remap_cycle += other.calculate_remap_cycle;
-        self.multi_jump_cycle += other.multi_jump_cycle;
-        self.one_jump_cycle += other.one_jump_cycle;
+
+impl AddableJumpCycle for MyJumpNoOverhead {
+    fn add(&mut self, my_jump_cycle: &MyJumpNoOverhead) {
+        self.multi_jump_cycle += my_jump_cycle.multi_jump_cycle;
+        self.one_jump_cycle += my_jump_cycle.one_jump_cycle;
     }
 }

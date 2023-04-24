@@ -59,5 +59,11 @@ impl JumpCycle for NormalJumpCycle {
     fn add(&mut self, normal_jump_cycle: &NormalJumpCycle) {
         self.jump_one_cycle += normal_jump_cycle.jump_one_cycle;
         self.jump_multiple_cycle += normal_jump_cycle.jump_multiple_cycle;
+        self.total_jumps_all += normal_jump_cycle.total_jumps_all;
+        self.total_jumps_covered_by_row_open += normal_jump_cycle.total_jumps_covered_by_row_open;
+        self.jumps_not_covered_when_no_row_open +=
+            normal_jump_cycle.jumps_not_covered_when_no_row_open;
+        self.jumps_not_covered_when_more_shift +=
+            normal_jump_cycle.jumps_not_covered_when_more_shift;
     }
 }

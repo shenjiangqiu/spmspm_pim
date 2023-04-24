@@ -349,6 +349,8 @@ impl RealJumpSimulator {
     fn update_result(&mut self, result: &mut RealJumpResult) {
         update_row_cycle(&self.col_cycles_local, &mut result.local_dense_col_cycles);
         update_row_cycle(&self.col_cycles_remote, &mut result.remote_dense_col_cycles);
+        update_row_cycle(&self.evil_row_cycles, &mut result.evil_row_cycles);
+        update_row_cycle(&self.non_evil_row_cycles, &mut result.row_cycles);
 
         let subarrays = self.non_evil_row_cycles.len() / self.dispatcher_status.len();
         let dispatcher_expand = self
@@ -458,17 +460,6 @@ impl RealJumpSimulator {
         result.dispatcher_sending_cycle += max_sending_cycle;
         result.dispatcher_reading_cycle += max_receive_cycle;
 
-        // for (result_cycle, evil_max, non_evil_max) in itertools::izip!(
-        //     result.real_cycle.iter_mut(),
-        //     evil_max.iter(),
-        //     non_evil_max.iter()
-        // ) {
-        //     debug!(
-        //         "the sending cycle is {}, the evil is {},the non evil is {}",
-        //         max_sending_cycle, evil_max, non_evil_max
-        //     );
-        //     *result_cycle += max_sending_cycle.max(*evil_max + *non_evil_max);
-        // }
         result
             .real_local_cycle
             .iter_mut()
@@ -503,6 +494,7 @@ fn update_jump_cycle<T: JumpCycle>(
     normal_jump_cycle.total()
 }
 ///[normal, ideal, from_source, my, smart]
+/// find the slowest cycle and accumulate it to the final cycle
 fn update_row_cycle(
     current_round_cycle: &[RowCycle],
     final_cycle: &mut FinalRowCycle,

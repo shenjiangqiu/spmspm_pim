@@ -14,6 +14,10 @@ pub struct MyJumpCycle {
 
     /// the cycle that perform stream data read(one jump)
     pub one_jump_cycle: usize,
+
+    // the statistics
+    pub no_opt_cycle: usize,
+    pub opt_cycle: usize,
 }
 impl MyJumpCycle {
     pub fn update(
@@ -30,19 +34,27 @@ impl MyJumpCycle {
             18
         };
         self.calculate_remap_cycle += remap_unit;
+
         // first find the nearest stop
         let re_map_times = (location.col_id.0 % gap).min(gap - location.col_id.0 % gap);
 
         let from_start_cycle = location.col_id.0;
         let normal_cycle = (row_status.1 as isize - location.col_id.0 as isize).abs() as usize;
-        let min = (re_map_times + 1)
+        let min_jump_cycle = (re_map_times + 1)
             .min(from_start_cycle + 1)
             .min(normal_cycle);
-        let min = min.max(row_cycle);
+        let min_jump_and_row_cycle = min_jump_cycle.max(row_cycle);
 
-        self.multi_jump_cycle += min;
+        self.multi_jump_cycle += min_jump_and_row_cycle;
 
         self.one_jump_cycle += size * 4;
+
+        // update the statistics
+        self.no_opt_cycle += (remap_unit + min_jump_cycle).max(row_cycle);
+        self.opt_cycle += normal_cycle
+            .min(remap_unit + re_map_times + 1)
+            .min(from_start_cycle + 1)
+            .max(row_cycle);
     }
 }
 impl JumpCycle for MyJumpCycle {
@@ -50,6 +62,9 @@ impl JumpCycle for MyJumpCycle {
         self.calculate_remap_cycle += my_jump_cycle.calculate_remap_cycle;
         self.multi_jump_cycle += my_jump_cycle.multi_jump_cycle;
         self.one_jump_cycle += my_jump_cycle.one_jump_cycle;
+
+        self.no_opt_cycle += my_jump_cycle.no_opt_cycle;
+        self.opt_cycle += my_jump_cycle.opt_cycle;
     }
 
     fn total(&self) -> usize {

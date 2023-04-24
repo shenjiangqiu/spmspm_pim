@@ -13,7 +13,7 @@ enum JumpType {
 fn main() -> eyre::Result<()> {
     //results/realjump/real_jump_sensitive_fix_row_open.json
     let result: common::RealJumpResultMap = serde_json::from_str(include_str!(
-        "../../results/realjump/real_jump_sensitive_fix_row_open.json"
+        "../../results/realjump/real_jump_fix_my_bug.json"
     ))?;
 
     let mut total_cycle: BTreeMap<&MappingType, BTreeMap<JumpType, Vec<(&str, usize)>>> =

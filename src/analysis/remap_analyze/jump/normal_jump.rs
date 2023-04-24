@@ -8,6 +8,12 @@ use super::JumpCycle;
 pub struct NormalJumpCycle {
     pub jump_one_cycle: usize,
     pub jump_multiple_cycle: usize,
+
+    // the statistics
+    pub total_jumps_all: usize,
+    pub total_jumps_covered_by_row_open: usize,
+    pub jumps_not_covered_when_no_row_open: usize,
+    pub jumps_not_covered_when_more_shift: usize,
 }
 impl NormalJumpCycle {
     pub fn update(
@@ -24,6 +30,18 @@ impl NormalJumpCycle {
         let current_col = evil_row_status.1;
         let target_col = location.col_id.0;
         let jumps = (current_col as isize - target_col as isize).abs() as usize;
+        // update the statistics
+        self.total_jumps_all += jumps;
+        if jumps <= row_cycle {
+            self.total_jumps_covered_by_row_open += jumps;
+        } else {
+            // cannot cover by row open
+            if jumps == 0 {
+                self.jumps_not_covered_when_no_row_open += jumps;
+            } else {
+                self.jumps_not_covered_when_more_shift += jumps - row_cycle;
+            }
+        }
         // the jump of size
         if jumps > 4 {
             self.jump_multiple_cycle += jumps.max(row_cycle);

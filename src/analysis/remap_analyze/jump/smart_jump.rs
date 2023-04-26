@@ -2,15 +2,21 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::translate_mapping::RowLocation;
 
-use super::{AddableJumpCycle, JumpCycle};
+use super::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
 pub struct SmartJumpCycle {
     pub jump_one_cycle: usize,
     pub jump_multiple_cycle: usize,
 }
-impl SmartJumpCycle {
-    pub fn update(&mut self, row_status: &(usize, usize), location: &RowLocation, size: usize) {
+impl UpdatableJumpCycle for SmartJumpCycle {
+    fn update(
+        &mut self,
+        row_status: &(usize, usize),
+        location: &RowLocation,
+        size: usize,
+        _remap_cycle: usize,
+    ) {
         let row_cycle = if location.row_id.0 == row_status.0 {
             0
         } else {

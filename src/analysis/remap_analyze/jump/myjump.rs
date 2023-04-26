@@ -2,10 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::translate_mapping::RowLocation;
 
-use super::{AddableJumpCycle, JumpCycle};
+use super::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
-pub struct MyJumpCycle {
+pub struct MyJumpCycle<const GAP: usize> {
     /// the cycle to calculate the remap location(0xgap or 1xgap...)
     pub calculate_remap_cycle: usize,
 
@@ -15,27 +15,23 @@ pub struct MyJumpCycle {
     /// the cycle that perform stream data read(one jump)
     pub one_jump_cycle: usize,
 }
-impl MyJumpCycle {
-    pub fn update(
+impl<const GAP: usize> UpdatableJumpCycle for MyJumpCycle<GAP> {
+    fn update(
         &mut self,
         row_status: &(usize, usize),
-        location: &RowLocation,
+        loc: &RowLocation,
         size: usize,
         remap_unit: usize,
-        gap: usize,
     ) {
-        let row_cycle = if location.row_id.0 == row_status.0 {
-            0
-        } else {
-            18
-        };
+        let gap = GAP;
+        let row_cycle = if loc.row_id.0 == row_status.0 { 0 } else { 18 };
         self.calculate_remap_cycle += remap_unit;
 
         // first find the nearest stop
-        let re_map_times = (location.col_id.0 % gap).min(gap - location.col_id.0 % gap);
+        let re_map_times = (loc.col_id.0 % gap).min(gap - loc.col_id.0 % gap);
 
-        let from_start_cycle = location.col_id.0;
-        let normal_cycle = (row_status.1 as isize - location.col_id.0 as isize).abs() as usize;
+        let from_start_cycle = loc.col_id.0;
+        let normal_cycle = (row_status.1 as isize - loc.col_id.0 as isize).abs() as usize;
         let min_jump_cycle = (re_map_times + 1)
             .min(from_start_cycle + 1)
             .min(normal_cycle);
@@ -46,7 +42,7 @@ impl MyJumpCycle {
         self.one_jump_cycle += size * 4;
     }
 }
-impl JumpCycle for MyJumpCycle {
+impl<const GAP: usize> JumpCycle for MyJumpCycle<GAP> {
     fn total(&self) -> usize {
         self.calculate_remap_cycle + self.multi_jump_cycle + self.one_jump_cycle
     }
@@ -67,7 +63,7 @@ impl JumpCycle for MyJumpCycle {
         &mut self.multi_jump_cycle
     }
 }
-impl AddableJumpCycle for MyJumpCycle {
+impl<const GAP: usize> AddableJumpCycle for MyJumpCycle<GAP> {
     fn add(&mut self, other: &Self) {
         self.calculate_remap_cycle += other.calculate_remap_cycle;
         self.multi_jump_cycle += other.multi_jump_cycle;

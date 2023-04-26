@@ -28,200 +28,9 @@ use crate::{
     tools::{self, file_server},
 };
 
-use super::jump::{
-    AddableJumpCycle, FromSourceJumpCycle, IdealJumpCycle, JumpCycle, MyJumpCycle,
-    MyJumpNoOverhead, MyJumpOpt, NormalJumpCycle, SmartJumpCycle,
-};
+use super::jump::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
+use super::row_cycle::RowCycle;
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
-
-pub struct RowCycle {
-    pub normal_jump_cycle: NormalJumpCycle,
-    pub ideal_jump_cycle: IdealJumpCycle,
-    pub from_source_jump_cycle: FromSourceJumpCycle,
-    pub my_jump_cycle_16: MyJumpCycle,
-    pub my_jump_cycle_32: MyJumpCycle,
-    pub my_jump_cycle_64: MyJumpCycle,
-    pub my_jump_cycle_16_no_overhead: MyJumpNoOverhead,
-    pub my_jump_cycle_32_no_overhead: MyJumpNoOverhead,
-    pub my_jump_cycle_64_no_overhead: MyJumpNoOverhead,
-    pub my_jump_cycle_16_opt: MyJumpOpt,
-    pub my_jump_cycle_32_opt: MyJumpOpt,
-    pub my_jump_cycle_64_opt: MyJumpOpt,
-    pub smart_jump_cycle: SmartJumpCycle,
-}
-
-pub struct RowCycleIterator {
-    row_cycle: RowCycle,
-    jump_type: JumpTypes,
-}
-impl IntoIterator for RowCycle {
-    type Item = usize;
-    type IntoIter = RowCycleIterator;
-    fn into_iter(self) -> Self::IntoIter {
-        RowCycleIterator {
-            row_cycle: self,
-            jump_type: JumpTypes::Normal,
-        }
-    }
-}
-impl Iterator for RowCycleIterator {
-    type Item = usize;
-    fn next(&mut self) -> Option<Self::Item> {
-        let ret = match self.jump_type {
-            JumpTypes::Normal => self.row_cycle.normal_jump_cycle.total(),
-            JumpTypes::Ideal => self.row_cycle.ideal_jump_cycle.total(),
-            JumpTypes::FromSource => self.row_cycle.from_source_jump_cycle.total(),
-            JumpTypes::My16 => self.row_cycle.my_jump_cycle_16.total(),
-            JumpTypes::My32 => self.row_cycle.my_jump_cycle_32.total(),
-            JumpTypes::My64 => self.row_cycle.my_jump_cycle_64.total(),
-            JumpTypes::My16NoOverhead => self.row_cycle.my_jump_cycle_16_no_overhead.total(),
-            JumpTypes::My32NoOverhead => self.row_cycle.my_jump_cycle_32_no_overhead.total(),
-            JumpTypes::My64NoOverhead => self.row_cycle.my_jump_cycle_64_no_overhead.total(),
-            JumpTypes::My16Opt => self.row_cycle.my_jump_cycle_16_opt.total(),
-            JumpTypes::My32Opt => self.row_cycle.my_jump_cycle_32_opt.total(),
-            JumpTypes::My64Opt => self.row_cycle.my_jump_cycle_64_opt.total(),
-            JumpTypes::Smart => self.row_cycle.smart_jump_cycle.total(),
-            JumpTypes::End => return None,
-        };
-        self.jump_type.next();
-        Some(ret)
-    }
-}
-impl RowCycle {
-    pub fn into_split_iter(self) -> RowCycleSplitIter {
-        RowCycleSplitIter {
-            row_cycle: self,
-            jump_type: JumpTypes::Normal,
-        }
-    }
-}
-pub struct RowCycleSplitIter {
-    row_cycle: RowCycle,
-    jump_type: JumpTypes,
-}
-impl Iterator for RowCycleSplitIter {
-    type Item = (usize, usize);
-    fn next(&mut self) -> Option<Self::Item> {
-        let cycle = match self.jump_type {
-            JumpTypes::Normal => (
-                self.row_cycle.normal_jump_cycle.get_one_jump(),
-                self.row_cycle.normal_jump_cycle.get_multi_jump(),
-            ),
-            JumpTypes::Ideal => (
-                self.row_cycle.ideal_jump_cycle.get_one_jump(),
-                self.row_cycle.ideal_jump_cycle.get_multi_jump(),
-            ),
-            JumpTypes::FromSource => (
-                self.row_cycle.from_source_jump_cycle.get_one_jump(),
-                self.row_cycle.from_source_jump_cycle.get_multi_jump(),
-            ),
-            JumpTypes::My16 => (
-                self.row_cycle.my_jump_cycle_16.get_one_jump(),
-                self.row_cycle.my_jump_cycle_16.get_multi_jump(),
-            ),
-            JumpTypes::My32 => (
-                self.row_cycle.my_jump_cycle_32.get_one_jump(),
-                self.row_cycle.my_jump_cycle_32.get_multi_jump(),
-            ),
-            JumpTypes::My64 => (
-                self.row_cycle.my_jump_cycle_64.get_one_jump(),
-                self.row_cycle.my_jump_cycle_64.get_multi_jump(),
-            ),
-            JumpTypes::My16NoOverhead => (
-                self.row_cycle.my_jump_cycle_16_no_overhead.get_one_jump(),
-                self.row_cycle.my_jump_cycle_16_no_overhead.get_multi_jump(),
-            ),
-            JumpTypes::My32NoOverhead => (
-                self.row_cycle.my_jump_cycle_32_no_overhead.get_one_jump(),
-                self.row_cycle.my_jump_cycle_32_no_overhead.get_multi_jump(),
-            ),
-            JumpTypes::My64NoOverhead => (
-                self.row_cycle.my_jump_cycle_64_no_overhead.get_one_jump(),
-                self.row_cycle.my_jump_cycle_64_no_overhead.get_multi_jump(),
-            ),
-            JumpTypes::My16Opt => (
-                self.row_cycle.my_jump_cycle_16_opt.get_one_jump(),
-                self.row_cycle.my_jump_cycle_16_opt.get_multi_jump(),
-            ),
-            JumpTypes::My32Opt => (
-                self.row_cycle.my_jump_cycle_32_opt.get_one_jump(),
-                self.row_cycle.my_jump_cycle_32_opt.get_multi_jump(),
-            ),
-            JumpTypes::My64Opt => (
-                self.row_cycle.my_jump_cycle_64_opt.get_one_jump(),
-                self.row_cycle.my_jump_cycle_64_opt.get_multi_jump(),
-            ),
-            JumpTypes::Smart => (
-                self.row_cycle.smart_jump_cycle.get_one_jump(),
-                self.row_cycle.smart_jump_cycle.get_multi_jump(),
-            ),
-            JumpTypes::End => return None,
-        };
-        self.jump_type.next();
-        Some(cycle)
-    }
-}
-enum JumpTypes {
-    Normal,
-    Ideal,
-    FromSource,
-    My16,
-    My32,
-    My64,
-    My16NoOverhead,
-    My32NoOverhead,
-    My64NoOverhead,
-    My16Opt,
-    My32Opt,
-    My64Opt,
-    Smart,
-    End,
-}
-impl JumpTypes {
-    fn next(&mut self) {
-        *self = match self {
-            JumpTypes::Normal => JumpTypes::Ideal,
-            JumpTypes::Ideal => JumpTypes::FromSource,
-            JumpTypes::FromSource => JumpTypes::My16,
-            JumpTypes::My16 => JumpTypes::My32,
-            JumpTypes::My32 => JumpTypes::My64,
-            JumpTypes::My64 => JumpTypes::My16NoOverhead,
-            JumpTypes::My16NoOverhead => JumpTypes::My32NoOverhead,
-            JumpTypes::My32NoOverhead => JumpTypes::My64NoOverhead,
-            JumpTypes::My64NoOverhead => JumpTypes::My16Opt,
-            JumpTypes::My16Opt => JumpTypes::My32Opt,
-            JumpTypes::My32Opt => JumpTypes::My64Opt,
-            JumpTypes::My64Opt => JumpTypes::Smart,
-            JumpTypes::Smart => JumpTypes::End,
-            JumpTypes::End => JumpTypes::End,
-        }
-    }
-}
-
-impl RowCycle {
-    fn update(
-        &mut self,
-        row_status: &(usize, usize),
-        location: &RowLocation,
-        size: usize,
-        remap_cycle: usize,
-    ) {
-        // then calulate the jump cycle
-        self.normal_jump_cycle.update(row_status, location, size);
-        self.from_source_jump_cycle
-            .update(row_status, location, size);
-        self.ideal_jump_cycle.update(row_status, location, size);
-        self.my_jump_cycle_16
-            .update(row_status, location, size, remap_cycle, 16);
-        self.my_jump_cycle_32
-            .update(row_status, location, size, remap_cycle, 32);
-        self.my_jump_cycle_64
-            .update(row_status, location, size, remap_cycle, 64);
-
-        self.smart_jump_cycle.update(row_status, location, size);
-    }
-}
 struct RealJumpSimulator {
     /// the local read of evil row
     evil_row_status: Vec<(usize, usize)>,
@@ -561,6 +370,13 @@ fn update_row_cycle(current_round_cycle: &[RowCycle], final_cycle: &mut RowCycle
         |x| &mut x.smart_jump_cycle,
     );
 
+    debug_assert!(my_16_opt >= ideal, "{:?} {:?}", my_16_opt, ideal);
+    debug_assert!(my_32_opt >= ideal);
+    debug_assert!(my_64_opt >= ideal);
+
+    debug_assert!(my_16_no_overhead >= ideal);
+    debug_assert!(my_32_no_overhead >= ideal);
+    debug_assert!(my_64_no_overhead >= ideal);
     [
         normal,
         ideal,

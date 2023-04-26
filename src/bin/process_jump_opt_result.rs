@@ -1,22 +1,20 @@
 use std::collections::BTreeMap;
 
 use itertools::Itertools;
-use spmspm_pim::{analysis::remap_analyze::real_jump::RealJumpResult, pim::configv2::MappingType};
+use spmspm_pim::{
+    analysis::remap_analyze::{real_jump::RealJumpResult, row_cycle::JumpTypes},
+    pim::configv2::MappingType,
+};
 
 mod common;
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum JumpType {
-    Normal,
-    Ideal,
-    My(usize),
-}
+
 fn main() -> eyre::Result<()> {
     //results/realjump/real_jump_sensitive_fix_row_open.json
     let result: common::RealJumpResultMap = serde_json::from_str(include_str!(
         "../../results/realjump/add_normal_and_opt.json"
     ))?;
 
-    let mut total_cycle: BTreeMap<&MappingType, BTreeMap<JumpType, Vec<(&str, usize)>>> =
+    let mut total_cycle: BTreeMap<&MappingType, BTreeMap<JumpTypes, Vec<(&str, usize)>>> =
         BTreeMap::new();
     print_fn(
         &result,
@@ -53,14 +51,7 @@ fn main() -> eyre::Result<()> {
                 let dispatching = single_result.dispatcher_reading_cycle;
                 let total = real_local + dispatching + remote_write;
 
-                let jump_type = match index {
-                    0 => JumpType::Normal,
-                    1 => JumpType::Ideal,
-                    3 => JumpType::My(16),
-                    4 => JumpType::My(32),
-                    5 => JumpType::My(64),
-                    _ => continue,
-                };
+                let jump_type = index.into();
                 let total_cycle = total_cycle
                     .entry(mapping_type)
                     .or_insert_with(BTreeMap::new)
@@ -75,39 +66,55 @@ fn main() -> eyre::Result<()> {
     let same_bank_normal = total_cycle
         .get(&MappingType::SameBank)
         .unwrap()
-        .get(&JumpType::Normal)
+        .get(&JumpTypes::Normal)
         .unwrap();
     let same_bank_ideal = total_cycle
         .get(&MappingType::SameBank)
         .unwrap()
-        .get(&JumpType::Ideal)
+        .get(&JumpTypes::Ideal)
         .unwrap();
-    let same_bank_my = total_cycle
+    let same_bank_my_opt = total_cycle
         .get(&MappingType::SameBank)
         .unwrap()
-        .iter()
-        .filter(|x| match x.0 {
-            JumpType::My(_) => true,
-            _ => false,
-        });
+        .get(&JumpTypes::My16Opt)
+        .unwrap();
+    let same_bank_my_no_opt = total_cycle
+        .get(&MappingType::SameBank)
+        .unwrap()
+        .get(&JumpTypes::My16)
+        .unwrap();
+    let same_bank_my_no_overhead = total_cycle
+        .get(&MappingType::SameBank)
+        .unwrap()
+        .get(&JumpTypes::My16NoOverhead)
+        .unwrap();
+    // weighted
     let weighted_bank_normal = total_cycle
         .get(&MappingType::SameBankWeightedMapping)
         .unwrap()
-        .get(&JumpType::Normal)
+        .get(&JumpTypes::Normal)
         .unwrap();
     let weighted_bank_ideal = total_cycle
         .get(&MappingType::SameBankWeightedMapping)
         .unwrap()
-        .get(&JumpType::Ideal)
+        .get(&JumpTypes::Ideal)
         .unwrap();
-    let weighted_bank_my = total_cycle
+    let weighted_bank_my_opt = total_cycle
         .get(&MappingType::SameBankWeightedMapping)
         .unwrap()
-        .iter()
-        .filter(|x| match x.0 {
-            JumpType::My(_) => true,
-            _ => false,
-        });
+        .get(&JumpTypes::My16Opt)
+        .unwrap();
+    let weighted_bank_my_no_opt = total_cycle
+        .get(&MappingType::SameBankWeightedMapping)
+        .unwrap()
+        .get(&JumpTypes::My16)
+        .unwrap();
+    let weighted_bank_my_no_overhead = total_cycle
+        .get(&MappingType::SameBankWeightedMapping)
+        .unwrap()
+        .get(&JumpTypes::My16NoOverhead)
+        .unwrap();
+
     let st = same_bank_normal
         .iter()
         .map(|x| x.0.split('/').last().unwrap())
@@ -117,19 +124,23 @@ fn main() -> eyre::Result<()> {
     println!("same_bank_normal: {}", st);
     let st = same_bank_ideal.iter().map(|x| x.1).join(" ");
     println!("same_bank_ideal: {}", st);
-    let st = same_bank_my
-        .map(|x| format!("{:?}: {}", x.0, x.1.iter().map(|x| x.1).join(" ")))
-        .join("\n");
-    println!("same_bank_my: \n{}", st);
+    let st = same_bank_my_opt.iter().map(|x| x.1).join(" ");
+    println!("same_bank_my_opt: \n{}", st);
+    let st = same_bank_my_no_opt.iter().map(|x| x.1).join(" ");
+    println!("same_bank_my_no_opt: \n{}", st);
+    let st = same_bank_my_no_overhead.iter().map(|x| x.1).join(" ");
+    println!("same_bank_my_no_overhead: \n{}", st);
 
     let st = weighted_bank_normal.iter().map(|x| x.1).join(" ");
     println!("weighted_bank_normal: {}", st);
     let st = weighted_bank_ideal.iter().map(|x| x.1).join(" ");
     println!("weighted_bank_ideal: {}", st);
-    let st = weighted_bank_my
-        .map(|x| format!("{:?}: {}", x.0, x.1.iter().map(|x| x.1).join(" ")))
-        .join("\n");
-    println!("weighted_bank_my: \n{}", st);
+    let st = weighted_bank_my_opt.iter().map(|x| x.1).join(" ");
+    println!("weighted_bank_my_opt: \n{}", st);
+    let st = weighted_bank_my_no_opt.iter().map(|x| x.1).join(" ");
+    println!("weighted_bank_my_no_opt: \n{}", st);
+    let st = weighted_bank_my_no_overhead.iter().map(|x| x.1).join(" ");
+    println!("weighted_bank_my_no_overhead: \n{}", st);
 
     Ok(())
 }

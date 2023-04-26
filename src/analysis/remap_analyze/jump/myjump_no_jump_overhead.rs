@@ -2,24 +2,25 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::translate_mapping::RowLocation;
 
-use super::{AddableJumpCycle, JumpCycle};
+use super::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
-pub struct MyJumpNoOverhead {
+pub struct MyJumpNoOverhead<const GAP: usize> {
     /// the cycle that jump to the target location
     pub multi_jump_cycle: usize,
 
     /// the cycle that perform stream data read(one jump)
     pub one_jump_cycle: usize,
 }
-impl MyJumpNoOverhead {
-    pub fn update(
+impl<const GAP: usize> UpdatableJumpCycle for MyJumpNoOverhead<GAP> {
+    fn update(
         &mut self,
         row_status: &(usize, usize),
         location: &RowLocation,
         size: usize,
-        gap: usize,
+        _remap_cycle: usize,
     ) {
+        let gap = GAP;
         let row_cycle = if location.row_id.0 == row_status.0 {
             0
         } else {
@@ -41,7 +42,7 @@ impl MyJumpNoOverhead {
         self.one_jump_cycle += size * 4;
     }
 }
-impl JumpCycle for MyJumpNoOverhead {
+impl<const GAP: usize> JumpCycle for MyJumpNoOverhead<GAP> {
     fn total(&self) -> usize {
         self.multi_jump_cycle + self.one_jump_cycle
     }
@@ -63,8 +64,8 @@ impl JumpCycle for MyJumpNoOverhead {
     }
 }
 
-impl AddableJumpCycle for MyJumpNoOverhead {
-    fn add(&mut self, my_jump_cycle: &MyJumpNoOverhead) {
+impl<const GAP: usize> AddableJumpCycle for MyJumpNoOverhead<GAP> {
+    fn add(&mut self, my_jump_cycle: &MyJumpNoOverhead<GAP>) {
         self.multi_jump_cycle += my_jump_cycle.multi_jump_cycle;
         self.one_jump_cycle += my_jump_cycle.one_jump_cycle;
     }

@@ -1,3 +1,4 @@
+pub mod row_cycle;
 pub mod jump;
 use serde::{Deserialize, Serialize};
 use sprs::{num_kinds::Pattern, CsMatI};

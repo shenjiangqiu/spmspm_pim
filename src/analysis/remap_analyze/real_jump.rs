@@ -28,7 +28,7 @@ use crate::{
     tools::{self, file_server},
 };
 
-use super::jump::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
+use super::jump::AddableJumpCycle;
 use super::row_cycle::RowCycle;
 
 struct RealJumpSimulator {

@@ -241,7 +241,8 @@ impl RowCycle {
         size: usize,
         remap_cycle: usize,
     ) {
-        while let Some(jump_cycle) = self.update_iter_mut().next() {
+        let mut update_iter = self.update_iter_mut();
+        while let Some(jump_cycle) = update_iter.next() {
             jump_cycle.update(row_status, location, size, remap_cycle);
         }
     }

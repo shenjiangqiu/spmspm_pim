@@ -11,7 +11,7 @@ mod common;
 fn main() -> eyre::Result<()> {
     //results/realjump/real_jump_sensitive_fix_row_open.json
     let result: common::RealJumpResultMap = serde_json::from_str(include_str!(
-        "../../results/realjump/add_normal_and_opt.json"
+        "../../results/realjump/add_normal_and_opt_fix_opt_bug.json"
     ))?;
 
     let mut total_cycle: BTreeMap<&MappingType, BTreeMap<JumpTypes, Vec<(&str, usize)>>> =
@@ -76,17 +76,17 @@ fn main() -> eyre::Result<()> {
     let same_bank_my_opt = total_cycle
         .get(&MappingType::SameBank)
         .unwrap()
-        .get(&JumpTypes::My16Opt)
+        .get(&JumpTypes::My64Opt)
         .unwrap();
     let same_bank_my_no_opt = total_cycle
         .get(&MappingType::SameBank)
         .unwrap()
-        .get(&JumpTypes::My16)
+        .get(&JumpTypes::My64)
         .unwrap();
     let same_bank_my_no_overhead = total_cycle
         .get(&MappingType::SameBank)
         .unwrap()
-        .get(&JumpTypes::My16NoOverhead)
+        .get(&JumpTypes::My64NoOverhead)
         .unwrap();
     // weighted
     let weighted_bank_normal = total_cycle
@@ -102,17 +102,17 @@ fn main() -> eyre::Result<()> {
     let weighted_bank_my_opt = total_cycle
         .get(&MappingType::SameBankWeightedMapping)
         .unwrap()
-        .get(&JumpTypes::My16Opt)
+        .get(&JumpTypes::My64Opt)
         .unwrap();
     let weighted_bank_my_no_opt = total_cycle
         .get(&MappingType::SameBankWeightedMapping)
         .unwrap()
-        .get(&JumpTypes::My16)
+        .get(&JumpTypes::My64)
         .unwrap();
     let weighted_bank_my_no_overhead = total_cycle
         .get(&MappingType::SameBankWeightedMapping)
         .unwrap()
-        .get(&JumpTypes::My16NoOverhead)
+        .get(&JumpTypes::My64NoOverhead)
         .unwrap();
 
     let st = same_bank_normal
@@ -125,22 +125,22 @@ fn main() -> eyre::Result<()> {
     let st = same_bank_ideal.iter().map(|x| x.1).join(" ");
     println!("same_bank_ideal: {}", st);
     let st = same_bank_my_opt.iter().map(|x| x.1).join(" ");
-    println!("same_bank_my_opt: \n{}", st);
+    println!("same_bank_my_opt: {}", st);
     let st = same_bank_my_no_opt.iter().map(|x| x.1).join(" ");
-    println!("same_bank_my_no_opt: \n{}", st);
+    println!("same_bank_my_no_opt: {}", st);
     let st = same_bank_my_no_overhead.iter().map(|x| x.1).join(" ");
-    println!("same_bank_my_no_overhead: \n{}", st);
+    println!("same_bank_my_no_overhead: {}", st);
 
     let st = weighted_bank_normal.iter().map(|x| x.1).join(" ");
     println!("weighted_bank_normal: {}", st);
     let st = weighted_bank_ideal.iter().map(|x| x.1).join(" ");
     println!("weighted_bank_ideal: {}", st);
     let st = weighted_bank_my_opt.iter().map(|x| x.1).join(" ");
-    println!("weighted_bank_my_opt: \n{}", st);
+    println!("weighted_bank_my_opt: {}", st);
     let st = weighted_bank_my_no_opt.iter().map(|x| x.1).join(" ");
-    println!("weighted_bank_my_no_opt: \n{}", st);
+    println!("weighted_bank_my_no_opt: {}", st);
     let st = weighted_bank_my_no_overhead.iter().map(|x| x.1).join(" ");
-    println!("weighted_bank_my_no_overhead: \n{}", st);
+    println!("weighted_bank_my_no_overhead: {}", st);
 
     Ok(())
 }

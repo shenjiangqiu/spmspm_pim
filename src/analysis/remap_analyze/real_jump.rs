@@ -12,9 +12,10 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     fs::File,
 };
-type AllJumpResult = [usize; 13];
+type AllJumpResult = [usize; 11];
 use tracing::{debug, info};
 
+use crate::analysis::mapping::{PhysicRowId, WordId};
 use crate::analysis::translate_mapping::same_bank::SameBankMapping;
 use crate::analysis::translate_mapping::weighted::SameBankWeightedMapping;
 use crate::analysis::{translate_mapping, EVIL_RATE};
@@ -33,16 +34,16 @@ use super::row_cycle::RowCycle;
 
 struct RealJumpSimulator {
     /// the local read of evil row
-    evil_row_status: Vec<(usize, usize)>,
+    evil_row_status: Vec<(PhysicRowId, WordId)>,
     evil_row_cycles: Vec<RowCycle>,
     /// the local read of non evil row
-    non_evil_status: Vec<(usize, usize)>,
+    non_evil_status: Vec<(PhysicRowId, WordId)>,
     non_evil_row_cycles: Vec<RowCycle>,
     /// the remote write
-    col_status_remote: Vec<(usize, usize)>,
+    col_status_remote: Vec<(PhysicRowId, WordId)>,
     col_cycles_remote: Vec<RowCycle>,
     /// the local write
-    col_status_local: Vec<(usize, usize)>,
+    col_status_local: Vec<(PhysicRowId, WordId)>,
     col_cycles_local: Vec<RowCycle>,
     /// the number of bits of subarrays
     subarray_bits: usize,
@@ -67,19 +68,19 @@ impl RealJumpSimulator {
         Self {
             subarray_bits,
             col_cycles_local: vec![Default::default(); global_subarray_size],
-            col_status_local: vec![(0, 0); global_subarray_size],
+            col_status_local: vec![(PhysicRowId::new(0), WordId::new(0)); global_subarray_size],
             col_cycles_remote: vec![Default::default(); global_subarray_size],
-            col_status_remote: vec![(0, 0); global_subarray_size],
+            col_status_remote: vec![(PhysicRowId::new(0), WordId::new(0)); global_subarray_size],
             dispatcher_status: vec![(0, 0); global_bank_size],
             evil_row_cycles: vec![Default::default(); global_subarray_size],
-            evil_row_status: vec![Default::default(); global_subarray_size],
+            evil_row_status: vec![(PhysicRowId::new(0), WordId::new(0)); global_subarray_size],
             non_evil_row_cycles: vec![Default::default(); global_subarray_size],
-            non_evil_status: vec![Default::default(); global_subarray_size],
+            non_evil_status: vec![(PhysicRowId::new(0), WordId::new(0)); global_subarray_size],
             remap_cycle,
         }
     }
 
-    fn read_local_evil(&mut self, location: &RowLocation, size: usize) {
+    fn read_local_evil(&mut self, location: &RowLocation, size: WordId) {
         let current_status = self.evil_row_status[location.subarray_id.0];
 
         debug!(
@@ -94,7 +95,7 @@ impl RealJumpSimulator {
             self.remap_cycle,
         );
         // update the evil row status
-        self.evil_row_status[location.subarray_id.0] = (location.row_id.0, location.col_id.0);
+        self.evil_row_status[location.subarray_id.0] = (location.row_id, location.word_id);
         let new_status = self.evil_row_status[location.subarray_id.0];
         debug!(?new_status);
     }
@@ -103,7 +104,7 @@ impl RealJumpSimulator {
         _target_id: LogicRowId,
         _target_col: LogicColId,
         col_location: &RowLocation,
-        status: &mut (usize, usize),
+        status: &mut (PhysicRowId, WordId),
         cycle: &mut RowCycle,
         remap_cycle: usize,
     ) {
@@ -111,8 +112,8 @@ impl RealJumpSimulator {
             ?status,
             "write col for subarray{}: {:?}", col_location.subarray_id.0, col_location
         );
-        cycle.update(status, col_location, 1, remap_cycle);
-        *status = (col_location.row_id.0, col_location.col_id.0);
+        cycle.update(status, col_location, WordId(1), remap_cycle);
+        *status = (col_location.row_id, col_location.word_id);
         debug!(?status);
     }
     fn write_dense_remote(
@@ -166,7 +167,7 @@ impl RealJumpSimulator {
         );
     }
 
-    fn read_local(&mut self, location: &RowLocation, nnz: usize) {
+    fn read_local(&mut self, location: &RowLocation, word_size: WordId) {
         let current_status = &self.non_evil_status[location.subarray_id.0];
         debug!(
             ?current_status,
@@ -175,10 +176,10 @@ impl RealJumpSimulator {
         self.non_evil_row_cycles[location.subarray_id.0].update(
             current_status,
             &location,
-            nnz,
+            word_size,
             self.remap_cycle,
         );
-        self.non_evil_status[location.subarray_id.0] = (location.row_id.0, location.col_id.0);
+        self.non_evil_status[location.subarray_id.0] = (location.row_id, location.word_id);
         let new_status = self.non_evil_status[location.subarray_id.0];
         debug!(?new_status);
     }
@@ -286,7 +287,7 @@ fn update_row_cycle(current_round_cycle: &[RowCycle], final_cycle: &mut RowCycle
     //the normal jump cycle
     let normal = update_jump_cycle(
         current_round_cycle,
-        |x| &x.normal_jump_cycle,
+        |x: &RowCycle| &x.normal_jump_cycle,
         final_cycle,
         |x| &mut x.normal_jump_cycle,
     );
@@ -297,13 +298,13 @@ fn update_row_cycle(current_round_cycle: &[RowCycle], final_cycle: &mut RowCycle
         final_cycle,
         |x| &mut x.ideal_jump_cycle,
     );
-    // the from source jump cycle
-    let from_source = update_jump_cycle(
-        current_round_cycle,
-        |x| &x.from_source_jump_cycle,
-        final_cycle,
-        |x| &mut x.from_source_jump_cycle,
-    );
+    // // the from source jump cycle
+    // let from_source = update_jump_cycle(
+    //     current_round_cycle,
+    //     |x| &x.from_source_jump_cycle,
+    //     final_cycle,
+    //     |x| &mut x.from_source_jump_cycle,
+    // );
     // my jump cycle
     let my_16 = update_jump_cycle(
         current_round_cycle,
@@ -363,13 +364,12 @@ fn update_row_cycle(current_round_cycle: &[RowCycle], final_cycle: &mut RowCycle
         final_cycle,
         |x| &mut x.my_jump_cycle_64_opt,
     );
-    let smart = update_jump_cycle(
-        current_round_cycle,
-        |x| &x.smart_jump_cycle,
-        final_cycle,
-        |x| &mut x.smart_jump_cycle,
-    );
-
+    // let smart = update_jump_cycle(
+    //     current_round_cycle,
+    //     |x| &x.smart_jump_cycle,
+    //     final_cycle,
+    //     |x| &mut x.smart_jump_cycle,
+    // );
     debug_assert!(my_16_opt >= ideal, "{:?} {:?}", my_16_opt, ideal);
     debug_assert!(my_32_opt >= ideal);
     debug_assert!(my_64_opt >= ideal);
@@ -380,7 +380,7 @@ fn update_row_cycle(current_round_cycle: &[RowCycle], final_cycle: &mut RowCycle
     [
         normal,
         ideal,
-        from_source,
+        // from_source,
         my_16,
         my_32,
         my_64,
@@ -390,7 +390,7 @@ fn update_row_cycle(current_round_cycle: &[RowCycle], final_cycle: &mut RowCycle
         my_16_opt,
         my_32_opt,
         my_64_opt,
-        smart,
+        // smart,
     ]
 
     //
@@ -662,9 +662,9 @@ impl super::Simulator for RealJumpSimulator {
                         mapping.get_location_evil(matrix_b_row_id, csr_translated.view());
                     for (_subarray_id, row_location, row_vec) in evil_location {
                         // send evil tasks to location
-
-                        let size = row_vec.nnz();
-                        self.read_local_evil(&row_location, size);
+                        // one nnz is two words, include the index and the data pair!
+                        let words = row_vec.nnz() * 2;
+                        self.read_local_evil(&row_location, WordId(words));
                         for target_col in row_vec.indices() {
                             let target_col = LogicColId::new(*target_col as usize);
                             let col_location = mapping.get_dense_location(
@@ -680,7 +680,8 @@ impl super::Simulator for RealJumpSimulator {
                     // it's not evil, so read the row
                     let location = mapping.get_location(matrix_b_row_id, csr_translated.view());
                     // send read task to subarray
-                    self.read_local(&location, matrix_b_row.nnz());
+                    let words = matrix_b_row.nnz() * 2;
+                    self.read_local(&location, WordId(words));
                     // for each column , send write task to subarray
                     for &target_col in matrix_b_row.indices() {
                         // should handle the evil col

@@ -62,7 +62,13 @@ generate_id!(
     RingId,
     RingBufferId,
     TsvId,
+    WordId,
 );
+impl PhysicColId {
+    pub fn word_id(&self) -> WordId {
+        WordId(self.0 / 4)
+    }
+}
 generate_id!(u8;RingPort);
 
 pub trait Mapping {

@@ -28,7 +28,7 @@ serde_json = "1.0.95"
 # spmspm_macro = {path = "../spmspm_macro"}
 sprs = {path = "../sprs/sprs"}
 statrs = "0.16.0"
-sysinfo = "0.28.4"
+sysinfo = "0.29.0"
 toml = "0.7.3"
 tracing = "0.1.37"
 tracing-appender = "0.2.2"

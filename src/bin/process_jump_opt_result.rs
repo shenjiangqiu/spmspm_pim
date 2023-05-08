@@ -1,8 +1,11 @@
 use std::collections::BTreeMap;
 
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use spmspm_pim::{
-    analysis::remap_analyze::{real_jump::RealJumpResult, row_cycle::JumpTypes},
+    analysis::remap_analyze::{
+        real_jump::RealJumpResult,
+        row_cycle::{JumpTypeIterator, JumpTypes},
+    },
     pim::configv2::MappingType,
 };
 
@@ -37,16 +40,14 @@ fn main() -> eyre::Result<()> {
             println!("map_end: {:?}\n\n", m);
         },
         |graph_name, mapping_type, single_result| {
-            for (index, ((((_row, _evil_row), _local_write), remote_write), real_local)) in
-                single_result
-                    .row_cycles
-                    .into_iter()
-                    .zip(single_result.evil_row_cycles.into_iter())
-                    .zip(single_result.local_dense_col_cycles.into_iter())
-                    .zip(single_result.remote_dense_col_cycles.into_iter())
-                    .zip(single_result.real_local_cycle.into_iter())
-                    .enumerate()
-            {
+            for (index, _row, _evil_row, _local_write, remote_write, real_local) in izip!(
+                JumpTypeIterator::new(),
+                single_result.row_cycles,
+                single_result.evil_row_cycles,
+                single_result.local_dense_col_cycles,
+                single_result.remote_dense_col_cycles,
+                single_result.real_local_cycle
+            ) {
                 // this is ideal
                 let dispatching = single_result.dispatcher_reading_cycle;
                 let total = real_local + dispatching + remote_write;

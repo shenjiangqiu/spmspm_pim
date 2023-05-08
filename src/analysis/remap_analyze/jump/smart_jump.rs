@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::analysis::translate_mapping::RowLocation;
+use crate::analysis::{
+    mapping::{PhysicRowId, WordId},
+    translate_mapping::RowLocation,
+};
 
 use super::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
@@ -12,20 +15,17 @@ pub struct SmartJumpCycle {
 impl UpdatableJumpCycle for SmartJumpCycle {
     fn update(
         &mut self,
-        row_status: &(usize, usize),
+        row_status: &(PhysicRowId, WordId),
         location: &RowLocation,
-        size: usize,
+        size: WordId,
         _remap_cycle: usize,
     ) {
-        let row_cycle = if location.row_id.0 == row_status.0 {
+        let row_cycle = if location.row_id == row_status.0 {
             0
         } else {
             18
         };
-        let current_col = row_status.1;
-        let target_col = location.col_id.0;
-        let jumps = (current_col as isize - target_col as isize).abs() as usize;
-        let jumps = jumps.min(target_col + 1);
+        let jumps = (row_status.1 .0 as isize - location.word_id.0 as isize).abs() as usize;
         // the jump of size
         if jumps > 4 {
             self.jump_multiple_cycle += jumps.max(row_cycle);

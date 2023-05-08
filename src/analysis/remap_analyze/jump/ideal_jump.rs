@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::analysis::translate_mapping::RowLocation;
+use crate::analysis::{
+    mapping::{PhysicRowId, WordId},
+    translate_mapping::RowLocation,
+};
 
 use super::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
@@ -11,19 +14,19 @@ pub struct IdealJumpCycle {
 impl UpdatableJumpCycle for IdealJumpCycle {
     fn update(
         &mut self,
-        row_status: &(usize, usize),
+        row_status: &(PhysicRowId, WordId),
         loc: &RowLocation,
-        size: usize,
+        size: WordId,
         _remap_cycle: usize,
     ) {
-        let row_cycle = if loc.row_id.0 == row_status.0 { 0 } else { 18 };
-        if loc.col_id.0 != row_status.1 {
+        let row_cycle = if loc.row_id == row_status.0 { 0 } else { 18 };
+        if loc.word_id != row_status.1 {
             // it' not the same col
             self.total_cycle += 1.max(row_cycle);
         } else {
             self.total_cycle += row_cycle;
         }
-        self.total_cycle += size * 4;
+        self.total_cycle += size.0;
     }
 }
 impl JumpCycle for IdealJumpCycle {

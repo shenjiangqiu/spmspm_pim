@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::analysis::translate_mapping::RowLocation;
+use crate::analysis::{
+    mapping::{PhysicRowId, WordId},
+    translate_mapping::RowLocation,
+};
 
 use super::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
@@ -15,31 +18,28 @@ pub struct MyJumpNoOverhead<const GAP: usize> {
 impl<const GAP: usize> UpdatableJumpCycle for MyJumpNoOverhead<GAP> {
     fn update(
         &mut self,
-        row_status: &(usize, usize),
+        row_status: &(PhysicRowId, WordId),
         location: &RowLocation,
-        size: usize,
+        size: WordId,
         _remap_cycle: usize,
     ) {
         let gap = GAP;
-        let row_cycle = if location.row_id.0 == row_status.0 {
+        let row_cycle = if location.row_id == row_status.0 {
             0
         } else {
             18
         };
 
         // first find the nearest stop
-        let re_map_times = (location.col_id.0 % gap).min(gap - location.col_id.0 % gap);
+        let re_map_times = (location.word_id.0 % gap).min(gap - location.word_id.0 % gap);
 
-        let from_start_cycle = location.col_id.0;
-        let normal_cycle = (row_status.1 as isize - location.col_id.0 as isize).abs() as usize;
-        let min_jump_cycle = (re_map_times + 1)
-            .min(from_start_cycle + 1)
-            .min(normal_cycle);
+        let normal_cycle = (row_status.1 .0 as isize - location.word_id.0 as isize).abs() as usize;
+        let min_jump_cycle = (re_map_times + 1).min(normal_cycle);
         let min_jump_and_row_cycle = min_jump_cycle.max(row_cycle);
 
         self.multi_jump_cycle += min_jump_and_row_cycle;
 
-        self.one_jump_cycle += size * 4;
+        self.one_jump_cycle += size.0;
     }
 }
 impl<const GAP: usize> JumpCycle for MyJumpNoOverhead<GAP> {

@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::analysis::translate_mapping::RowLocation;
+use crate::analysis::{
+    mapping::{PhysicRowId, WordId},
+    translate_mapping::RowLocation,
+};
 
 use super::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
@@ -18,20 +21,18 @@ pub struct NormalJumpCycle {
 impl UpdatableJumpCycle for NormalJumpCycle {
     fn update(
         &mut self,
-        evil_row_status: &(usize, usize),
+        evil_row_status: &(PhysicRowId, WordId),
         location: &RowLocation,
-        size: usize,
+        size: WordId,
         _remap_cycle: usize,
     ) {
         // fix the bug here,
-        let row_cycle = if location.row_id.0 == evil_row_status.0 {
+        let row_cycle = if location.row_id == evil_row_status.0 {
             0
         } else {
             18
         };
-        let current_col = evil_row_status.1;
-        let target_col = location.col_id.0;
-        let jumps = (current_col as isize - target_col as isize).abs() as usize;
+        let jumps = (location.word_id.0 as isize - evil_row_status.1 .0 as isize).abs() as usize;
         // update the statistics
         // fix bug here, should add the coverd when not totally covered
         self.total_jumps_all += jumps;
@@ -54,7 +55,7 @@ impl UpdatableJumpCycle for NormalJumpCycle {
         } else {
             self.jump_one_cycle += jumps.max(row_cycle);
         }
-        self.jump_one_cycle += size * 4;
+        self.jump_one_cycle += size.0;
     }
 }
 impl NormalJumpCycle {

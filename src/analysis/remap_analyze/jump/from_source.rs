@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::analysis::translate_mapping::RowLocation;
+use crate::analysis::{
+    mapping::{PhysicRowId, WordId},
+    translate_mapping::RowLocation,
+};
 
 use super::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
@@ -12,12 +15,12 @@ pub struct FromSourceJumpCycle {
 impl UpdatableJumpCycle for FromSourceJumpCycle {
     fn update(
         &mut self,
-        _row_status: &(usize, usize),
+        _row_status: &(PhysicRowId, WordId),
         location: &RowLocation,
-        size: usize,
+        size: WordId,
         _remap_cycle: usize,
     ) {
-        let row_cycle = if location.row_id.0 == _row_status.0 {
+        let row_cycle = if location.row_id == _row_status.0 {
             0
         } else {
             18

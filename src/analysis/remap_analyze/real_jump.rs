@@ -313,7 +313,7 @@ impl RealJumpSimulator {
         result.dispatcher_sending_cycle += max_sending_cycle;
         result.dispatcher_reading_cycle += max_receive_cycle;
 
-        assert!(result.real_local_cycle.len() == local_max.len());
+        assert_eq!(result.real_local_cycle.len(), local_max.len());
         result
             .real_local_cycle
             .iter_mut()
@@ -580,9 +580,9 @@ impl EvilColHandler {
     }
 }
 ///[normal, ideal, from_source, my, smart]
+const NUM_JUMP_CYCLES: usize = JumpCyclesTypes::End as usize;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
-
 pub struct RealJumpResult {
     pub local_dense_col_cycles: JumpCycles,
     pub remote_dense_col_cycles: JumpCycles,
@@ -591,7 +591,7 @@ pub struct RealJumpResult {
     pub dispatcher_sending_cycle: usize,
     pub dispatcher_reading_cycle: usize,
     // pub real_cycle: [usize; 7],
-    pub real_local_cycle: Vec<usize>,
+    pub real_local_cycle: [usize; NUM_JUMP_CYCLES],
 }
 impl super::Simulator for RealJumpSimulator {
     type R = RealJumpResult;

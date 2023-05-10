@@ -1,5 +1,5 @@
-pub mod row_cycle;
 pub mod jump;
+pub mod row_cycle;
 use serde::{Deserialize, Serialize};
 use sprs::{num_kinds::Pattern, CsMatI};
 use tracing::info;

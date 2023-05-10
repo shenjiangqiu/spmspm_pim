@@ -1,6 +1,7 @@
 pub mod all_evil;
 pub mod no_evil;
-use super::mapping::{LogicColId, LogicRowId};
+
+use crate::analysis::remap_analyze::row_cycle::*;
 
 pub mod percent_evil_filter;
 /// the trait for filter evil rows and evil columns

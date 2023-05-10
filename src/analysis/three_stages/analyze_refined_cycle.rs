@@ -24,6 +24,8 @@
 use crate::analysis::mapping::same_bank::SameBankMapping;
 use crate::analysis::mapping::same_bank_weighted::SameBankWeightedMapping;
 use crate::analysis::mapping::*;
+use crate::analysis::remap_analyze::row_cycle::*;
+
 use crate::tools::{self, stop_signal};
 use crate::{
     analysis::mapping::Mapping,

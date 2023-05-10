@@ -21,6 +21,7 @@
 //! ```
 #![allow(unused)]
 use crate::analysis::mapping::*;
+use crate::analysis::remap_analyze::row_cycle::*;
 use crate::tools::{self, stop_signal};
 use crate::{
     analysis::mapping::Mapping,
@@ -30,6 +31,7 @@ use crate::{
         ring_simulator::RingSimulator, CrossBarPacket, Direction, FlatInterleaveTrait, IcntPacket,
     },
 };
+
 use hashbrown::HashSet;
 use itertools::Itertools;
 use plotters::{coord::Shift, prelude::*};

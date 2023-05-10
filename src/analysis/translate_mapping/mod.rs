@@ -1,11 +1,9 @@
 pub mod evil_mapping;
 pub mod weighted;
+use crate::analysis::remap_analyze::row_cycle::*;
 use itertools::Itertools;
 use sprs::{num_kinds::Pattern, CsMatI, CsMatViewI, CsVecViewI, TriMatI};
 use tracing::debug;
-
-use super::mapping::{LogicColId, LogicRowId, PhysicColId, PhysicRowId, SubarrayId, WordId};
-
 pub mod same_bank;
 
 /// the mapping that translate the original
@@ -32,29 +30,6 @@ pub trait TranslateMapping {
             .get_dense_location(target_row_id, col_id, graph)
     }
     fn is_evil(&self, row_id: LogicRowId) -> bool;
-}
-#[derive(Debug)]
-pub struct RowLocation {
-    pub subarray_id: SubarrayId,
-    pub row_id: PhysicRowId,
-    // pub col_id: PhysicColId,
-    pub word_id: WordId,
-}
-impl RowLocation {
-    pub fn new(
-        subarray_id: impl Into<SubarrayId>,
-        row_id: impl Into<PhysicRowId>,
-        word_id: impl Into<WordId>,
-    ) -> Self {
-        let subarray_id = subarray_id.into();
-        let row_id = row_id.into();
-        let word_id = word_id.into();
-        Self {
-            subarray_id,
-            row_id,
-            word_id,
-        }
-    }
 }
 
 /// this trait is a mapping which get the logic location to physic location
@@ -223,7 +198,10 @@ impl RowSubarrayMapping for AverageMapping {
                 "get location, cols: {}",
                 self.cols
             );
-            RowLocation::new(subarray_id, physic_row_id, word_id)
+            RowLocation::new(
+                SubarrayId(subarray_id),
+                RowIdWordId::new(physic_row_id, word_id),
+            )
         } else {
             // it's the low bound
             let lower_id = non_evil_row_id - row_bounds.upper_bound_rows;
@@ -248,7 +226,10 @@ impl RowSubarrayMapping for AverageMapping {
                 "get location, cols: {}",
                 self.cols
             );
-            RowLocation::new(subarray_id, physic_row_id, word_id)
+            RowLocation::new(
+                SubarrayId(subarray_id),
+                RowIdWordId::new(physic_row_id, word_id),
+            )
         }
     }
 
@@ -273,7 +254,10 @@ impl RowSubarrayMapping for AverageMapping {
                 let word_id = physic_col_id.word_id();
                 result.push((
                     SubarrayId::new(partition_id),
-                    RowLocation::new(partition_id, physic_row_id, word_id),
+                    RowLocation::new(
+                        SubarrayId(partition_id),
+                        RowIdWordId::new(physic_row_id, word_id),
+                    ),
                     row,
                 ));
             }
@@ -313,7 +297,10 @@ impl RowSubarrayMapping for AverageMapping {
                 "get location, cols: {}",
                 self.cols
             );
-            RowLocation::new(subarray_id, physic_row_id, word_id)
+            RowLocation::new(
+                SubarrayId(subarray_id),
+                RowIdWordId::new(physic_row_id, word_id),
+            )
         } else {
             // it's the low bound
             let lower_id = col_id.0 - col_mapping.upper_bound_rows;
@@ -337,7 +324,10 @@ impl RowSubarrayMapping for AverageMapping {
                 "get location, cols: {}",
                 self.cols
             );
-            RowLocation::new(subarray_id, physic_row_id, word_id)
+            RowLocation::new(
+                SubarrayId(subarray_id),
+                RowIdWordId::new(physic_row_id, word_id),
+            )
         }
     }
 }

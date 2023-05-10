@@ -1,14 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::analysis::{
-    mapping::{PhysicRowId, WordId},
-    translate_mapping::RowLocation,
-};
+use crate::analysis::remap_analyze::row_cycle::*;
 
-use super::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
+use super::{check_same_walker, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
-pub struct MyJumpCycle<const GAP: usize> {
+pub struct MyJumpCycle<const GAP: usize, const WALKER_SIZE: usize> {
     /// the cycle to calculate the remap location(0xgap or 1xgap...)
     pub calculate_remap_cycle: usize,
 
@@ -18,23 +15,33 @@ pub struct MyJumpCycle<const GAP: usize> {
     /// the cycle that perform stream data read(one jump)
     pub one_jump_cycle: usize,
 }
-impl<const GAP: usize> UpdatableJumpCycle for MyJumpCycle<GAP> {
+impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
+    for MyJumpCycle<GAP, WALKER_SIZE>
+{
     fn update(
         &mut self,
-        row_status: &(PhysicRowId, WordId),
+        row_status: &RowIdWordId,
         loc: &RowLocation,
         size: WordId,
         remap_unit: usize,
     ) {
         let gap = GAP;
-        let row_cycle = if loc.row_id == row_status.0 { 0 } else { 18 };
+        let row_cycle = if check_same_walker::<WALKER_SIZE>(row_status, &loc.row_id_world_id) {
+            0
+        } else {
+            18
+        };
         self.calculate_remap_cycle += remap_unit;
 
         // first find the nearest stop
-        let re_map_times = (loc.word_id.0 % gap).min(gap - loc.word_id.0 % gap);
+        let re_map_times =
+            (loc.row_id_world_id.word_id.0 % gap).min(gap - loc.row_id_world_id.word_id.0 % gap);
 
-        let normal_cycle = (row_status.1 .0 as isize - loc.word_id.0 as isize).abs() as usize;
+        let normal_cycle =
+            (row_status.word_id.0 as isize - loc.row_id_world_id.word_id.0 as isize).abs() as usize;
         let min_jump_cycle = (re_map_times + 1).min(normal_cycle);
+        let min_jump_cycle = (min_jump_cycle + 6) / 7;
+
         let min_jump_and_row_cycle = min_jump_cycle.max(row_cycle);
 
         self.multi_jump_cycle += min_jump_and_row_cycle;
@@ -42,7 +49,7 @@ impl<const GAP: usize> UpdatableJumpCycle for MyJumpCycle<GAP> {
         self.one_jump_cycle += size.0;
     }
 }
-impl<const GAP: usize> JumpCycle for MyJumpCycle<GAP> {
+impl<const GAP: usize, const WALKER_SIZE: usize> JumpCycle for MyJumpCycle<GAP, WALKER_SIZE> {
     fn total(&self) -> usize {
         self.calculate_remap_cycle + self.multi_jump_cycle + self.one_jump_cycle
     }
@@ -63,7 +70,9 @@ impl<const GAP: usize> JumpCycle for MyJumpCycle<GAP> {
         &mut self.multi_jump_cycle
     }
 }
-impl<const GAP: usize> AddableJumpCycle for MyJumpCycle<GAP> {
+impl<const GAP: usize, const WALKER_SIZE: usize> AddableJumpCycle
+    for MyJumpCycle<GAP, WALKER_SIZE>
+{
     fn add(&mut self, other: &Self) {
         self.calculate_remap_cycle += other.calculate_remap_cycle;
         self.multi_jump_cycle += other.multi_jump_cycle;

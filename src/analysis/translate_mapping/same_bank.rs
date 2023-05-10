@@ -1,3 +1,4 @@
+use crate::analysis::remap_analyze::row_cycle::*;
 use itertools::Itertools;
 use sprs::{num_kinds::Pattern, CsMatI, TriMatI};
 use tracing::debug;
@@ -16,7 +17,7 @@ impl super::TranslateMapping for SameBankMapping {
         &self.row_sub_mapping
     }
 
-    fn is_evil(&self, row_id: crate::analysis::mapping::LogicRowId) -> bool {
+    fn is_evil(&self, row_id: LogicRowId) -> bool {
         row_id.0 < self.evil_threshold
     }
 }
@@ -128,10 +129,8 @@ mod tests {
     use sprs::{num_kinds::Pattern, TriMatI};
     use tracing::metadata::LevelFilter;
 
-    use crate::{
-        analysis::{mapping::LogicRowId, translate_mapping::TranslateMapping},
-        init_logger_stderr,
-    };
+    use crate::analysis::remap_analyze::row_cycle::*;
+    use crate::{analysis::translate_mapping::TranslateMapping, init_logger_stderr};
 
     #[test]
     fn test_dist() {

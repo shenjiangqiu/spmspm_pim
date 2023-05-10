@@ -1,18 +1,12 @@
 use std::{cmp::Reverse, collections::BTreeMap, sync::atomic::Ordering};
 
-use itertools::Itertools;
-use rayon::prelude::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use sprs::{io::MatrixHead, num_kinds::Pattern, CsMatI, TriMatI};
-use statrs::statistics::Statistics;
-use tracing::{debug, info};
-
+use crate::analysis::remap_analyze::row_cycle::*;
 use crate::{
     analysis::{
         mapping::{
             same_bank::{self, SameBankMapping},
             same_bank_weighted::SameBankWeightedMapping,
             same_subarray::{self, SameSubarrayMapping},
-            LogicColId, LogicRowId,
         },
         TOTAL_FINISHED_TASKS, TOTAL_TASKS,
     },
@@ -23,6 +17,11 @@ use crate::{
     tools::stop_signal,
     TIME_TO_LOG,
 };
+use itertools::Itertools;
+use rayon::prelude::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use sprs::{io::MatrixHead, num_kinds::Pattern, CsMatI, TriMatI};
+use statrs::statistics::Statistics;
+use tracing::{debug, info};
 /// give an array of data, return each filed's mean, std, max
 /// # Example
 /// ```

@@ -1,14 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::analysis::{
-    mapping::{PhysicRowId, WordId},
-    translate_mapping::RowLocation,
-};
+use crate::analysis::remap_analyze::row_cycle::*;
 
-use super::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
+use super::{check_same_walker, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
-pub struct NormalJumpCycle {
+pub struct NormalJumpCycle<const WALKER_SIZE: usize> {
     pub jump_one_cycle: usize,
     pub jump_multiple_cycle: usize,
 
@@ -18,21 +15,25 @@ pub struct NormalJumpCycle {
     pub jumps_not_covered_when_no_row_open: usize,
     pub jumps_not_covered_when_more_shift: usize,
 }
-impl UpdatableJumpCycle for NormalJumpCycle {
+impl<const WALKER_SIZE: usize> UpdatableJumpCycle for NormalJumpCycle<WALKER_SIZE> {
     fn update(
         &mut self,
-        evil_row_status: &(PhysicRowId, WordId),
+        evil_row_status: &RowIdWordId,
         location: &RowLocation,
         size: WordId,
         _remap_cycle: usize,
     ) {
         // fix the bug here,
-        let row_cycle = if location.row_id == evil_row_status.0 {
-            0
-        } else {
-            18
-        };
-        let jumps = (location.word_id.0 as isize - evil_row_status.1 .0 as isize).abs() as usize;
+        let row_cycle =
+            if check_same_walker::<WALKER_SIZE>(evil_row_status, &location.row_id_world_id) {
+                0
+            } else {
+                18
+            };
+        let jumps = (location.row_id_world_id.word_id.0 as isize
+            - evil_row_status.word_id.0 as isize)
+            .abs() as usize;
+        let jumps = (jumps + 6) / 7;
         // update the statistics
         // fix bug here, should add the coverd when not totally covered
         self.total_jumps_all += jumps;
@@ -49,8 +50,9 @@ impl UpdatableJumpCycle for NormalJumpCycle {
                 self.total_jumps_covered_by_row_open += row_cycle;
             }
         }
+
         // the jump of size
-        if jumps > 4 {
+        if jumps > 1 {
             self.jump_multiple_cycle += jumps.max(row_cycle);
         } else {
             self.jump_one_cycle += jumps.max(row_cycle);
@@ -58,7 +60,7 @@ impl UpdatableJumpCycle for NormalJumpCycle {
         self.jump_one_cycle += size.0;
     }
 }
-impl NormalJumpCycle {
+impl<const WALKER_SIZE: usize> NormalJumpCycle<WALKER_SIZE> {
     /// the rate of jumps that can be covered by row open, jumps that cannot be covered by row open when no row open, jumps that cannot be covered by row open when more shift
     pub fn cover_rate(&self) -> [f32; 3] {
         [
@@ -68,7 +70,7 @@ impl NormalJumpCycle {
         ]
     }
 }
-impl JumpCycle for NormalJumpCycle {
+impl<const WALKER_SIZE: usize> JumpCycle for NormalJumpCycle<WALKER_SIZE> {
     fn total(&self) -> usize {
         self.jump_multiple_cycle + self.jump_one_cycle
     }
@@ -89,8 +91,8 @@ impl JumpCycle for NormalJumpCycle {
         &mut self.jump_multiple_cycle
     }
 }
-impl AddableJumpCycle for NormalJumpCycle {
-    fn add(&mut self, normal_jump_cycle: &NormalJumpCycle) {
+impl<const WALKER_SIZE: usize> AddableJumpCycle for NormalJumpCycle<WALKER_SIZE> {
+    fn add(&mut self, normal_jump_cycle: &NormalJumpCycle<WALKER_SIZE>) {
         self.jump_one_cycle += normal_jump_cycle.jump_one_cycle;
         self.jump_multiple_cycle += normal_jump_cycle.jump_multiple_cycle;
         self.total_jumps_all += normal_jump_cycle.total_jumps_all;

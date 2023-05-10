@@ -1,0 +1,167 @@
+total_cycles
+graph: mtx/gearbox/ca-hollywood-2009.mtx
+map: SameBank
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/gearbox/ca-hollywood-2009.mtx
+graph: mtx/outerspace/2cubes_sphere/2cubes_sphere.mtx
+map: SameBank
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/2cubes_sphere/2cubes_sphere.mtx
+graph: mtx/outerspace/cage12/cage12.mtx
+map: SameBank
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/cage12/cage12.mtx
+graph: mtx/outerspace/filter3D/filter3D.mtx
+map: SameBank
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/filter3D/filter3D.mtx
+graph: mtx/outerspace/filter3D/filter3D_E.mtx
+map: SameBank
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/filter3D/filter3D_E.mtx
+graph: mtx/outerspace/mario002/mario002.mtx
+map: SameBank
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/mario002/mario002.mtx
+graph: mtx/outerspace/offshore/offshore.mtx
+map: SameBank
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/offshore/offshore.mtx
+graph: mtx/outerspace/scircuit/scircuit.mtx
+map: SameBank
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/scircuit/scircuit.mtx
+total_cycles_end
+
+
+graphs: ca-hollywood-2009.mtx 2cubes_sphere.mtx cage12.mtx filter3D.mtx filter3D_E.mtx mario002.mtx offshore.mtx scircuit.mtx
+SameBank-Normal: 2302077004 13448575 8391119 23768811 23767801 4846131 14842574 5151338
+SameBank-Ideal: 2123299247 12012813 6350966 19411636 19410947 2839375 11846058 3566039
+SameBank-My16: 2259043163 15217684 9223988 25756926 25756050 4116618 15480321 4940522
+SameBank-My32: 2273168728 15228329 9272024 25758325 25757449 4152184 16025652 5049382
+SameBank-My64: 2287457422 15371387 9560062 25803474 25802597 4406931 16097905 5166439
+SameBank-My16NoOverhead: 2151409667 12510288 6853206 21402194 21401443 2945836 12825958 3849262
+SameBank-My32NoOverhead: 2166877736 12517680 6899754 21403410 21402659 3153829 13480049 3978979
+SameBank-My64NoOverhead: 2182377563 12628155 7182817 21445196 21444447 3508182 13538619 4094957
+SameBank-My16Opt: 2166506167 12801435 7050372 22617190 22616415 3076907 13392512 4089201
+SameBank-My32Opt: 2178107198 12810183 7107537 22619529 22618781 3258547 13820679 4127654
+SameBank-My64Opt: 2189258531 12931265 7405963 22670588 22669839 3588473 13889393 4247385
+SameBank-My16Only: 2376436261 18231376 12229795 30520608 30519464 5800453 19377099 6640084
+SameBankWeightedMapping-Normal: 1341236053 6476302 6519034 12090173 12098169 4863635 6742886 4047548
+SameBankWeightedMapping-Ideal: 970622101 5412626 4913316 11120101 11133792 2678176 5267230 2878035
+SameBankWeightedMapping-My16: 1351015458 8085663 7535301 15403975 15414204 3900322 8014063 4105012
+SameBankWeightedMapping-My32: 1378420691 8087552 7542693 15403983 15414204 4005447 8084116 4145546
+SameBankWeightedMapping-My64: 1405094432 8216243 7704795 15404878 15415461 4344226 8253485 4285073
+SameBankWeightedMapping-My16NoOverhead: 1058871204 5438282 4962766 11222630 11231074 2902089 5342542 3017429
+SameBankWeightedMapping-My32NoOverhead: 1085696929 5439783 4969171 11222636 11231074 3148522 5531621 3064201
+SameBankWeightedMapping-My64NoOverhead: 1113904647 5555294 5131118 11223448 11232174 3538152 5703859 3209413
+SameBankWeightedMapping-My16Opt: 1092382248 5507379 5016809 11286745 11289364 3089002 5425203 3088747
+SameBankWeightedMapping-My32Opt: 1107375447 5511370 5036266 11286772 11289382 3291147 5572404 3131907
+SameBankWeightedMapping-My64Opt: 1126830354 5663309 5238539 11287758 11290858 3630370 5791021 3280243
+SameBankWeightedMapping-My16Only: 1633740025 10958596 11351818 22638285 22648926 5279654 12276363 6289964
+same_bank_normal: 2302077004 13448575 8391119 23768811 23767801 4846131 14842574 5151338
+same_bank_ideal: 2123299247 12012813 6350966 19411636 19410947 2839375 11846058 3566039
+same_bank_my_opt: 2166506167 12801435 7050372 22617190 22616415 3076907 13392512 4089201
+same_bank_my_no_opt: 2259043163 15217684 9223988 25756926 25756050 4116618 15480321 4940522
+same_bank_my_no_overhead: 2151409667 12510288 6853206 21402194 21401443 2945836 12825958 3849262
+weighted_bank_normal: 1341236053 6476302 6519034 12090173 12098169 4863635 6742886 4047548
+weighted_bank_ideal: 970622101 5412626 4913316 11120101 11133792 2678176 5267230 2878035
+weighted_bank_my_opt: 1092382248 5507379 5016809 11286745 11289364 3089002 5425203 3088747
+weighted_bank_my_no_opt: 1351015458 8085663 7535301 15403975 15414204 3900322 8014063 4105012
+weighted_bank_my_no_overhead: 1058871204 5438282 4962766 11222630 11231074 2902089 5342542 3017429

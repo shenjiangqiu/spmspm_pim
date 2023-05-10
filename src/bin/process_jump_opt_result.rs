@@ -2,22 +2,26 @@ use std::collections::BTreeMap;
 
 use itertools::{izip, Itertools};
 use spmspm_pim::{
-    analysis::remap_analyze::{
-        real_jump::RealJumpResult,
-        row_cycle::{JumpTypeIterator, JumpTypes},
-    },
+    analysis::remap_analyze::{real_jump::RealJumpResult, row_cycle::*},
     pim::configv2::MappingType,
 };
 
 mod common;
-
+struct TotalAction {
+    total: Vec<usize>,
+}
+impl RowCycleAction for TotalAction {
+    fn apply<T: JumpCycle + UpdatableJumpCycle + AddableJumpCycle>(&mut self, item: &T) {
+        self.total.push(item.total());
+    }
+}
 fn main() -> eyre::Result<()> {
     //results/realjump/real_jump_sensitive_fix_row_open.json
     let result: common::RealJumpResultMap = serde_json::from_str(include_str!(
-        "../../results/realjump/add_normal_and_opt_fix_opt_bug.json"
+        "../../results/realjump/final_version_3_change_freq.json"
     ))?;
 
-    let mut total_cycle: BTreeMap<&MappingType, BTreeMap<JumpTypes, Vec<(&str, usize)>>> =
+    let mut total_cycle: BTreeMap<&MappingType, BTreeMap<JumpCyclesTypes, Vec<(&str, usize)>>> =
         BTreeMap::new();
     print_fn(
         &result,
@@ -40,13 +44,15 @@ fn main() -> eyre::Result<()> {
             println!("map_end: {:?}\n\n", m);
         },
         |graph_name, mapping_type, single_result| {
-            for (index, _row, _evil_row, _local_write, remote_write, real_local) in izip!(
-                JumpTypeIterator::new(),
-                single_result.row_cycles,
-                single_result.evil_row_cycles,
-                single_result.local_dense_col_cycles,
-                single_result.remote_dense_col_cycles,
-                single_result.real_local_cycle
+            let mut remote_write_total_action = TotalAction { total: vec![] };
+            single_result
+                .remote_dense_col_cycles
+                .apply(&mut remote_write_total_action);
+            let remote_write_cycle = remote_write_total_action.total;
+            for (index, remote_write, real_local) in izip!(
+                JumpCyclesTypes::default(),
+                remote_write_cycle,
+                &single_result.real_local_cycle
             ) {
                 // this is ideal
                 let dispatching = single_result.dispatcher_reading_cycle;
@@ -55,93 +61,23 @@ fn main() -> eyre::Result<()> {
                 let jump_type = index.into();
                 let total_cycle = total_cycle
                     .entry(mapping_type)
-                    .or_insert_with(BTreeMap::new)
+                    .or_default()
                     .entry(jump_type)
-                    .or_insert_with(Vec::new);
+                    .or_default();
                 total_cycle.push((graph_name, total));
             }
             println!("\n\n");
         },
     );
-    // println!("total_cycle: {:?}", total_cycle);
-    let same_bank_normal = total_cycle
-        .get(&MappingType::SameBank)
-        .unwrap()
-        .get(&JumpTypes::Normal)
-        .unwrap();
-    let same_bank_ideal = total_cycle
-        .get(&MappingType::SameBank)
-        .unwrap()
-        .get(&JumpTypes::Ideal)
-        .unwrap();
-    let same_bank_my_opt = total_cycle
-        .get(&MappingType::SameBank)
-        .unwrap()
-        .get(&JumpTypes::My64Opt)
-        .unwrap();
-    let same_bank_my_no_opt = total_cycle
-        .get(&MappingType::SameBank)
-        .unwrap()
-        .get(&JumpTypes::My64)
-        .unwrap();
-    let same_bank_my_no_overhead = total_cycle
-        .get(&MappingType::SameBank)
-        .unwrap()
-        .get(&JumpTypes::My64NoOverhead)
-        .unwrap();
-    // weighted
-    let weighted_bank_normal = total_cycle
-        .get(&MappingType::SameBankWeightedMapping)
-        .unwrap()
-        .get(&JumpTypes::Normal)
-        .unwrap();
-    let weighted_bank_ideal = total_cycle
-        .get(&MappingType::SameBankWeightedMapping)
-        .unwrap()
-        .get(&JumpTypes::Ideal)
-        .unwrap();
-    let weighted_bank_my_opt = total_cycle
-        .get(&MappingType::SameBankWeightedMapping)
-        .unwrap()
-        .get(&JumpTypes::My64Opt)
-        .unwrap();
-    let weighted_bank_my_no_opt = total_cycle
-        .get(&MappingType::SameBankWeightedMapping)
-        .unwrap()
-        .get(&JumpTypes::My64)
-        .unwrap();
-    let weighted_bank_my_no_overhead = total_cycle
-        .get(&MappingType::SameBankWeightedMapping)
-        .unwrap()
-        .get(&JumpTypes::My64NoOverhead)
-        .unwrap();
 
-    let st = same_bank_normal
+    total_cycle
         .iter()
-        .map(|x| x.0.split('/').last().unwrap())
-        .join(" ");
-    println!("graphs: {}", st);
-    let st = same_bank_normal.iter().map(|x| x.1).join(" ");
-    println!("same_bank_normal: {}", st);
-    let st = same_bank_ideal.iter().map(|x| x.1).join(" ");
-    println!("same_bank_ideal: {}", st);
-    let st = same_bank_my_opt.iter().map(|x| x.1).join(" ");
-    println!("same_bank_my_opt: {}", st);
-    let st = same_bank_my_no_opt.iter().map(|x| x.1).join(" ");
-    println!("same_bank_my_no_opt: {}", st);
-    let st = same_bank_my_no_overhead.iter().map(|x| x.1).join(" ");
-    println!("same_bank_my_no_overhead: {}", st);
-
-    let st = weighted_bank_normal.iter().map(|x| x.1).join(" ");
-    println!("weighted_bank_normal: {}", st);
-    let st = weighted_bank_ideal.iter().map(|x| x.1).join(" ");
-    println!("weighted_bank_ideal: {}", st);
-    let st = weighted_bank_my_opt.iter().map(|x| x.1).join(" ");
-    println!("weighted_bank_my_opt: {}", st);
-    let st = weighted_bank_my_no_opt.iter().map(|x| x.1).join(" ");
-    println!("weighted_bank_my_no_opt: {}", st);
-    let st = weighted_bank_my_no_overhead.iter().map(|x| x.1).join(" ");
-    println!("weighted_bank_my_no_overhead: {}", st);
+        .for_each(|(mapping_type, mapping_result)| {
+            mapping_result.iter().for_each(|(jump_type, jump_result)| {
+                let st = jump_result.iter().map(|x| x.1).join(" ");
+                println!("{:?}-{:?}: {}", mapping_type, jump_type, st);
+            });
+        });
 
     Ok(())
 }

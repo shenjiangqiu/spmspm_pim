@@ -2,12 +2,13 @@
 
 use std::collections::BTreeSet;
 
+use crate::analysis::remap_analyze::row_cycle::*;
 use serde::{Deserialize, Serialize};
 use sprs::{num_kinds::Pattern, CsMatI};
 
 use crate::{
     analysis::{
-        mapping::{LogicColId, LogicRowId, Mapping},
+        mapping::Mapping,
         traits::{AnalyzeTool, DistributeType, GearboxSimTrait},
     },
     pim::configv2::ConfigV2,

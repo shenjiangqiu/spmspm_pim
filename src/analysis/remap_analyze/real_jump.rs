@@ -12,39 +12,50 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     fs::File,
 };
-type AllJumpResult = [usize; 11];
 use tracing::{debug, info};
 
-use crate::analysis::mapping::{PhysicRowId, WordId};
+use crate::analysis::remap_analyze::row_cycle::*;
+
+use crate::analysis::remap_analyze::row_cycle::{
+    AddableJumpCycle, JumpCycle, RowCycleActionMut, UpdatableJumpCycle,
+};
 use crate::analysis::translate_mapping::same_bank::SameBankMapping;
 use crate::analysis::translate_mapping::weighted::SameBankWeightedMapping;
+
 use crate::analysis::{translate_mapping, EVIL_RATE};
 use crate::{
-    analysis::{
-        mapping::{LogicColId, LogicRowId, SubarrayId},
-        remap_analyze::Simulator,
-        translate_mapping::{RowLocation, TranslateMapping},
-    },
+    analysis::{remap_analyze::Simulator, translate_mapping::TranslateMapping},
     pim::configv2::ConfigV3,
     tools::{self, file_server},
 };
 
-use super::jump::AddableJumpCycle;
-use super::row_cycle::RowCycle;
+struct UpdateAction<'a> {
+    row_status: &'a RowIdWordId,
+    loc: &'a RowLocation,
+    size: WordId,
+    remap_cycle: usize,
+}
+impl<'a> RowCycleActionMut for UpdateAction<'a> {
+    fn apply_mut<T: JumpCycle + UpdatableJumpCycle + AddableJumpCycle>(&mut self, item: &mut T) {
+        item.update(self.row_status, self.loc, self.size, self.remap_cycle);
+    }
+}
+
+use super::row_cycle::JumpCycles;
 
 struct RealJumpSimulator {
     /// the local read of evil row
-    evil_row_status: Vec<(PhysicRowId, WordId)>,
-    evil_row_cycles: Vec<RowCycle>,
+    evil_row_status: Vec<RowIdWordId>,
+    evil_row_cycles: Vec<JumpCycles>,
     /// the local read of non evil row
-    non_evil_status: Vec<(PhysicRowId, WordId)>,
-    non_evil_row_cycles: Vec<RowCycle>,
+    non_evil_status: Vec<RowIdWordId>,
+    non_evil_row_cycles: Vec<JumpCycles>,
     /// the remote write
-    col_status_remote: Vec<(PhysicRowId, WordId)>,
-    col_cycles_remote: Vec<RowCycle>,
+    col_status_remote: Vec<RowIdWordId>,
+    col_cycles_remote: Vec<JumpCycles>,
     /// the local write
-    col_status_local: Vec<(PhysicRowId, WordId)>,
-    col_cycles_local: Vec<RowCycle>,
+    col_status_local: Vec<RowIdWordId>,
+    col_cycles_local: Vec<JumpCycles>,
     /// the number of bits of subarrays
     subarray_bits: usize,
     /// the (sending,receiving) status of each bank
@@ -52,7 +63,15 @@ struct RealJumpSimulator {
     /// the cycle of each remap calculation
     remap_cycle: usize,
 }
-
+#[derive(Default)]
+struct TotalAction {
+    total: Vec<usize>,
+}
+impl RowCycleAction for TotalAction {
+    fn apply<T: JumpCycle + UpdatableJumpCycle + AddableJumpCycle>(&mut self, item: &T) {
+        self.total.push(item.total());
+    }
+}
 impl RealJumpSimulator {
     pub fn new(
         subarray_size: usize,
@@ -68,35 +87,67 @@ impl RealJumpSimulator {
         Self {
             subarray_bits,
             col_cycles_local: vec![Default::default(); global_subarray_size],
-            col_status_local: vec![(PhysicRowId::new(0), WordId::new(0)); global_subarray_size],
+            col_status_local: vec![
+                RowIdWordId {
+                    row_id: PhysicRowId(0),
+                    word_id: WordId(0)
+                };
+                global_subarray_size
+            ],
             col_cycles_remote: vec![Default::default(); global_subarray_size],
-            col_status_remote: vec![(PhysicRowId::new(0), WordId::new(0)); global_subarray_size],
+            col_status_remote: vec![
+                RowIdWordId {
+                    row_id: PhysicRowId(0),
+                    word_id: WordId(0)
+                };
+                global_subarray_size
+            ],
             dispatcher_status: vec![(0, 0); global_bank_size],
             evil_row_cycles: vec![Default::default(); global_subarray_size],
-            evil_row_status: vec![(PhysicRowId::new(0), WordId::new(0)); global_subarray_size],
+            evil_row_status: vec![
+                RowIdWordId {
+                    row_id: PhysicRowId(0),
+                    word_id: WordId(0)
+                };
+                global_subarray_size
+            ],
             non_evil_row_cycles: vec![Default::default(); global_subarray_size],
-            non_evil_status: vec![(PhysicRowId::new(0), WordId::new(0)); global_subarray_size],
+            non_evil_status: vec![
+                RowIdWordId {
+                    row_id: PhysicRowId(0),
+                    word_id: WordId(0)
+                };
+                global_subarray_size
+            ],
             remap_cycle,
         }
     }
 
     fn read_local_evil(&mut self, location: &RowLocation, size: WordId) {
-        let current_status = self.evil_row_status[location.subarray_id.0];
+        let current_status = &self.evil_row_status[location.subarray_id.0];
 
         debug!(
             ?current_status,
             "read localEVIL for subarray{}: {:?}", location.subarray_id.0, location
         );
         // it's the same row
-        self.evil_row_cycles[location.subarray_id.0].update(
-            self.evil_row_status.get(location.subarray_id.0).unwrap(),
-            location,
+        // self.evil_row_cycles[location.subarray_id.0].update(
+        //     self.evil_row_status.get(location.subarray_id.0).unwrap(),
+        //     location,
+        //     size,
+        //     self.remap_cycle,
+        // );
+
+        let mut update_action = UpdateAction {
+            row_status: self.evil_row_status.get(location.subarray_id.0).unwrap(),
+            loc: location,
             size,
-            self.remap_cycle,
-        );
+            remap_cycle: self.remap_cycle,
+        };
+        self.evil_row_cycles[location.subarray_id.0].apply_mut(&mut update_action);
         // update the evil row status
-        self.evil_row_status[location.subarray_id.0] = (location.row_id, location.word_id);
-        let new_status = self.evil_row_status[location.subarray_id.0];
+        self.evil_row_status[location.subarray_id.0] = location.row_id_world_id.clone();
+        let new_status: &RowIdWordId = &self.evil_row_status[location.subarray_id.0];
         debug!(?new_status);
     }
 
@@ -104,16 +155,22 @@ impl RealJumpSimulator {
         _target_id: LogicRowId,
         _target_col: LogicColId,
         col_location: &RowLocation,
-        status: &mut (PhysicRowId, WordId),
-        cycle: &mut RowCycle,
+        status: &mut RowIdWordId,
+        cycle: &mut JumpCycles,
         remap_cycle: usize,
     ) {
         debug!(
             ?status,
             "write col for subarray{}: {:?}", col_location.subarray_id.0, col_location
         );
-        cycle.update(status, col_location, WordId(1), remap_cycle);
-        *status = (col_location.row_id, col_location.word_id);
+        let mut update_action = UpdateAction {
+            row_status: status,
+            loc: col_location,
+            size: WordId(1),
+            remap_cycle,
+        };
+        cycle.apply_mut(&mut update_action);
+        *status = col_location.row_id_world_id.clone();
         debug!(?status);
     }
     fn write_dense_remote(
@@ -173,14 +230,15 @@ impl RealJumpSimulator {
             ?current_status,
             "read local for subarray{}: {:?}", location.subarray_id.0, location
         );
-        self.non_evil_row_cycles[location.subarray_id.0].update(
-            current_status,
-            &location,
-            word_size,
-            self.remap_cycle,
-        );
-        self.non_evil_status[location.subarray_id.0] = (location.row_id, location.word_id);
-        let new_status = self.non_evil_status[location.subarray_id.0];
+        let mut update_action = UpdateAction {
+            row_status: current_status,
+            loc: location,
+            size: word_size,
+            remap_cycle: self.remap_cycle,
+        };
+        self.non_evil_row_cycles[location.subarray_id.0].apply_mut(&mut update_action);
+        self.non_evil_status[location.subarray_id.0] = location.row_id_world_id.clone();
+        let new_status = &self.non_evil_status[location.subarray_id.0];
         debug!(?new_status);
     }
 
@@ -222,9 +280,18 @@ impl RealJumpSimulator {
 
         let local_max = local_stage
             .map(|(local_write, row, evil_row, dispatcher_send)| {
-                let local_total = local_write.clone().into_iter().collect_vec();
-                let row_total = row.clone().into_iter().collect_vec();
-                let evil_row_total = evil_row.clone().into_iter().collect_vec();
+                let mut total_action = TotalAction::default();
+                local_write.apply(&mut total_action);
+                let local_total = total_action.total;
+
+                let mut total_action = TotalAction::default();
+                row.apply(&mut total_action);
+                let row_total = total_action.total;
+
+                let mut total_action = TotalAction::default();
+                evil_row.apply(&mut total_action);
+                let evil_row_total = total_action.total;
+
                 local_total
                     .into_iter()
                     .zip(row_total)
@@ -265,135 +332,38 @@ impl RealJumpSimulator {
     }
 }
 
-fn update_jump_cycle<T: AddableJumpCycle>(
-    current_round_cycle: &[RowCycle],
-    mut specific_jump_cycle: impl FnMut(&RowCycle) -> &T,
-    final_cycle: &mut RowCycle,
-    mut final_jump: impl FnMut(&mut RowCycle) -> &mut T,
-) -> usize {
-    let normal_jump_cycle = current_round_cycle
-        .iter()
-        .map(|x| specific_jump_cycle(x))
-        .max_by_key(|x| x.total())
-        .unwrap();
-    let final_jump_cycle = final_jump(final_cycle);
-    final_jump_cycle.add(normal_jump_cycle);
-    normal_jump_cycle.total()
+struct ReduceAction {
+    total_cycles: Vec<usize>,
+}
+impl RowCycleArrayReduce for ReduceAction {
+    fn apply_reduce<T: JumpCycle + UpdatableJumpCycle + AddableJumpCycle>(
+        &mut self,
+        source: &[JumpCycles],
+        target: &mut T,
+        mut mapper: impl FnMut(&JumpCycles) -> &T,
+    ) {
+        let normal_jump_cycle = source
+            .iter()
+            .map(|x| mapper(x))
+            .max_by_key(|x| x.total())
+            .unwrap();
+
+        target.add(normal_jump_cycle);
+        let total = normal_jump_cycle.total();
+        self.total_cycles.push(total);
+    }
 }
 ///[normal, ideal, from_source, my, smart]
 /// find the slowest cycle and accumulate it to the final cycle
-fn update_row_cycle(current_round_cycle: &[RowCycle], final_cycle: &mut RowCycle) -> AllJumpResult {
-    // first select the max cycle
-    //the normal jump cycle
-    let normal = update_jump_cycle(
-        current_round_cycle,
-        |x: &RowCycle| &x.normal_jump_cycle,
-        final_cycle,
-        |x| &mut x.normal_jump_cycle,
-    );
-    // the ideal jump cycle
-    let ideal = update_jump_cycle(
-        current_round_cycle,
-        |x| &x.ideal_jump_cycle,
-        final_cycle,
-        |x| &mut x.ideal_jump_cycle,
-    );
-    // // the from source jump cycle
-    // let from_source = update_jump_cycle(
-    //     current_round_cycle,
-    //     |x| &x.from_source_jump_cycle,
-    //     final_cycle,
-    //     |x| &mut x.from_source_jump_cycle,
-    // );
-    // my jump cycle
-    let my_16 = update_jump_cycle(
-        current_round_cycle,
-        |x| &x.my_jump_cycle_16,
-        final_cycle,
-        |x| &mut x.my_jump_cycle_16,
-    );
-    let my_32 = update_jump_cycle(
-        current_round_cycle,
-        |x| &x.my_jump_cycle_32,
-        final_cycle,
-        |x| &mut x.my_jump_cycle_32,
-    );
-    let my_64 = update_jump_cycle(
-        current_round_cycle,
-        |x| &x.my_jump_cycle_64,
-        final_cycle,
-        |x| &mut x.my_jump_cycle_64,
-    );
-
-    // my jump cycle
-    let my_16_no_overhead = update_jump_cycle(
-        current_round_cycle,
-        |x| &x.my_jump_cycle_16_no_overhead,
-        final_cycle,
-        |x| &mut x.my_jump_cycle_16_no_overhead,
-    );
-    let my_32_no_overhead = update_jump_cycle(
-        current_round_cycle,
-        |x| &x.my_jump_cycle_32_no_overhead,
-        final_cycle,
-        |x| &mut x.my_jump_cycle_32_no_overhead,
-    );
-    let my_64_no_overhead = update_jump_cycle(
-        current_round_cycle,
-        |x| &x.my_jump_cycle_64_no_overhead,
-        final_cycle,
-        |x| &mut x.my_jump_cycle_64_no_overhead,
-    );
-
-    // my jump cycle
-    let my_16_opt = update_jump_cycle(
-        current_round_cycle,
-        |x| &x.my_jump_cycle_16_opt,
-        final_cycle,
-        |x| &mut x.my_jump_cycle_16_opt,
-    );
-    let my_32_opt = update_jump_cycle(
-        current_round_cycle,
-        |x| &x.my_jump_cycle_32_opt,
-        final_cycle,
-        |x| &mut x.my_jump_cycle_32_opt,
-    );
-    let my_64_opt = update_jump_cycle(
-        current_round_cycle,
-        |x| &x.my_jump_cycle_64_opt,
-        final_cycle,
-        |x| &mut x.my_jump_cycle_64_opt,
-    );
-    // let smart = update_jump_cycle(
-    //     current_round_cycle,
-    //     |x| &x.smart_jump_cycle,
-    //     final_cycle,
-    //     |x| &mut x.smart_jump_cycle,
-    // );
-    debug_assert!(my_16_opt >= ideal, "{:?} {:?}", my_16_opt, ideal);
-    debug_assert!(my_32_opt >= ideal);
-    debug_assert!(my_64_opt >= ideal);
-
-    debug_assert!(my_16_no_overhead >= ideal);
-    debug_assert!(my_32_no_overhead >= ideal);
-    debug_assert!(my_64_no_overhead >= ideal);
-    [
-        normal,
-        ideal,
-        // from_source,
-        my_16,
-        my_32,
-        my_64,
-        my_16_no_overhead,
-        my_32_no_overhead,
-        my_64_no_overhead,
-        my_16_opt,
-        my_32_opt,
-        my_64_opt,
-        // smart,
-    ]
-
-    //
+fn update_row_cycle(
+    current_round_cycle: &[JumpCycles],
+    final_cycle: &mut JumpCycles,
+) -> Vec<usize> {
+    let mut reduce_action = ReduceAction {
+        total_cycles: vec![],
+    };
+    JumpCycles::apply_reduce(current_round_cycle, final_cycle, &mut reduce_action);
+    reduce_action.total_cycles
 }
 
 pub fn run_with_mapping(
@@ -466,7 +436,7 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
                 * config.banks.num
                 * (size_of::<(usize, usize)>()
                     + (config.subarrays
-                        * (size_of::<RowCycle>() * 3 + size_of::<(usize, usize)>() * 3)))
+                        * (size_of::<JumpCycles>() * 3 + size_of::<(usize, usize)>() * 3)))
                 * 2;
             let csr_matrix_size = rows * size_of::<usize>() + nnz * size_of::<u32>();
             let tri_matrix_size = nnz * size_of::<u32>() * 2;
@@ -611,17 +581,17 @@ impl EvilColHandler {
 }
 ///[normal, ideal, from_source, my, smart]
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 
 pub struct RealJumpResult {
-    pub local_dense_col_cycles: RowCycle,
-    pub remote_dense_col_cycles: RowCycle,
-    pub evil_row_cycles: RowCycle,
-    pub row_cycles: RowCycle,
+    pub local_dense_col_cycles: JumpCycles,
+    pub remote_dense_col_cycles: JumpCycles,
+    pub evil_row_cycles: JumpCycles,
+    pub row_cycles: JumpCycles,
     pub dispatcher_sending_cycle: usize,
     pub dispatcher_reading_cycle: usize,
     // pub real_cycle: [usize; 7],
-    pub real_local_cycle: AllJumpResult,
+    pub real_local_cycle: Vec<usize>,
 }
 impl super::Simulator for RealJumpSimulator {
     type R = RealJumpResult;

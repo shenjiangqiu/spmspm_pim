@@ -1,4 +1,4 @@
-use crate::analysis::mapping::{LogicColId, LogicRowId};
+use crate::analysis::remap_analyze::row_cycle::*;
 
 use super::EvilFilter;
 

@@ -2,6 +2,7 @@
 //!
 //! finished
 
+use crate::analysis::remap_analyze::row_cycle::*;
 use std::cmp::Reverse;
 
 use itertools::Itertools;
@@ -30,7 +31,7 @@ impl TranslateMapping for SameBankWeightedMapping {
         &self.row_sub_mapping
     }
 
-    fn is_evil(&self, row_id: crate::analysis::mapping::LogicRowId) -> bool {
+    fn is_evil(&self, row_id: LogicRowId) -> bool {
         row_id.0 < self.evil_threshold
     }
 }

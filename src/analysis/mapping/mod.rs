@@ -1,75 +1,11 @@
 //! the module defines the trait Mapping
 //!
 //! A mapping is a function from a logic id to physical id
+
+use super::remap_analyze::row_cycle::*;
 pub mod same_bank;
 pub mod same_bank_weighted;
 pub mod same_subarray;
-
-macro_rules! generate_id{
-    ($t:ty;$($name:ident),+ $(,)?) => {
-        $(
-            /// a wrapper for the id
-            #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq,Hash )]
-            #[repr(transparent)]
-            pub struct $name(pub $t);
-            impl $name {
-                pub fn new(id: $t) -> Self {
-                    Self(id)
-                }
-            }
-            impl std::fmt::Debug for $name {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    self.0.fmt(f)
-                }
-            }
-            impl std::fmt::Display for $name {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    self.0.fmt(f)
-                }
-            }
-            impl std::ops::Deref for $name {
-                type Target = $t;
-                fn deref(&self) -> &Self::Target {
-                    &self.0
-                }
-            }
-            impl std::ops::DerefMut for $name {
-                fn deref_mut(&mut self) -> &mut Self::Target {
-                    &mut self.0
-                }
-            }
-            impl std::convert::From<$t> for $name {
-                fn from(id: $t) -> Self {
-                    Self(id)
-                }
-            }
-            impl std::convert::From<$name> for $t {
-                fn from(id: $name) -> Self {
-                    id.0
-                }
-            }
-
-        )+
-    };
-}
-generate_id!(
-    usize;
-    LogicRowId,
-    LogicColId,
-    PhysicRowId,
-    PhysicColId,
-    SubarrayId,
-    RingId,
-    RingBufferId,
-    TsvId,
-    WordId,
-);
-impl PhysicColId {
-    pub fn word_id(&self) -> WordId {
-        WordId(self.0 / 4)
-    }
-}
-generate_id!(u8;RingPort);
 
 pub trait Mapping {
     fn get_matrix_b_location(

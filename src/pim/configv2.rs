@@ -61,7 +61,10 @@ pub struct ConfigV3 {
     pub cas: u64,
     pub rows: usize,
     pub window_size: usize,
+    /// 256
     pub columns: usize,
+    /// 32,64,the size of the walker
+    // pub walker_size: usize,
     pub remap_cycle: usize,
     // pub remap_gap: usize,
     pub graph_path: Vec<String>,

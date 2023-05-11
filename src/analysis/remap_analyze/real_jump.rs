@@ -1,61 +1,51 @@
+//! ## rust module
+//! ## Author: Jiangqiu Shen
+//! ## Date: 2023-05-11
+//! Description: perform the real jump simulation, a real_jump means the one-hot-encoded value should jump to target when current != target
 use eyre::Context;
 use itertools::Itertools;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use sprs::io::MatrixHead;
-use sprs::{num_kinds::Pattern, CsMatI, TriMatI};
-use std::io::BufWriter;
-use std::iter::repeat;
-use std::mem::size_of;
-use std::time::{Duration, Instant};
+use sprs::{io::MatrixHead, num_kinds::Pattern, CsMatI, TriMatI};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs::File,
+    io::BufWriter,
+    iter::repeat,
+    mem::size_of,
+    time::{Duration, Instant},
 };
 use tracing::{debug, info};
 
-use crate::analysis::remap_analyze::row_cycle::*;
-
-use crate::analysis::remap_analyze::row_cycle::{
-    AddableJumpCycle, JumpCycle, RowCycleActionMut, UpdatableJumpCycle,
-};
-use crate::analysis::translate_mapping::same_bank::SameBankMapping;
-use crate::analysis::translate_mapping::weighted::SameBankWeightedMapping;
-
-use crate::analysis::{translate_mapping, EVIL_RATE};
 use crate::{
-    analysis::{remap_analyze::Simulator, translate_mapping::TranslateMapping},
+    analysis::{
+        remap_analyze::{
+            action::{ReduceAction, TotalAction, UpdateAction},
+            row_cycle::*,
+            Simulator,
+        },
+        translate_mapping::{
+            self, same_bank::SameBankMapping, weighted::SameBankWeightedMapping, TranslateMapping,
+        },
+        EVIL_RATE,
+    },
     pim::configv2::ConfigV3,
     tools::{self, file_server},
 };
 
-struct UpdateAction<'a> {
-    row_status: &'a RowIdWordId,
-    loc: &'a RowLocation,
-    size: WordId,
-    remap_cycle: usize,
-}
-impl<'a> RowCycleActionMut for UpdateAction<'a> {
-    fn apply_mut<T: JumpCycle + UpdatableJumpCycle + AddableJumpCycle>(&mut self, item: &mut T) {
-        item.update(self.row_status, self.loc, self.size, self.remap_cycle);
-    }
-}
-
-use super::row_cycle::JumpCycles;
-
 struct RealJumpSimulator {
     /// the local read of evil row
     evil_row_status: Vec<RowIdWordId>,
-    evil_row_cycles: Vec<JumpCycles>,
+    evil_row_cycles: Vec<AllJumpCycles>,
     /// the local read of non evil row
     non_evil_status: Vec<RowIdWordId>,
-    non_evil_row_cycles: Vec<JumpCycles>,
+    non_evil_row_cycles: Vec<AllJumpCycles>,
     /// the remote write
     col_status_remote: Vec<RowIdWordId>,
-    col_cycles_remote: Vec<JumpCycles>,
+    col_cycles_remote: Vec<AllJumpCycles>,
     /// the local write
     col_status_local: Vec<RowIdWordId>,
-    col_cycles_local: Vec<JumpCycles>,
+    col_cycles_local: Vec<AllJumpCycles>,
     /// the number of bits of subarrays
     subarray_bits: usize,
     /// the (sending,receiving) status of each bank
@@ -63,15 +53,7 @@ struct RealJumpSimulator {
     /// the cycle of each remap calculation
     remap_cycle: usize,
 }
-#[derive(Default)]
-struct TotalAction {
-    total: Vec<usize>,
-}
-impl RowCycleAction for TotalAction {
-    fn apply<T: JumpCycle + UpdatableJumpCycle + AddableJumpCycle>(&mut self, item: &T) {
-        self.total.push(item.total());
-    }
-}
+
 impl RealJumpSimulator {
     pub fn new(
         subarray_size: usize,
@@ -156,7 +138,7 @@ impl RealJumpSimulator {
         _target_col: LogicColId,
         col_location: &RowLocation,
         status: &mut RowIdWordId,
-        cycle: &mut JumpCycles,
+        cycle: &mut AllJumpCycles,
         remap_cycle: usize,
     ) {
         debug!(
@@ -332,37 +314,14 @@ impl RealJumpSimulator {
     }
 }
 
-struct ReduceAction {
-    total_cycles: Vec<usize>,
-}
-impl RowCycleArrayReduce for ReduceAction {
-    fn apply_reduce<T: JumpCycle + UpdatableJumpCycle + AddableJumpCycle>(
-        &mut self,
-        source: &[JumpCycles],
-        target: &mut T,
-        mut mapper: impl FnMut(&JumpCycles) -> &T,
-    ) {
-        let normal_jump_cycle = source
-            .iter()
-            .map(|x| mapper(x))
-            .max_by_key(|x| x.total())
-            .unwrap();
-
-        target.add(normal_jump_cycle);
-        let total = normal_jump_cycle.total();
-        self.total_cycles.push(total);
-    }
-}
 ///[normal, ideal, from_source, my, smart]
 /// find the slowest cycle and accumulate it to the final cycle
 fn update_row_cycle(
-    current_round_cycle: &[JumpCycles],
-    final_cycle: &mut JumpCycles,
-) -> Vec<usize> {
-    let mut reduce_action = ReduceAction {
-        total_cycles: vec![],
-    };
-    JumpCycles::apply_reduce(current_round_cycle, final_cycle, &mut reduce_action);
+    current_round_cycle: &[AllJumpCycles],
+    final_cycle: &mut AllJumpCycles,
+) -> [usize; TOTAL_TYPES_COUNT] {
+    let mut reduce_action = ReduceAction::default();
+    AllJumpCycles::apply_reduce(current_round_cycle, final_cycle, &mut reduce_action);
     reduce_action.total_cycles
 }
 
@@ -436,7 +395,7 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
                 * config.banks.num
                 * (size_of::<(usize, usize)>()
                     + (config.subarrays
-                        * (size_of::<JumpCycles>() * 3 + size_of::<(usize, usize)>() * 3)))
+                        * (size_of::<AllJumpCycles>() * 3 + size_of::<(usize, usize)>() * 3)))
                 * 2;
             let csr_matrix_size = rows * size_of::<usize>() + nnz * size_of::<u32>();
             let tri_matrix_size = nnz * size_of::<u32>() * 2;
@@ -580,14 +539,14 @@ impl EvilColHandler {
     }
 }
 ///[normal, ideal, from_source, my, smart]
-const NUM_JUMP_CYCLES: usize = JumpCyclesTypes::End as usize;
+const NUM_JUMP_CYCLES: usize = AllJumpCyclesTypes::End as usize;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct RealJumpResult {
-    pub local_dense_col_cycles: JumpCycles,
-    pub remote_dense_col_cycles: JumpCycles,
-    pub evil_row_cycles: JumpCycles,
-    pub row_cycles: JumpCycles,
+    pub local_dense_col_cycles: AllJumpCycles,
+    pub remote_dense_col_cycles: AllJumpCycles,
+    pub evil_row_cycles: AllJumpCycles,
+    pub row_cycles: AllJumpCycles,
     pub dispatcher_sending_cycle: usize,
     pub dispatcher_reading_cycle: usize,
     // pub real_cycle: [usize; 7],

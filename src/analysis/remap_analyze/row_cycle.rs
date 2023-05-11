@@ -1,7 +1,13 @@
+//! ## rust module
+//! ## Author: Jiangqiu Shen
+//! ## Date: 2023-05-11
+//! Description: define all the row cycles that are going to be evaluated
+//!
 use super::jump::*;
 use spmspm_macro::jump_cycles;
 
 jump_cycles!(
+    AllJumpCycles;
     NormalJumpCycle<256>,
     NormalJumpCycle<128>,
     NormalJumpCycle<64>,
@@ -30,13 +36,70 @@ jump_cycles!(
 
 #[cfg(test)]
 mod tests {
+    use spmspm_macro::JumpCyclesStruct;
+
     use super::*;
     #[test]
     fn test() {
-        let types = JumpCyclesTypes::NormalJumpCycle256;
+        let types = AllJumpCyclesTypes::NormalJumpCycle256;
 
         for i in types {
             println!("{:?}", i);
+        }
+    }
+
+    #[test]
+    #[allow(dead_code, unused_variables)]
+    fn test_struct_derive() {
+        #[derive(JumpCyclesStruct)]
+        pub struct TestStruct {
+            aa: NormalJumpCycle<32>,
+            aab: NormalJumpCycle<32>,
+        }
+        impl JumpCycle for NormalJumpCycle<32> {
+            fn total(&self) -> usize {
+                todo!()
+            }
+
+            fn get_one_jump(&self) -> usize {
+                todo!()
+            }
+
+            fn get_multi_jump(&self) -> usize {
+                todo!()
+            }
+
+            fn get_one_jump_mut(&mut self) -> &mut usize {
+                todo!()
+            }
+
+            fn get_multi_jump_mut(&mut self) -> &mut usize {
+                todo!()
+            }
+        }
+        impl UpdatableJumpCycle for NormalJumpCycle<32> {
+            fn update(
+                &mut self,
+                row_status: &RowIdWordId,
+                loc: &RowLocation,
+                size: WordId,
+                remap_cycle: usize,
+            ) {
+                todo!()
+            }
+        }
+        impl AddableJumpCycle for NormalJumpCycle<32> {
+            fn add(&mut self, jump_cycle: &Self) {
+                todo!()
+            }
+        }
+        let _ = TestStruct {
+            aa: NormalJumpCycle::<32>::default(),
+            aab: NormalJumpCycle::<32>::default(),
+        };
+        let a_types = TestStructTypes::default();
+        for t in a_types {
+            println!("{:?}", t);
         }
     }
 }

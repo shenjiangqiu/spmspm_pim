@@ -1,23 +1,23 @@
 // pub(crate) mod from_source;
 // mod histo;
-pub(crate) mod ideal_jump;
-pub(crate) mod myjump;
-pub(crate) mod myjump_no_jump_overhead;
-pub(crate) mod myjump_only;
-pub(crate) mod myjump_opt;
-pub(crate) mod normal_jump;
-use crate::analysis::remap_analyze::row_cycle::*;
+mod ideal_jump;
+mod myjump;
+mod myjump_no_jump_overhead;
+mod myjump_only;
+mod myjump_opt;
+mod normal_jump;
 
 // pub(crate) mod smart_jump;
 
 // pub(crate) use from_source::FromSourceJumpCycle;
-use super::row_cycle::{AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
-pub(crate) use ideal_jump::IdealJumpCycle;
-pub(crate) use myjump::MyJumpCycle;
-pub(crate) use myjump_no_jump_overhead::MyJumpNoOverhead;
-pub(crate) use myjump_only::MyJumpOnly;
-pub(crate) use myjump_opt::MyJumpOpt;
-pub(crate) use normal_jump::NormalJumpCycle;
+use super::row_cycle::{AddableJumpCycle, JumpCycle, RowIdWordId, UpdatableJumpCycle};
+pub use ideal_jump::IdealJumpCycle;
+pub use myjump::MyJumpCycle;
+pub use myjump_no_jump_overhead::MyJumpNoOverhead;
+pub use myjump_only::MyJumpOnly;
+pub use myjump_opt::MyJumpOpt;
+pub use normal_jump::NormalJumpCycle;
+
 pub(crate) trait AddTwo {
     fn add_two(&mut self);
 }
@@ -54,6 +54,8 @@ pub(crate) fn check_same_walker<const WALKER_SIZE: usize>(
 
 #[cfg(test)]
 mod tests {
+
+    use crate::analysis::remap_analyze::row_cycle::{PhysicRowId, WordId};
 
     use super::*;
     #[test]

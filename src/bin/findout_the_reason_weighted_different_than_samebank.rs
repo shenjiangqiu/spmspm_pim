@@ -3,20 +3,17 @@ use std::{collections::BTreeMap, path::PathBuf};
 use clap::Parser;
 use itertools::{izip, Itertools};
 use spmspm_pim::{
-    analysis::remap_analyze::{real_jump::RealJumpResult, row_cycle::*},
+    analysis::remap_analyze::{
+        jump::{MyJumpOpt, NormalJumpCycle},
+        real_jump::RealJumpResult,
+        row_cycle::*,
+    },
     pim::configv2::MappingType,
     tools::file_server,
 };
 
 mod common;
-struct TotalAction {
-    total: Vec<usize>,
-}
-impl RowCycleAction for TotalAction {
-    fn apply<T: JumpCycle + UpdatableJumpCycle + AddableJumpCycle>(&mut self, item: &T) {
-        self.total.push(item.total());
-    }
-}
+
 #[derive(Parser)]
 struct Cli {
     path: PathBuf,
@@ -28,8 +25,6 @@ fn main() -> eyre::Result<()> {
         serde_json::from_reader(file_server::file_reader(&cli.path.to_string_lossy()).unwrap())
             .unwrap();
 
-    let mut total_cycle: BTreeMap<&MappingType, BTreeMap<AllJumpCyclesTypes, Vec<(&str, usize)>>> =
-        BTreeMap::new();
     print_fn(
         &result,
         || {
@@ -51,40 +46,70 @@ fn main() -> eyre::Result<()> {
             println!("map_end: {:?}\n\n", m);
         },
         |graph_name, mapping_type, single_result| {
-            let mut remote_write_total_action = TotalAction { total: vec![] };
-            single_result
-                .remote_dense_col_cycles
-                .apply(&mut remote_write_total_action);
-            let remote_write_cycle = remote_write_total_action.total;
-            for (index, remote_write, real_local) in izip!(
-                AllJumpCyclesTypes::default(),
-                remote_write_cycle,
-                &single_result.real_local_cycle
-            ) {
-                // this is ideal
-                let dispatching = single_result.dispatcher_reading_cycle;
-                let total = real_local + dispatching + remote_write;
+            let remote_write = single_result.remote_dense_col_cycles;
+            let normal_256 = remote_write.normal_jump_cycle_256;
+            let normal_32 = remote_write.normal_jump_cycle_32;
+            let NormalJumpCycle {
+                jump_one_cycle,
+                jump_multiple_cycle,
+                total_jumps_all,
+                total_jumps_covered_by_row_open,
+                jumps_not_covered_when_no_row_open,
+                jumps_not_covered_when_more_shift,
+            } = normal_256;
+            println!(
+                "normal_256: jump_one_cycle: {:?}, jump_multiple_cycle: {:?}, total_jumps_all: {:?}, total_jumps_covered_by_row_open: {:?}, jumps_not_covered_when_no_row_open: {:?}, jumps_not_covered_when_more_shift: {:?}",
+                jump_one_cycle, jump_multiple_cycle, total_jumps_all, total_jumps_covered_by_row_open, jumps_not_covered_when_no_row_open, jumps_not_covered_when_more_shift
+            );
+            let NormalJumpCycle {
+                jump_one_cycle,
+                jump_multiple_cycle,
+                total_jumps_all,
+                total_jumps_covered_by_row_open,
+                jumps_not_covered_when_no_row_open,
+                jumps_not_covered_when_more_shift,
+            } = normal_32;
+            println!(
+                "normal_32: jump_one_cycle: {:?}, jump_multiple_cycle: {:?}, total_jumps_all: {:?}, total_jumps_covered_by_row_open: {:?}, jumps_not_covered_when_no_row_open: {:?}, jumps_not_covered_when_more_shift: {:?}",
+                jump_one_cycle, jump_multiple_cycle, total_jumps_all, total_jumps_covered_by_row_open, jumps_not_covered_when_no_row_open, jumps_not_covered_when_more_shift
+            );
 
-                let jump_type = index.into();
-                let total_cycle = total_cycle
-                    .entry(mapping_type)
-                    .or_default()
-                    .entry(jump_type)
-                    .or_default();
-                total_cycle.push((graph_name, total));
-            }
+            let my_jump256: MyJumpOpt<16, 256> = remote_write.my_jump_opt_16_256;
+            let MyJumpOpt {
+                multi_jump_cycle,
+                one_jump_cycle,
+                opt_saved_times,
+                opt_saved_cycles,
+                all_cycle_hist_0,
+                all_cycle_hist_1_2,
+                all_cycle_hist_3_4,
+                all_cycle_hist_5_8,
+                all_cycle_hist_9_and_more,
+            } = my_jump256;
+            println!(
+                "my_jump256: multi_jump_cycle: {:?}, one_jump_cycle: {:?}, opt_saved_times: {:?}, opt_saved_cycles: {:?}, all_cycle_hist_0: {:?}, all_cycle_hist_1_2: {:?}, all_cycle_hist_3_4: {:?}, all_cycle_hist_5_8: {:?}, all_cycle_hist_9_and_more: {:?}",
+                multi_jump_cycle, one_jump_cycle, opt_saved_times, opt_saved_cycles, all_cycle_hist_0, all_cycle_hist_1_2, all_cycle_hist_3_4, all_cycle_hist_5_8, all_cycle_hist_9_and_more
+            );
+            let my_jump_32 = remote_write.my_jump_opt_16_32;
+            let MyJumpOpt {
+                multi_jump_cycle,
+                one_jump_cycle,
+                opt_saved_times,
+                opt_saved_cycles,
+                all_cycle_hist_0,
+                all_cycle_hist_1_2,
+                all_cycle_hist_3_4,
+                all_cycle_hist_5_8,
+                all_cycle_hist_9_and_more,
+            } = my_jump_32;
+            println!(
+                "my_jump_32 multi_jump_cycle: {:?}, one_jump_cycle: {:?}, opt_saved_times: {:?}, opt_saved_cycles: {:?}, all_cycle_hist_0: {:?}, all_cycle_hist_1_2: {:?}, all_cycle_hist_3_4: {:?}, all_cycle_hist_5_8: {:?}, all_cycle_hist_9_and_more: {:?}",
+                multi_jump_cycle, one_jump_cycle, opt_saved_times, opt_saved_cycles, all_cycle_hist_0, all_cycle_hist_1_2, all_cycle_hist_3_4, all_cycle_hist_5_8, all_cycle_hist_9_and_more
+            );
+
             println!("\n\n");
         },
     );
-
-    total_cycle
-        .iter()
-        .for_each(|(mapping_type, mapping_result)| {
-            mapping_result.iter().for_each(|(jump_type, jump_result)| {
-                let st = jump_result.iter().map(|x| x.1).join(" ");
-                println!("{:?}-{:?}: {}", mapping_type, jump_type, st);
-            });
-        });
 
     Ok(())
 }

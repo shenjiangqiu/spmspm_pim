@@ -1,26 +1,24 @@
 //! # the analysis module
 //! show the key timing and bandwidth
-pub mod remap_analyze;
-
 pub mod evil_filter;
+pub mod remap_analyze;
 pub mod translate_mapping;
 
 pub mod results;
 pub mod stats;
 pub mod traits;
-use std::fmt::Debug;
-use std::fs::File;
-use std::io::BufWriter;
-use std::path::Path;
-use std::sync::atomic::AtomicUsize;
-use std::sync::RwLock;
-
 use crate::cli::LogType;
 use crate::pim::configv2::{ConfigV2, ConfigV3};
 use crate::{cli, pim::config::Config};
 use crate::{draw, init_logger, RunArgs, Simulator};
 use crate::{init_logger_stderr, AnalyzeArgs};
 use serde::Serialize;
+use std::fmt::Debug;
+use std::fs::File;
+use std::io::BufWriter;
+use std::path::Path;
+use std::sync::atomic::AtomicUsize;
+use std::sync::RwLock;
 use tracing::info;
 use tracing::metadata::LevelFilter;
 pub mod mapping;

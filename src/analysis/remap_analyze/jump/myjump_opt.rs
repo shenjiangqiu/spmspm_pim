@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::remap_analyze::row_cycle::*;
 
-use super::{check_same_walker, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
+use super::{
+    get_num_extra_walkers_to_load, get_total_row_cycle, AddableJumpCycle, JumpCycle,
+    UpdatableJumpCycle,
+};
 
 /// the optimized jump cycle, the normal jump and the calculation is overlapped
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
@@ -12,6 +15,16 @@ pub struct MyJumpOpt<const GAP: usize, const WALKER_SIZE: usize> {
 
     /// the cycle that perform stream data read(one jump)
     pub one_jump_cycle: usize,
+    /// the row open cycle for the request
+    pub row_cycle_total: usize,
+    pub total_accesses: usize,
+    pub row_hits: usize,
+    pub row_misses: usize,
+    // global row for all sequential accesses
+    pub gloabl_row_accesses: usize,
+    pub global_row_hits: usize,
+    pub global_row_miss: usize,
+    pub global_row_cycles: usize,
 
     /// histogram
     pub opt_saved_times: usize,
@@ -33,11 +46,25 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
         remap_unit: usize,
     ) {
         let gap = GAP;
-        let row_cycle = if check_same_walker::<WALKER_SIZE>(row_status, &loc.row_id_world_id) {
-            0
+        self.total_accesses += 1;
+        self.gloabl_row_accesses += 1;
+        if row_status.row_id != loc.row_id_world_id.row_id {
+            self.row_misses += 1;
+            self.global_row_miss += 1;
+            self.row_cycle_total += 18;
+            self.global_row_cycles += 18;
         } else {
-            18
-        };
+            self.row_hits += 1;
+            self.global_row_hits += 1;
+        }
+
+        let row_cycle = get_total_row_cycle::<WALKER_SIZE>(row_status, loc, size);
+
+        let extra_walkers_to_read =
+            get_num_extra_walkers_to_load::<WALKER_SIZE>(loc.row_id_world_id.word_id, size);
+        self.gloabl_row_accesses += extra_walkers_to_read;
+        self.global_row_miss += extra_walkers_to_read;
+        self.global_row_cycles += extra_walkers_to_read * 18;
 
         // first find the nearest stop
         let re_map_times =
@@ -75,6 +102,7 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
         }
     }
 }
+
 impl<const GAP: usize, const WALKER_SIZE: usize> JumpCycle for MyJumpOpt<GAP, WALKER_SIZE> {
     fn total(&self) -> usize {
         self.multi_jump_cycle + self.one_jump_cycle

@@ -9,7 +9,6 @@ use spmspm_pim::{
 };
 
 mod common;
-use spmspm_pim::BB;
 
 #[derive(Parser)]
 struct Cli {
@@ -18,9 +17,6 @@ struct Cli {
 
 fn main() -> eyre::Result<()> {
     let cli = Cli::parse();
-    let bb = BB::new();
-    let a = bb.a;
-    let i = a.i;
     //results/realjump/real_jump_sensitive_fix_row_open.json
     let result: common::RealJumpResultMap =
         serde_json::from_reader(file_server::file_reader(&cli.path.to_string_lossy()).unwrap())

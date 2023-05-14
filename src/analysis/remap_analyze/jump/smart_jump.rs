@@ -20,11 +20,8 @@ impl UpdatableJumpCycle for SmartJumpCycle {
         size: WordId,
         _remap_cycle: usize,
     ) {
-        let row_cycle = if location.row_id == row_status.0 {
-            0
-        } else {
-            18
-        };
+        let row_cycle = get_total_row_cycle::<WALKER_SIZE>(evil_row_status, location, size);
+
         let jumps = (row_status.1 .0 as isize - location.word_id.0 as isize).abs() as usize;
         // the jump of size
         if jumps > 4 {

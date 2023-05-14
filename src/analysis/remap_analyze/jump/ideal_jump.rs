@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::remap_analyze::row_cycle::*;
 
-use super::{check_same_walker, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
+use super::{get_total_row_cycle, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
 pub struct IdealJumpCycle<const WALKER_SIZE: usize> {
@@ -16,11 +16,8 @@ impl<const WALKER_SIZE: usize> UpdatableJumpCycle for IdealJumpCycle<WALKER_SIZE
         size: WordId,
         _remap_cycle: usize,
     ) {
-        let row_cycle = if check_same_walker::<WALKER_SIZE>(row_status, &loc.row_id_world_id) {
-            0
-        } else {
-            18
-        };
+        let row_cycle = get_total_row_cycle::<WALKER_SIZE>(row_status, loc, size);
+
         if loc.row_id_world_id.word_id != row_status.word_id {
             // it' not the same col
             self.total_cycle += 1.max(row_cycle);

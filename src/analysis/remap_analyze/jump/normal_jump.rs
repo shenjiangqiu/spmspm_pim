@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::remap_analyze::row_cycle::*;
 
-use super::{check_same_walker, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
+use super::{get_total_row_cycle, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
 pub struct NormalJumpCycle<const WALKER_SIZE: usize> {
@@ -24,12 +24,9 @@ impl<const WALKER_SIZE: usize> UpdatableJumpCycle for NormalJumpCycle<WALKER_SIZ
         _remap_cycle: usize,
     ) {
         // fix the bug here,
-        let row_cycle =
-            if check_same_walker::<WALKER_SIZE>(evil_row_status, &location.row_id_world_id) {
-                0
-            } else {
-                18
-            };
+
+        let row_cycle = get_total_row_cycle::<WALKER_SIZE>(evil_row_status, location, size);
+
         let jumps = (location.row_id_world_id.word_id.0 as isize
             - evil_row_status.word_id.0 as isize)
             .abs() as usize;

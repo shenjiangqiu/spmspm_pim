@@ -10,7 +10,9 @@ mod normal_jump;
 // pub(crate) mod smart_jump;
 
 // pub(crate) use from_source::FromSourceJumpCycle;
-use super::row_cycle::{AddableJumpCycle, JumpCycle, RowIdWordId, UpdatableJumpCycle};
+use super::row_cycle::{
+    AddableJumpCycle, JumpCycle, RowIdWordId, RowLocation, UpdatableJumpCycle, WordId,
+};
 pub use ideal_jump::IdealJumpCycle;
 pub use myjump::MyJumpCycle;
 pub use myjump_no_jump_overhead::MyJumpNoOverhead;
@@ -50,6 +52,37 @@ pub(crate) fn check_same_walker<const WALKER_SIZE: usize>(
 ) -> bool {
     source.row_id == target.row_id
         && (source.word_id.0 * 4 / WALKER_SIZE == target.word_id.0 * 4 / WALKER_SIZE)
+}
+pub fn get_total_row_cycle<const WALKER_SIZE: usize>(
+    row_status: &RowIdWordId,
+    loc: &RowLocation,
+    size: WordId,
+) -> usize {
+    let row_cycle = if check_same_walker::<WALKER_SIZE>(row_status, &loc.row_id_world_id) {
+        0
+    } else {
+        18
+    };
+    let walkers_to_load =
+        get_num_extra_walkers_to_load::<WALKER_SIZE>(loc.row_id_world_id.word_id, size);
+
+    let row_cycle = row_cycle + walkers_to_load * 18;
+    row_cycle
+}
+pub fn get_num_extra_walkers_to_load<const WALKER_SIZE: usize>(
+    start_world_id: WordId,
+    size: WordId,
+) -> usize {
+    if size.0 == 0 || size.0 == 1 {
+        // always load the same walker as start_world_id
+        return 0;
+    }
+    let end_world_id = start_world_id.0 + size.0 - 1;
+    let start_partiton = start_world_id.0 / (WALKER_SIZE / 4);
+    let end_partiton = end_world_id / (WALKER_SIZE / 4);
+    let num_walkers_to_load = end_partiton - start_partiton;
+
+    num_walkers_to_load
 }
 
 #[cfg(test)]

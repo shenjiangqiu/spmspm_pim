@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::remap_analyze::row_cycle::*;
 
-use super::{check_same_walker, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
+use super::{get_total_row_cycle, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
 /// only jump, not compare and shifting
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
@@ -27,11 +27,8 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
         remap_unit: usize,
     ) {
         let gap = GAP;
-        let row_cycle = if check_same_walker::<WALKER_SIZE>(row_status, &loc.row_id_world_id) {
-            0
-        } else {
-            18
-        };
+        let row_cycle = get_total_row_cycle::<WALKER_SIZE>(row_status, loc, size);
+
         self.calculate_remap_cycle += remap_unit;
 
         // first find the nearest stop

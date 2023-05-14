@@ -85,6 +85,14 @@ fn main() -> eyre::Result<()> {
                 all_cycle_hist_3_4,
                 all_cycle_hist_5_8,
                 all_cycle_hist_9_and_more,
+                row_cycle_total,
+                total_accesses,
+                row_hits,
+                row_misses,
+                gloabl_row_accesses,
+                global_row_hits,
+                global_row_miss,
+                global_row_cycles,
             } = my_jump256;
             println!(
                 "my_jump256: multi_jump_cycle: {:?}, one_jump_cycle: {:?}, opt_saved_times: {:?}, opt_saved_cycles: {:?}, all_cycle_hist_0: {:?}, all_cycle_hist_1_2: {:?}, all_cycle_hist_3_4: {:?}, all_cycle_hist_5_8: {:?}, all_cycle_hist_9_and_more: {:?}",
@@ -101,6 +109,14 @@ fn main() -> eyre::Result<()> {
                 all_cycle_hist_3_4,
                 all_cycle_hist_5_8,
                 all_cycle_hist_9_and_more,
+                row_cycle_total,
+                total_accesses,
+                row_hits,
+                row_misses,
+                gloabl_row_accesses,
+                global_row_hits,
+                global_row_miss,
+                global_row_cycles,
             } = my_jump_32;
             println!(
                 "my_jump_32 multi_jump_cycle: {:?}, one_jump_cycle: {:?}, opt_saved_times: {:?}, opt_saved_cycles: {:?}, all_cycle_hist_0: {:?}, all_cycle_hist_1_2: {:?}, all_cycle_hist_3_4: {:?}, all_cycle_hist_5_8: {:?}, all_cycle_hist_9_and_more: {:?}",

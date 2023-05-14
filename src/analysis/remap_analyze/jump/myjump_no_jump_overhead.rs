@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::remap_analyze::row_cycle::*;
 
-use super::{check_same_walker, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
+use super::{get_total_row_cycle, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
 pub struct MyJumpNoOverhead<const GAP: usize, const WALKER_SIZE: usize> {
@@ -23,11 +23,7 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
         _remap_cycle: usize,
     ) {
         let gap = GAP;
-        let row_cycle = if check_same_walker::<WALKER_SIZE>(row_status, &location.row_id_world_id) {
-            0
-        } else {
-            18
-        };
+        let row_cycle = get_total_row_cycle::<WALKER_SIZE>(row_status, location, size);
 
         // first find the nearest stop
         let re_map_times = (location.row_id_world_id.word_id.0 % gap)

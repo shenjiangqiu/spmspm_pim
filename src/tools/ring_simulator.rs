@@ -171,7 +171,7 @@ impl<T: IcntPacket> RingSimulator<T> {
                         if let Some(packet) = self.input[node].pop_front() {
                             if packet.get_next_hop() == node {
                                 if self.output[node].len() < self.buffer_capacity {
-                                    tracing::debug!("from input {} to output {}", node, node);
+                                    // tracing::debug!("from input {} to output {}", node, node);
                                     self.output[node].push_back(packet);
                                 } else {
                                     self.input[node].push_front(packet);
@@ -181,7 +181,7 @@ impl<T: IcntPacket> RingSimulator<T> {
                                     Direction::Left => {
                                         if self.left_buffer[node].len() < self.buffer_capacity {
                                             self.temp_left_buffer[node].push_back(packet);
-                                            tracing::debug!("from input {} to left {}", node, node);
+                                            // tracing::debug!("from input {} to left {}", node, node);
                                         } else {
                                             self.input[node].push_front(packet);
                                         }
@@ -189,11 +189,11 @@ impl<T: IcntPacket> RingSimulator<T> {
                                     Direction::Right => {
                                         if self.right_buffer[node].len() < self.buffer_capacity {
                                             self.temp_right_buffer[node].push_back(packet);
-                                            tracing::debug!(
-                                                "from input {} to right {}",
-                                                node,
-                                                node
-                                            );
+                                            // tracing::debug!(
+                                            //     "from input {} to right {}",
+                                            //     node,
+                                            //     node
+                                            // );
                                         } else {
                                             self.input[node].push_front(packet);
                                         }
@@ -209,12 +209,12 @@ impl<T: IcntPacket> RingSimulator<T> {
                             if packet.get_next_hop() == node {
                                 if self.output[node].len() < self.buffer_capacity {
                                     self.output[node].push_back(packet);
-                                    tracing::debug!("from left {} to output {}", right_node, node);
+                                    // tracing::debug!("from left {} to output {}", right_node, node);
                                 } else {
                                     self.left_buffer[right_node].push_front(packet);
                                 }
                             } else if self.left_buffer[node].len() < self.buffer_capacity {
-                                tracing::debug!("from left {} to left {}", right_node, node);
+                                // tracing::debug!("from left {} to left {}", right_node, node);
                                 self.temp_left_buffer[node].push_back(packet);
                             } else {
                                 self.left_buffer[right_node].push_front(packet);
@@ -228,13 +228,13 @@ impl<T: IcntPacket> RingSimulator<T> {
                             if packet.get_next_hop() == node {
                                 if self.output[node].len() < self.buffer_capacity {
                                     self.output[node].push_back(packet);
-                                    tracing::debug!("from right {} to output {}", left_node, node);
+                                    // tracing::debug!("from right {} to output {}", left_node, node);
                                 } else {
                                     self.right_buffer[left_node].push_front(packet);
                                 }
                             } else if self.right_buffer[node].len() < self.buffer_capacity {
                                 self.temp_right_buffer[node].push_back(packet);
-                                tracing::debug!("from right {} to right {}", left_node, node);
+                                // tracing::debug!("from right {} to right {}", left_node, node);
                             } else {
                                 self.right_buffer[left_node].push_front(packet);
                             }
@@ -408,9 +408,9 @@ mod tests {
             direction: Direction::Right,
             source: 0,
         };
-        for i in 0..4 {
+        for _i in 0..4 {
             simulator.add(0, p1).unwrap();
-            tracing::debug!(i);
+            // tracing::debug!(i);
             simulator.cycle();
         }
         simulator.cycle();

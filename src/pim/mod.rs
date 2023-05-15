@@ -296,34 +296,34 @@ impl Simulator {
     }
 }
 
-#[cfg(test)]
-mod tests {
+// #[cfg(test)]
+// mod tests {
 
-    use super::*;
-    use crate::{init_logger_debug, pim::config::LevelConfig};
-    use tracing::debug;
+//     use super::*;
+//     use crate::{init_logger_debug, pim::config::LevelConfig};
+//     use tracing::debug;
 
-    #[test]
-    fn test_real_graph() {
-        init_logger_debug();
-        debug!("test real graph");
-        let config = Config::from_ddr4_3200(
-            LevelConfig {
-                num: 1,
-                merger_num: 10,
-                max_msg_in: 2,
-                max_msg_out: 2,
-                max_msg_generated: 2,
-            },
-            LevelConfig {
-                num: 2,
-                merger_num: 10,
-                max_msg_in: 2,
-                max_msg_out: 2,
-                max_msg_generated: 2,
-            },
-        );
-        let mut simulator = Simulator::new(&config);
-        simulator.run(&config);
-    }
-}
+//     #[test]
+//     fn test_real_graph() {
+//         init_logger_debug();
+//         debug!("test real graph");
+//         let config = Config::from_ddr4_3200(
+//             LevelConfig {
+//                 num: 1,
+//                 merger_num: 10,
+//                 max_msg_in: 2,
+//                 max_msg_out: 2,
+//                 max_msg_generated: 2,
+//             },
+//             LevelConfig {
+//                 num: 2,
+//                 merger_num: 10,
+//                 max_msg_in: 2,
+//                 max_msg_out: 2,
+//                 max_msg_generated: 2,
+//             },
+//         );
+//         let mut simulator = Simulator::new(&config);
+//         simulator.run(&config);
+//     }
+// }

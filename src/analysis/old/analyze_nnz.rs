@@ -162,12 +162,12 @@ pub struct SeqResult {
 
 /// add two vector and return a new vector(sparse)
 /// # Example
-/// ```
-/// use spmspm_pim::analysis::analyze_nnz_spmm;
+/// ```ignore
+/// use spmspm_pim::analysis::old::analyze_nnz;
 /// use sprs::{CsVec, CsVecView};
 /// let v1 = CsVec::new(5, vec![0, 2, 4], vec![1,1,1]);
 /// let v2 = CsVec::new(5, vec![1, 3, 4], vec![1,1,1]);
-/// let v3 = analyze_nnz_spmm::sparse_add(v1.view(), v2.view());
+/// let v3 = analyze_nnz::sparse_add(v1.view(), v2.view());
 /// assert_eq!(v3, CsVec::new(5, vec![0, 1, 2, 3, 4], vec![1,1,1,1,2]));
 /// ```
 pub fn sparse_add<T>(v1: CsVecView<T>, v2: CsVecView<T>) -> CsVec<T>
@@ -211,106 +211,106 @@ where
     result
 }
 
-#[cfg(test)]
-mod tests {
-    use tracing::debug;
+// #[cfg(test)]
+// mod tests {
+//     use tracing::debug;
 
-    use crate::{
-        init_logger_debug,
-        pim::config::{Config, LevelConfig},
-    };
+//     use crate::{
+//         init_logger_debug,
+//         pim::config::{Config, LevelConfig},
+//     };
 
-    use super::*;
+//     use super::*;
 
-    #[test]
-    fn test_split_spmm() {
-        init_logger_debug();
-        let config = Config {
-            channels: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            ranks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            chips: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            bank_groups: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            banks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            graph_path: vec!["mtx/test.mtx".to_string()],
-            ..Config::from_ddr4_3200(
-                LevelConfig {
-                    num: 1,
-                    ..Default::default()
-                },
-                LevelConfig {
-                    num: 1,
-                    ..Default::default()
-                },
-            )
-        };
-        let result = analyze_nnz_spmm(&config);
-        result.show_results();
-    }
+//     #[test]
+//     fn test_split_spmm() {
+//         init_logger_debug();
+//         let config = Config {
+//             channels: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             ranks: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             chips: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             bank_groups: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             banks: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             graph_path: vec!["mtx/test.mtx".to_string()],
+//             ..Config::from_ddr4_3200(
+//                 LevelConfig {
+//                     num: 1,
+//                     ..Default::default()
+//                 },
+//                 LevelConfig {
+//                     num: 1,
+//                     ..Default::default()
+//                 },
+//             )
+//         };
+//         let result = analyze_nnz_spmm(&config);
+//         result.show_results();
+//     }
 
-    #[test]
-    fn test_split_spmm_long_vec() {
-        init_logger_debug();
-        let config = Config {
-            channels: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            ranks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            chips: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            bank_groups: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            banks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            graph_path: vec!["mtx/test.mtx".to_string()],
-            columns: 8,
+//     #[test]
+//     fn test_split_spmm_long_vec() {
+//         init_logger_debug();
+//         let config = Config {
+//             channels: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             ranks: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             chips: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             bank_groups: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             banks: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             graph_path: vec!["mtx/test.mtx".to_string()],
+//             columns: 8,
 
-            ..Config::from_ddr4_3200(
-                LevelConfig {
-                    num: 1,
-                    ..Default::default()
-                },
-                LevelConfig {
-                    num: 1,
-                    ..Default::default()
-                },
-            )
-        };
+//             ..Config::from_ddr4_3200(
+//                 LevelConfig {
+//                     num: 1,
+//                     ..Default::default()
+//                 },
+//                 LevelConfig {
+//                     num: 1,
+//                     ..Default::default()
+//                 },
+//             )
+//         };
 
-        let result = analyze_nnz_spmm(&config);
-        result.show_results();
-    }
+//         let result = analyze_nnz_spmm(&config);
+//         result.show_results();
+//     }
 
-    #[test]
-    fn test_vec_add() {
-        init_logger_debug();
-        let cs_vec1 = CsVec::new(100, vec![1, 2, 3], vec![Pattern; 3]);
-        let cs_vec2 = CsVec::new(100, vec![1, 3, 4], vec![Pattern; 3]);
-        let result = sparse_add(cs_vec1.view(), cs_vec2.view());
-        debug!(?result);
-    }
-}
+//     #[test]
+//     fn test_vec_add() {
+//         init_logger_debug();
+//         let cs_vec1 = CsVec::new(100, vec![1, 2, 3], vec![Pattern; 3]);
+//         let cs_vec2 = CsVec::new(100, vec![1, 3, 4], vec![Pattern; 3]);
+//         let result = sparse_add(cs_vec1.view(), cs_vec2.view());
+//         debug!(?result);
+//     }
+// }

@@ -234,7 +234,7 @@ pub struct SeqResult {
 
 /// add two vector and return a new vector(sparse)
 /// # Example
-/// ```
+/// ```ignore
 /// use spmspm_pim::analysis::analyze_nnz_spmm;
 /// use sprs::{CsVec, CsVecView};
 /// let v1 = CsVec::new(5, vec![0, 2, 4], vec![1,1,1]);

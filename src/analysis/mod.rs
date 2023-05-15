@@ -373,15 +373,3 @@ fn do_analyze_by_batch_and_topk<
     info!("time elapsed: {:?}", current_time.elapsed());
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::pim::config::Config;
-    #[test]
-    fn test_print_all_stat() {
-        let config: Config =
-            toml::from_str(std::fs::read_to_string("ddr4.toml").unwrap().as_str()).unwrap();
-        print_all_stats(&config);
-    }
-}

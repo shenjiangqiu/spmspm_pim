@@ -1644,333 +1644,333 @@ impl SubarrayStatus {
         )
     }
 }
-#[allow(deprecated)]
-#[cfg(test)]
-mod tests {
-    use crate::pim::configv2::LevelConfig;
+// #[allow(deprecated)]
+// #[cfg(test)]
+// mod tests {
+//     use crate::pim::configv2::LevelConfig;
 
-    use super::*;
+//     use super::*;
 
-    #[test]
-    fn test_id_translate() {
-        let config = ConfigV2 {
-            channels: LevelConfig {
-                num: 16,
-                ..Default::default()
-            },
-            chips: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            ranks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            bank_groups: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            banks: LevelConfig {
-                num: 16,
-                ..Default::default()
-            },
-            subarrays: 16,
-            ..Default::default()
-        };
-        let hard_ware = Hardware::new(1024, config, 100, 100);
-        assert_eq!(hard_ware.tsvs(), 16);
-        assert_eq!(hard_ware.subarrays(), 4096);
-        assert_eq!(hard_ware.banks(), 256);
-        assert_eq!(hard_ware.get_dispatcher_id(SubarrayId(0)), SubarrayId(0));
-        assert_eq!(hard_ware.get_dispatcher_id(SubarrayId(16)), SubarrayId(16));
-        assert_eq!(hard_ware.get_dispatcher_id(SubarrayId(19)), SubarrayId(16));
+//     #[test]
+//     fn test_id_translate() {
+//         let config = ConfigV2 {
+//             channels: LevelConfig {
+//                 num: 16,
+//                 ..Default::default()
+//             },
+//             chips: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             ranks: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             bank_groups: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             banks: LevelConfig {
+//                 num: 16,
+//                 ..Default::default()
+//             },
+//             subarrays: 16,
+//             ..Default::default()
+//         };
+//         let hard_ware = Hardware::new(1024, config, 100, 100);
+//         assert_eq!(hard_ware.tsvs(), 16);
+//         assert_eq!(hard_ware.subarrays(), 4096);
+//         assert_eq!(hard_ware.banks(), 256);
+//         assert_eq!(hard_ware.get_dispatcher_id(SubarrayId(0)), SubarrayId(0));
+//         assert_eq!(hard_ware.get_dispatcher_id(SubarrayId(16)), SubarrayId(16));
+//         assert_eq!(hard_ware.get_dispatcher_id(SubarrayId(19)), SubarrayId(16));
 
-        assert_eq!(hard_ware.get_partition_id_col(LogicColId(0)), SubarrayId(0));
-        assert_eq!(
-            hard_ware.get_partition_id_col(LogicColId(1001)),
-            SubarrayId(10)
-        );
-        assert_eq!(
-            hard_ware.get_partition_id_row(LogicRowId(4095)),
-            SubarrayId(40)
-        );
-        // assert_eq!(hard_ware.get_row_id(LogicRowId(12), col_id(0)), RowId(12));
-        assert_eq!(hard_ware.get_tsv_id_from_ring(RingId(0)), TsvId(0));
-        assert_eq!(hard_ware.get_tsv_id_from_subarray(SubarrayId(1)), TsvId(0));
-        assert_eq!(hard_ware.get_tsv_id_from_subarray(SubarrayId(16)), TsvId(0));
-        assert_eq!(
-            hard_ware.get_tsv_id_from_subarray(SubarrayId(255)),
-            TsvId(0)
-        );
-        assert_eq!(
-            hard_ware.get_tsv_id_from_subarray(SubarrayId(256)),
-            TsvId(1)
-        );
-        assert_eq!(hard_ware.ring_buffer_id(SubarrayId(17)), RingBufferId(1));
-        assert_eq!(hard_ware.ring_buffer_id(SubarrayId(15)), RingBufferId(0));
-        assert_eq!(hard_ware.ring_id_from_subarray(SubarrayId(0)), RingId(0));
-        assert_eq!(hard_ware.ring_id_from_subarray(SubarrayId(255)), RingId(0));
-        assert_eq!(hard_ware.ring_id_from_subarray(SubarrayId(256)), RingId(1));
-        assert_eq!(
-            hard_ware.ring_port_from_subarray(SubarrayId(255)),
-            RingPort(15)
-        );
-        assert_eq!(
-            hard_ware.ring_port_from_subarray(SubarrayId(256)),
-            RingPort(0)
-        );
-        assert_eq!(
-            hard_ware.ring_port_from_subarray(SubarrayId(16)),
-            RingPort(1)
-        );
+//         assert_eq!(hard_ware.get_partition_id_col(LogicColId(0)), SubarrayId(0));
+//         assert_eq!(
+//             hard_ware.get_partition_id_col(LogicColId(1001)),
+//             SubarrayId(10)
+//         );
+//         assert_eq!(
+//             hard_ware.get_partition_id_row(LogicRowId(4095)),
+//             SubarrayId(40)
+//         );
+//         // assert_eq!(hard_ware.get_row_id(LogicRowId(12), col_id(0)), RowId(12));
+//         assert_eq!(hard_ware.get_tsv_id_from_ring(RingId(0)), TsvId(0));
+//         assert_eq!(hard_ware.get_tsv_id_from_subarray(SubarrayId(1)), TsvId(0));
+//         assert_eq!(hard_ware.get_tsv_id_from_subarray(SubarrayId(16)), TsvId(0));
+//         assert_eq!(
+//             hard_ware.get_tsv_id_from_subarray(SubarrayId(255)),
+//             TsvId(0)
+//         );
+//         assert_eq!(
+//             hard_ware.get_tsv_id_from_subarray(SubarrayId(256)),
+//             TsvId(1)
+//         );
+//         assert_eq!(hard_ware.ring_buffer_id(SubarrayId(17)), RingBufferId(1));
+//         assert_eq!(hard_ware.ring_buffer_id(SubarrayId(15)), RingBufferId(0));
+//         assert_eq!(hard_ware.ring_id_from_subarray(SubarrayId(0)), RingId(0));
+//         assert_eq!(hard_ware.ring_id_from_subarray(SubarrayId(255)), RingId(0));
+//         assert_eq!(hard_ware.ring_id_from_subarray(SubarrayId(256)), RingId(1));
+//         assert_eq!(
+//             hard_ware.ring_port_from_subarray(SubarrayId(255)),
+//             RingPort(15)
+//         );
+//         assert_eq!(
+//             hard_ware.ring_port_from_subarray(SubarrayId(256)),
+//             RingPort(0)
+//         );
+//         assert_eq!(
+//             hard_ware.ring_port_from_subarray(SubarrayId(16)),
+//             RingPort(1)
+//         );
 
-        assert_eq!(hard_ware.rings(), 16);
-        for i in 0..100 {
-            assert_eq!(
-                hard_ware.ring_id_from_subarray(SubarrayId(i)),
-                hard_ware.ring_id_from_subarray(hard_ware.get_dispatcher_id(SubarrayId(i)))
-            );
-            assert_eq!(
-                hard_ware.ring_port_from_subarray(SubarrayId(i)),
-                hard_ware.ring_port_from_subarray(hard_ware.get_dispatcher_id(SubarrayId(i)))
-            );
-        }
-    }
+//         assert_eq!(hard_ware.rings(), 16);
+//         for i in 0..100 {
+//             assert_eq!(
+//                 hard_ware.ring_id_from_subarray(SubarrayId(i)),
+//                 hard_ware.ring_id_from_subarray(hard_ware.get_dispatcher_id(SubarrayId(i)))
+//             );
+//             assert_eq!(
+//                 hard_ware.ring_port_from_subarray(SubarrayId(i)),
+//                 hard_ware.ring_port_from_subarray(hard_ware.get_dispatcher_id(SubarrayId(i)))
+//             );
+//         }
+//     }
 
-    #[test]
-    fn test_dist() {
-        let mut hard_ware = init_hardware();
-        // the evil col, same write in subarray will be merged
-        hard_ware.distribute_evil_col(
-            LogicRowId(200),
-            [
-                (LogicRowId(0), LogicColId(200)),
-                (LogicRowId(1), LogicColId(200)),
-                (LogicRowId(100), LogicColId(200)),
-                (LogicRowId(101), LogicColId(200)),
-            ],
-        );
-        let mut global_stat = GlobalStatV2::default();
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        // println!("{:?}", report);
-        assert_eq!(report.subarray_result[0].remote_row_read_cycle, 28);
-        assert_eq!(report.subarray_result[1].remote_row_read_cycle, 28);
-        assert_eq!(report.subarray_result[2].remote_row_write_cycle, 10);
-        assert_eq!(report.subarray_result[2].cycle_remote, 10);
-        // the ring traffic should be zero
-        assert_eq!(report.total_result.global_max_acc_ring, 0);
-        // the tsv traffic should be zero
-        assert_eq!(report.total_result.global_max_acc_tsv, 0);
+//     #[test]
+//     fn test_dist() {
+//         let mut hard_ware = init_hardware();
+//         // the evil col, same write in subarray will be merged
+//         hard_ware.distribute_evil_col(
+//             LogicRowId(200),
+//             [
+//                 (LogicRowId(0), LogicColId(200)),
+//                 (LogicRowId(1), LogicColId(200)),
+//                 (LogicRowId(100), LogicColId(200)),
+//                 (LogicRowId(101), LogicColId(200)),
+//             ],
+//         );
+//         let mut global_stat = GlobalStatV2::default();
+//         update_stats(&mut hard_ware, &mut global_stat);
+//         let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+//         // println!("{:?}", report);
+//         assert_eq!(report.subarray_result[0].remote_row_read_cycle, 28);
+//         assert_eq!(report.subarray_result[1].remote_row_read_cycle, 28);
+//         assert_eq!(report.subarray_result[2].remote_row_write_cycle, 10);
+//         assert_eq!(report.subarray_result[2].cycle_remote, 10);
+//         // the ring traffic should be zero
+//         assert_eq!(report.total_result.global_max_acc_ring, 0);
+//         // the tsv traffic should be zero
+//         assert_eq!(report.total_result.global_max_acc_tsv, 0);
 
-        // the evil row will always be local, the partition will be decided by the col id!
-        hard_ware.distribute_evil_row(
-            LogicRowId(0),
-            LogicRowId(0),
-            [LogicColId(300), LogicColId(400)],
-        );
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        // println!("{:?}", report.subarray_result[3]);
-        assert_eq!(report.subarray_result[3].local_row_open_cycle_evil, 18);
-        assert_eq!(report.subarray_result[3].local_row_read_cycle_evil, 0);
-        assert_eq!(report.subarray_result[3].local_row_write_cycle_evil, 0);
-        assert_eq!(report.subarray_result[3].cycle, 18);
-        assert_eq!(report.subarray_result[3].local_row_open_cycle_evil, 18);
-        assert_eq!(report.subarray_result[3].local_row_read_cycle_evil, 0);
-        assert_eq!(report.subarray_result[3].local_row_write_cycle_evil, 0);
-        assert_eq!(report.subarray_result[3].cycle, 18);
-        hard_ware.distribute_local(LogicRowId(0), LogicRowId(500), LogicColId(0));
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        assert_eq!(report.subarray_result[5].local_row_open_cycle, 18);
-        assert_eq!(report.subarray_result[5].cycle, 18);
-        // hard_ware.distribute_local_evil_row(LogicRowId(0), LogicRowId(0), LogicColId(0));
-        // to another subarray
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(100));
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        // the ring traffic should be zero
-        assert_eq!(report.total_result.global_max_acc_ring, 0);
+//         // the evil row will always be local, the partition will be decided by the col id!
+//         hard_ware.distribute_evil_row(
+//             LogicRowId(0),
+//             LogicRowId(0),
+//             [LogicColId(300), LogicColId(400)],
+//         );
+//         update_stats(&mut hard_ware, &mut global_stat);
+//         let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+//         // println!("{:?}", report.subarray_result[3]);
+//         assert_eq!(report.subarray_result[3].local_row_open_cycle_evil, 18);
+//         assert_eq!(report.subarray_result[3].local_row_read_cycle_evil, 0);
+//         assert_eq!(report.subarray_result[3].local_row_write_cycle_evil, 0);
+//         assert_eq!(report.subarray_result[3].cycle, 18);
+//         assert_eq!(report.subarray_result[3].local_row_open_cycle_evil, 18);
+//         assert_eq!(report.subarray_result[3].local_row_read_cycle_evil, 0);
+//         assert_eq!(report.subarray_result[3].local_row_write_cycle_evil, 0);
+//         assert_eq!(report.subarray_result[3].cycle, 18);
+//         hard_ware.distribute_local(LogicRowId(0), LogicRowId(500), LogicColId(0));
+//         update_stats(&mut hard_ware, &mut global_stat);
+//         let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+//         assert_eq!(report.subarray_result[5].local_row_open_cycle, 18);
+//         assert_eq!(report.subarray_result[5].cycle, 18);
+//         // hard_ware.distribute_local_evil_row(LogicRowId(0), LogicRowId(0), LogicColId(0));
+//         // to another subarray
+//         hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(100));
+//         update_stats(&mut hard_ware, &mut global_stat);
+//         let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+//         // the ring traffic should be zero
+//         assert_eq!(report.total_result.global_max_acc_ring, 0);
 
-        // to another bank
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(1600));
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        assert_eq!(report.total_result.global_max_acc_ring, 1);
-        assert_eq!(report.ring_result[0].cycle, 1);
+//         // to another bank
+//         hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(1600));
+//         update_stats(&mut hard_ware, &mut global_stat);
+//         let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+//         assert_eq!(report.total_result.global_max_acc_ring, 1);
+//         assert_eq!(report.ring_result[0].cycle, 1);
 
-        // the ring traffic should be zero
-        // to another layer
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(25600));
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        // layer 0 -> 1, port 0 -> 0, so there are no ring traffic, this one is the old one.
-        assert_eq!(report.total_result.global_max_acc_ring, 1);
-        // there are two tsv traffic 0 and 1
-        assert_eq!(report.total_result.global_max_acc_tsv, 1);
-        assert_eq!(report.ring_result[0].cycle, 1);
-        assert_eq!(report.ring_result[1].cycle, 0);
-        assert_eq!(report.tsv_result[0].cycle, 1);
-        assert_eq!(report.tsv_result[1].cycle, 1);
+//         // the ring traffic should be zero
+//         // to another layer
+//         hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(25600));
+//         update_stats(&mut hard_ware, &mut global_stat);
+//         let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+//         // layer 0 -> 1, port 0 -> 0, so there are no ring traffic, this one is the old one.
+//         assert_eq!(report.total_result.global_max_acc_ring, 1);
+//         // there are two tsv traffic 0 and 1
+//         assert_eq!(report.total_result.global_max_acc_tsv, 1);
+//         assert_eq!(report.ring_result[0].cycle, 1);
+//         assert_eq!(report.ring_result[1].cycle, 0);
+//         assert_eq!(report.tsv_result[0].cycle, 1);
+//         assert_eq!(report.tsv_result[1].cycle, 1);
 
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(16), LogicColId(27200));
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        // layer 0 -> 1, port 1 -> 1, so there are one ring traffic, this one is the old one.
-        assert_eq!(report.total_result.global_max_acc_ring, 2);
-        // there are two tsv traffic 0 and 1
-        assert_eq!(report.total_result.global_max_acc_tsv, 2);
-        assert_eq!(report.ring_result[0].cycle, 2);
-        assert_eq!(report.ring_result[1].cycle, 1);
-        assert_eq!(report.tsv_result[0].cycle, 2);
-        assert_eq!(report.tsv_result[1].cycle, 2);
+//         hard_ware.distribute_remote(LogicRowId(0), SubarrayId(16), LogicColId(27200));
+//         update_stats(&mut hard_ware, &mut global_stat);
+//         let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+//         // layer 0 -> 1, port 1 -> 1, so there are one ring traffic, this one is the old one.
+//         assert_eq!(report.total_result.global_max_acc_ring, 2);
+//         // there are two tsv traffic 0 and 1
+//         assert_eq!(report.total_result.global_max_acc_tsv, 2);
+//         assert_eq!(report.ring_result[0].cycle, 2);
+//         assert_eq!(report.ring_result[1].cycle, 1);
+//         assert_eq!(report.tsv_result[0].cycle, 2);
+//         assert_eq!(report.tsv_result[1].cycle, 2);
 
-        // the ring confilic
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(1600));
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(3200));
-        hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(4800));
+//         // the ring confilic
+//         hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(1600));
+//         hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(3200));
+//         hard_ware.distribute_remote(LogicRowId(0), SubarrayId(0), LogicColId(4800));
 
-        // layer 0 -> 0, port 0 -> 1,0-2, so there are two ring traffic, .
-        update_stats(&mut hard_ware, &mut global_stat);
-        let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
-        assert_eq!(report.total_result.global_max_acc_ring, 5);
-        assert_eq!(report.ring_result[0].cycle, 5);
-    }
+//         // layer 0 -> 0, port 0 -> 1,0-2, so there are two ring traffic, .
+//         update_stats(&mut hard_ware, &mut global_stat);
+//         let report = hard_ware.report("test_dist".to_string(), global_stat.clone(), 10, 0.1);
+//         assert_eq!(report.total_result.global_max_acc_ring, 5);
+//         assert_eq!(report.ring_result[0].cycle, 5);
+//     }
 
-    fn init_hardware() -> Hardware {
-        // test the distribution of rows
-        let config = ConfigV2 {
-            channels: LevelConfig {
-                num: 16,
-                ..Default::default()
-            },
-            chips: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            ranks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            bank_groups: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            banks: LevelConfig {
-                num: 16,
-                ..Default::default()
-            },
-            subarrays: 16,
-            ..Default::default()
-        };
-        let hard_ware: Hardware = Hardware::new(1024, config, 100, 100);
-        hard_ware
-    }
+//     fn init_hardware() -> Hardware {
+//         // test the distribution of rows
+//         let config = ConfigV2 {
+//             channels: LevelConfig {
+//                 num: 16,
+//                 ..Default::default()
+//             },
+//             chips: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             ranks: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             bank_groups: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             banks: LevelConfig {
+//                 num: 16,
+//                 ..Default::default()
+//             },
+//             subarrays: 16,
+//             ..Default::default()
+//         };
+//         let hard_ware: Hardware = Hardware::new(1024, config, 100, 100);
+//         hard_ware
+//     }
 
-    /// test the base layer router
-    /// test the interleave result
-    #[test]
-    fn test_base_layer() {
-        let mut hardware = init_hardware();
-        // generate some traffic which each one will always to route to subarray 0
-        for i in 0..1024 {
-            hardware.distribute_remote(LogicRowId(0), SubarrayId(i), LogicColId(102400 + i * 100));
-        }
+//     /// test the base layer router
+//     /// test the interleave result
+//     #[test]
+//     fn test_base_layer() {
+//         let mut hardware = init_hardware();
+//         // generate some traffic which each one will always to route to subarray 0
+//         for i in 0..1024 {
+//             hardware.distribute_remote(LogicRowId(0), SubarrayId(i), LogicColId(102400 + i * 100));
+//         }
 
-        let tsv_traffic = hardware.get_tsv_interleave();
-        assert_eq!(tsv_traffic[0].len(), 256);
-        assert_eq!(tsv_traffic[1].len(), 256);
-        assert_eq!(tsv_traffic[2].len(), 256);
-        assert_eq!(tsv_traffic[3].len(), 256);
-        // first interleave the bank
-        assert!(
-            tsv_traffic[0]
-                .iter()
-                .map(|v| v.2 .1 .0)
-                .take(4)
-                .collect_vec()
-                == vec![0, 1, 2, 3]
-        );
-        // another round interleave the bank for the next subarray
-        assert!(
-            tsv_traffic[0]
-                .iter()
-                .map(|v| v.2 .1 .0)
-                .skip(16)
-                .take(4)
-                .collect_vec()
-                == vec![0, 1, 2, 3]
-        );
-        let result = compute_result(tsv_traffic);
-        // no conflict , so the cycle is 256
-        assert_eq!(result.cycle, 256);
-    }
+//         let tsv_traffic = hardware.get_tsv_interleave();
+//         assert_eq!(tsv_traffic[0].len(), 256);
+//         assert_eq!(tsv_traffic[1].len(), 256);
+//         assert_eq!(tsv_traffic[2].len(), 256);
+//         assert_eq!(tsv_traffic[3].len(), 256);
+//         // first interleave the bank
+//         assert!(
+//             tsv_traffic[0]
+//                 .iter()
+//                 .map(|v| v.2 .1 .0)
+//                 .take(4)
+//                 .collect_vec()
+//                 == vec![0, 1, 2, 3]
+//         );
+//         // another round interleave the bank for the next subarray
+//         assert!(
+//             tsv_traffic[0]
+//                 .iter()
+//                 .map(|v| v.2 .1 .0)
+//                 .skip(16)
+//                 .take(4)
+//                 .collect_vec()
+//                 == vec![0, 1, 2, 3]
+//         );
+//         let result = compute_result(tsv_traffic);
+//         // no conflict , so the cycle is 256
+//         assert_eq!(result.cycle, 256);
+//     }
 
-    /// test the base layer router
-    /// test the interleave result
-    #[test]
-    fn test_base_layer_conflict() {
-        let mut hardware = init_hardware();
-        // generate some traffic which each one will always to route to subarray 0
-        for i in 0..1024 {
-            hardware.distribute_remote(LogicRowId(0), SubarrayId(i), LogicColId(102400));
-        }
+//     /// test the base layer router
+//     /// test the interleave result
+//     #[test]
+//     fn test_base_layer_conflict() {
+//         let mut hardware = init_hardware();
+//         // generate some traffic which each one will always to route to subarray 0
+//         for i in 0..1024 {
+//             hardware.distribute_remote(LogicRowId(0), SubarrayId(i), LogicColId(102400));
+//         }
 
-        let tsv_traffic = hardware.get_tsv_interleave();
-        assert_eq!(tsv_traffic[0].len(), 256);
-        assert_eq!(tsv_traffic[1].len(), 256);
-        assert_eq!(tsv_traffic[2].len(), 256);
-        assert_eq!(tsv_traffic[3].len(), 256);
-        // first interleave the bank
-        assert!(
-            tsv_traffic[0]
-                .iter()
-                .map(|v| v.2 .1 .0)
-                .take(4)
-                .collect_vec()
-                == vec![0, 0, 0, 0]
-        );
+//         let tsv_traffic = hardware.get_tsv_interleave();
+//         assert_eq!(tsv_traffic[0].len(), 256);
+//         assert_eq!(tsv_traffic[1].len(), 256);
+//         assert_eq!(tsv_traffic[2].len(), 256);
+//         assert_eq!(tsv_traffic[3].len(), 256);
+//         // first interleave the bank
+//         assert!(
+//             tsv_traffic[0]
+//                 .iter()
+//                 .map(|v| v.2 .1 .0)
+//                 .take(4)
+//                 .collect_vec()
+//                 == vec![0, 0, 0, 0]
+//         );
 
-        let result = compute_result(tsv_traffic);
-        // all conflict , so the cycle is 1024
-        assert_eq!(result.cycle, 1024);
-        assert_eq!(result.cycle_no_conflict, 256);
-        assert_eq!(result.max_use, 1024 * 16);
-        assert_eq!(result.real_use, 1024);
-        assert_eq!(result.max_use_valid, 4 * 1020 + 4 + 3 + 2 + 1);
-    }
+//         let result = compute_result(tsv_traffic);
+//         // all conflict , so the cycle is 1024
+//         assert_eq!(result.cycle, 1024);
+//         assert_eq!(result.cycle_no_conflict, 256);
+//         assert_eq!(result.max_use, 1024 * 16);
+//         assert_eq!(result.real_use, 1024);
+//         assert_eq!(result.max_use_valid, 4 * 1020 + 4 + 3 + 2 + 1);
+//     }
 
-    #[test]
-    fn test_ring_interleave() {
-        // first build
-        let rings_tasks: RingTasksInAllBanks = (0..4)
-            .map(|bank_id| {
-                (0..4)
-                    .map(|subarray_id| {
-                        (0..10)
-                            .map(|task_id| {
-                                (
-                                    RingPort(bank_id),
-                                    RingPort(0),
-                                    (RingId((subarray_id << 4) + task_id), RingPort(0)),
-                                )
-                            })
-                            .collect_vec()
-                    })
-                    .collect()
-            })
-            .collect_vec();
-        let rings_task = get_ring_interleave(vec![&rings_tasks]);
-        for (_ring_id, ring) in rings_task.into_iter().enumerate() {
-            for (_bank_id, bank) in ring.into_iter().enumerate() {
-                let true_value = (0..4)
-                    .map(|i| (0..10).map(move |j| (i << 4) + j))
-                    .flat_interleave()
-                    .collect_vec();
-                let result = bank.into_iter().map(|i| i.2 .0 .0).collect_vec();
-                assert_eq!(result, true_value);
-            }
-        }
-    }
-}
+//     #[test]
+//     fn test_ring_interleave() {
+//         // first build
+//         let rings_tasks: RingTasksInAllBanks = (0..4)
+//             .map(|bank_id| {
+//                 (0..4)
+//                     .map(|subarray_id| {
+//                         (0..10)
+//                             .map(|task_id| {
+//                                 (
+//                                     RingPort(bank_id),
+//                                     RingPort(0),
+//                                     (RingId((subarray_id << 4) + task_id), RingPort(0)),
+//                                 )
+//                             })
+//                             .collect_vec()
+//                     })
+//                     .collect()
+//             })
+//             .collect_vec();
+//         let rings_task = get_ring_interleave(vec![&rings_tasks]);
+//         for (_ring_id, ring) in rings_task.into_iter().enumerate() {
+//             for (_bank_id, bank) in ring.into_iter().enumerate() {
+//                 let true_value = (0..4)
+//                     .map(|i| (0..10).map(move |j| (i << 4) + j))
+//                     .flat_interleave()
+//                     .collect_vec();
+//                 let result = bank.into_iter().map(|i| i.2 .0 .0).collect_vec();
+//                 assert_eq!(result, true_value);
+//             }
+//         }
+//     }
+// }

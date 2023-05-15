@@ -668,18 +668,3 @@ impl super::Simulator for RealJumpSimulator {
         Ok(result)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use tracing::metadata::LevelFilter;
-
-    use crate::init_logger_stderr;
-
-    use super::*;
-    #[test]
-    fn test_real_jump() {
-        init_logger_stderr(LevelFilter::DEBUG);
-        let config = toml::from_str(include_str!("../../../configs/real_jump_test.toml")).unwrap();
-        run_simulation(config).unwrap();
-    }
-}

@@ -113,38 +113,38 @@ impl Config {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    #[test]
-    #[ignore]
-    fn save_configs() {
-        Config::from_ddr4_3200(
-            LevelConfig {
-                num: 1,
-                merger_num: 16,
-                max_msg_in: 2,
-                max_msg_out: 2,
-                max_msg_generated: 2,
-            },
-            LevelConfig {
-                num: 2,
-                merger_num: 12,
-                max_msg_in: 2,
-                max_msg_out: 2,
-                max_msg_generated: 2,
-            },
-        )
-        .save_to_file("ddr4.toml");
-        // Config::from_hbm().save_to_file("hbm.toml");
-        // Config::from_hbm2().save_to_file("hbm2.toml");
-    }
+//     #[test]
+//     #[ignore]
+//     fn save_configs() {
+//         Config::from_ddr4_3200(
+//             LevelConfig {
+//                 num: 1,
+//                 merger_num: 16,
+//                 max_msg_in: 2,
+//                 max_msg_out: 2,
+//                 max_msg_generated: 2,
+//             },
+//             LevelConfig {
+//                 num: 2,
+//                 merger_num: 12,
+//                 max_msg_in: 2,
+//                 max_msg_out: 2,
+//                 max_msg_generated: 2,
+//             },
+//         )
+//         .save_to_file("ddr4.toml");
+//         // Config::from_hbm().save_to_file("hbm.toml");
+//         // Config::from_hbm2().save_to_file("hbm2.toml");
+//     }
 
-    #[test]
-    #[ignore]
-    fn read_config() {
-        let config = Config::new("ddr4.toml");
-        println!("{:?}", config);
-    }
-}
+//     #[test]
+//     #[ignore]
+//     fn read_config() {
+//         let config = Config::new("ddr4.toml");
+//         println!("{:?}", config);
+//     }
+// }

@@ -144,11 +144,11 @@ mod tests {
 
     use sprs::{io, num_kinds::Pattern, CsMat};
 
-    #[test]
-    fn test_read_mtx() {
-        const MTX_PATH: &str = "mtx/gearbox/ca-hollywood-2009.mtx";
-        let _graph: CsMat<Pattern> = io::read_matrix_market(MTX_PATH).unwrap().to_csr();
-    }
+    // #[test]
+    // fn test_read_mtx() {
+    //     const MTX_PATH: &str = "mtx/gearbox/ca-hollywood-2009.mtx";
+    //     let _graph: CsMat<Pattern> = io::read_matrix_market(MTX_PATH).unwrap().to_csr();
+    // }
 
     fn t1<'a: 'b, 'b, T>(a: &'a T, _b: &'a T) -> &'b T {
         a

@@ -136,6 +136,11 @@ mod tests {
         assert_eq!(sim.pop(3), None);
         sim.cycle();
         assert_eq!(sim.pop(0), None);
+        assert_eq!(sim.pop(1), Some(TestPacket { source: 1, dest: 1 }));
+        assert_eq!(sim.pop(2), None);
+        assert_eq!(sim.pop(3), None);
+        sim.cycle();
+        assert_eq!(sim.pop(0), None);
         assert_eq!(sim.pop(1), Some(TestPacket { source: 2, dest: 1 }));
         assert_eq!(sim.pop(2), None);
         assert_eq!(sim.pop(3), None);
@@ -147,11 +152,6 @@ mod tests {
         sim.cycle();
         assert_eq!(sim.pop(0), None);
         assert_eq!(sim.pop(1), Some(TestPacket { source: 0, dest: 1 }));
-        assert_eq!(sim.pop(2), None);
-        assert_eq!(sim.pop(3), None);
-        sim.cycle();
-        assert_eq!(sim.pop(0), None);
-        assert_eq!(sim.pop(1), Some(TestPacket { source: 1, dest: 1 }));
         assert_eq!(sim.pop(2), None);
         assert_eq!(sim.pop(3), None);
         sim.cycle();

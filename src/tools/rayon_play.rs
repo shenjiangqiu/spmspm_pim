@@ -11,7 +11,8 @@ mod tests {
                     .with_default_directive(LevelFilter::INFO.into())
                     .from_env_lossy(),
             )
-            .init();
+            .try_init()
+            .unwrap_or_default();
         let a = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
         a.par_iter().for_each(|x| {
             let _span = tracing::span!(Level::INFO, "LEVEL1", x).entered();

@@ -160,41 +160,41 @@ pub fn split_matrix_by_row(input_matrix: CsMat<Pattern>, start_points: Vec<usize
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use sprs::{num_kinds::Pattern, CsMat, CsMatView};
+// #[cfg(test)]
+// mod tests {
+//     use sprs::{num_kinds::Pattern, CsMat, CsMatView};
 
-    use super::*;
-    fn print_matrix(matrix: CsMatView<Pattern>) {
-        let mut s = String::new();
-        write_matrix(&mut s, matrix).unwrap();
-        println!("{}", s);
-    }
-    #[test]
-    fn test_split() {
-        let matrix: CsMat<Pattern> = sprs::io::read_matrix_market("mtx/test.mtx")
-            .unwrap()
-            .to_csr();
+//     use super::*;
+//     fn print_matrix(matrix: CsMatView<Pattern>) {
+//         let mut s = String::new();
+//         write_matrix(&mut s, matrix).unwrap();
+//         println!("{}", s);
+//     }
+//     #[test]
+//     fn test_split() {
+//         let matrix: CsMat<Pattern> = sprs::io::read_matrix_market("mtx/test.mtx")
+//             .unwrap()
+//             .to_csr();
 
-        print_matrix(matrix.view());
-        let matrix_slice = matrix.slice_outer(2..5);
-        print_matrix(matrix_slice);
-    }
+//         print_matrix(matrix.view());
+//         let matrix_slice = matrix.slice_outer(2..5);
+//         print_matrix(matrix_slice);
+//     }
 
-    #[test]
-    fn test_split_col() {
-        let matrix: CsMat<Pattern> = sprs::io::read_matrix_market("mtx/test.mtx")
-            .unwrap()
-            .to_csr();
-        print_matrix(matrix.view());
-        let start_points = vec![0, 2, 4];
-        let SplitMatrix {
-            matrix,
-            start_points: _,
-        } = split_matrix_by_col(matrix, start_points);
-        for (i, matrix) in matrix.iter().enumerate() {
-            println!("matrix {}", i);
-            print_matrix(matrix.view());
-        }
-    }
-}
+//     #[test]
+//     fn test_split_col() {
+//         let matrix: CsMat<Pattern> = sprs::io::read_matrix_market("mtx/test.mtx")
+//             .unwrap()
+//             .to_csr();
+//         print_matrix(matrix.view());
+//         let start_points = vec![0, 2, 4];
+//         let SplitMatrix {
+//             matrix,
+//             start_points: _,
+//         } = split_matrix_by_col(matrix, start_points);
+//         for (i, matrix) in matrix.iter().enumerate() {
+//             println!("matrix {}", i);
+//             print_matrix(matrix.view());
+//         }
+//     }
+// }

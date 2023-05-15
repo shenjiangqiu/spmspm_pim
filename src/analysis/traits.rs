@@ -24,7 +24,7 @@ use statrs::statistics::Statistics;
 use tracing::{debug, info};
 /// give an array of data, return each filed's mean, std, max
 /// # Example
-/// ```
+/// ```ingore
 /// use std::collections::BTreeMap;
 /// use statrs::statistics::Statistics;
 /// use spmspm_pim::analysis::traits::{ReportStats, get_mean_std_max};

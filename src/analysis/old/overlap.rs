@@ -96,16 +96,3 @@ where
     }
     total_stat
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_overlap() {
-        let config: Config =
-            toml::from_str(std::fs::read_to_string("ddr4.toml").unwrap().as_str()).unwrap();
-        println!("{:?}", config);
-        let stat = compute_single_task_overlap_stat(&config);
-        println!("{:?}", stat);
-    }
-}

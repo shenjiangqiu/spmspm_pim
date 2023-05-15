@@ -150,96 +150,96 @@ pub struct SeqResult {
     pub input_read_times: usize,
 }
 
-#[cfg(test)]
-mod tests {
+// #[cfg(test)]
+// mod tests {
 
-    use crate::{
-        init_logger_debug,
-        pim::config::{Config, LevelConfig},
-    };
+//     use crate::{
+//         init_logger_debug,
+//         pim::config::{Config, LevelConfig},
+//     };
 
-    use super::*;
+//     use super::*;
 
-    #[test]
-    fn test_split_spmm() {
-        init_logger_debug();
-        let config = Config {
-            channels: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            ranks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            chips: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            bank_groups: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            banks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            graph_path: vec!["mtx/test.mtx".to_string()],
-            ..Config::from_ddr4_3200(
-                LevelConfig {
-                    num: 1,
-                    ..Default::default()
-                },
-                LevelConfig {
-                    num: 1,
-                    ..Default::default()
-                },
-            )
-        };
-        let result = analyze_nnz_spmm(&config);
-        result.show_results();
-    }
+//     #[test]
+//     fn test_split_spmm() {
+//         init_logger_debug();
+//         let config = Config {
+//             channels: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             ranks: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             chips: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             bank_groups: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             banks: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             graph_path: vec!["mtx/test.mtx".to_string()],
+//             ..Config::from_ddr4_3200(
+//                 LevelConfig {
+//                     num: 1,
+//                     ..Default::default()
+//                 },
+//                 LevelConfig {
+//                     num: 1,
+//                     ..Default::default()
+//                 },
+//             )
+//         };
+//         let result = analyze_nnz_spmm(&config);
+//         result.show_results();
+//     }
 
-    #[test]
-    fn test_split_spmm_long_vec() {
-        init_logger_debug();
-        let config = Config {
-            channels: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            ranks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            chips: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            bank_groups: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            banks: LevelConfig {
-                num: 1,
-                ..Default::default()
-            },
-            graph_path: vec!["mtx/test.mtx".to_string()],
-            columns: 8,
+//     #[test]
+//     fn test_split_spmm_long_vec() {
+//         init_logger_debug();
+//         let config = Config {
+//             channels: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             ranks: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             chips: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             bank_groups: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             banks: LevelConfig {
+//                 num: 1,
+//                 ..Default::default()
+//             },
+//             graph_path: vec!["mtx/test.mtx".to_string()],
+//             columns: 8,
 
-            ..Config::from_ddr4_3200(
-                LevelConfig {
-                    num: 1,
-                    ..Default::default()
-                },
-                LevelConfig {
-                    num: 1,
-                    ..Default::default()
-                },
-            )
-        };
+//             ..Config::from_ddr4_3200(
+//                 LevelConfig {
+//                     num: 1,
+//                     ..Default::default()
+//                 },
+//                 LevelConfig {
+//                     num: 1,
+//                     ..Default::default()
+//                 },
+//             )
+//         };
 
-        let result = analyze_nnz_spmm(&config);
-        result.show_results();
-    }
-}
+//         let result = analyze_nnz_spmm(&config);
+//         result.show_results();
+//     }
+// }

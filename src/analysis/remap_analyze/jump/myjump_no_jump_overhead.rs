@@ -23,8 +23,10 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
         _remap_cycle: usize,
     ) {
         let gap = GAP;
-        let row_cycle = get_total_row_cycle::<WALKER_SIZE>(row_status, location, size);
-
+        let (first_row, remaining_row) =
+            get_total_row_cycle::<WALKER_SIZE>(row_status, location, size);
+        let first_row_cycle = first_row * 18;
+        let remaining_row_cycle = remaining_row * 18;
         // first find the nearest stop
         let re_map_times = (location.row_id_world_id.word_id.0 % gap)
             .min(gap - location.row_id_world_id.word_id.0 % gap);
@@ -34,9 +36,9 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
             .abs() as usize;
         let min_jump_cycle = (re_map_times + 1).min(normal_cycle);
         let min_jump_cycle = (min_jump_cycle + 6) / 7;
-        let min_jump_and_row_cycle = min_jump_cycle.max(row_cycle);
+        let min_jump_and_row_cycle = min_jump_cycle.max(first_row_cycle);
 
-        self.multi_jump_cycle += min_jump_and_row_cycle;
+        self.multi_jump_cycle += min_jump_and_row_cycle + remaining_row_cycle;
 
         self.one_jump_cycle += size.0;
     }

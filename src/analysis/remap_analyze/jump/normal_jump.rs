@@ -25,8 +25,10 @@ impl<const WALKER_SIZE: usize> UpdatableJumpCycle for NormalJumpCycle<WALKER_SIZ
     ) {
         // fix the bug here,
 
-        let row_cycle = get_total_row_cycle::<WALKER_SIZE>(evil_row_status, location, size);
-
+        let (first_row, remaining_row) =
+            get_total_row_cycle::<WALKER_SIZE>(evil_row_status, location, size);
+        let first_row_cycle = first_row * 18;
+        let remaining_row_cycle = remaining_row * 18;
         let jumps = (location.row_id_world_id.word_id.0 as isize
             - evil_row_status.word_id.0 as isize)
             .abs() as usize;
@@ -34,25 +36,25 @@ impl<const WALKER_SIZE: usize> UpdatableJumpCycle for NormalJumpCycle<WALKER_SIZ
         // update the statistics
         // fix bug here, should add the coverd when not totally covered
         self.total_jumps_all += jumps;
-        if jumps <= row_cycle {
+        if jumps <= first_row_cycle {
             self.total_jumps_covered_by_row_open += jumps;
         } else {
             // cannot cover by row open
             // fix bug here, it's rowcycle not jumps!!!
-            if row_cycle == 0 {
+            if first_row == 0 {
                 // cannot cover by
                 self.jumps_not_covered_when_no_row_open += jumps;
             } else {
-                self.jumps_not_covered_when_more_shift += jumps - row_cycle;
-                self.total_jumps_covered_by_row_open += row_cycle;
+                self.jumps_not_covered_when_more_shift += jumps - first_row_cycle;
+                self.total_jumps_covered_by_row_open += first_row_cycle;
             }
         }
 
         // the jump of size
         if jumps > 1 {
-            self.jump_multiple_cycle += jumps.max(row_cycle);
+            self.jump_multiple_cycle += jumps.max(first_row_cycle) + remaining_row_cycle;
         } else {
-            self.jump_one_cycle += jumps.max(row_cycle);
+            self.jump_one_cycle += jumps.max(first_row_cycle) + remaining_row_cycle;
         }
         self.jump_one_cycle += size.0;
     }

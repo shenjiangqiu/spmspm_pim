@@ -16,15 +16,15 @@ impl<const WALKER_SIZE: usize> UpdatableJumpCycle for IdealJumpCycle<WALKER_SIZE
         size: WordId,
         _remap_cycle: usize,
     ) {
-        let row_cycle = get_total_row_cycle::<WALKER_SIZE>(row_status, loc, size);
+        let (first_row, remaining_row) = get_total_row_cycle::<WALKER_SIZE>(row_status, loc, size);
 
         if loc.row_id_world_id.word_id != row_status.word_id {
             // it' not the same col
-            self.total_cycle += 1.max(row_cycle);
+            self.total_cycle += 1.max(first_row * 18);
         } else {
-            self.total_cycle += row_cycle;
+            self.total_cycle += first_row * 18;
         }
-        self.total_cycle += size.0;
+        self.total_cycle += size.0 + remaining_row * 18;
     }
 }
 impl<const WALKER_SIZE: usize> JumpCycle for IdealJumpCycle<WALKER_SIZE> {

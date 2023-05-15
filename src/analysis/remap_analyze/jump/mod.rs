@@ -53,21 +53,24 @@ pub(crate) fn check_same_walker<const WALKER_SIZE: usize>(
     source.row_id == target.row_id
         && (source.word_id.0 * 4 / WALKER_SIZE == target.word_id.0 * 4 / WALKER_SIZE)
 }
+/// ## rust function
+/// ## Author: Jiangqiu Shen
+/// ## Date: 2023-05-15
+/// Description: return the frist row miss times and remaining misses
 pub fn get_total_row_cycle<const WALKER_SIZE: usize>(
     row_status: &RowIdWordId,
     loc: &RowLocation,
     size: WordId,
-) -> usize {
-    let row_cycle = if check_same_walker::<WALKER_SIZE>(row_status, &loc.row_id_world_id) {
+) -> (usize, usize) {
+    let first_row_miss = if check_same_walker::<WALKER_SIZE>(row_status, &loc.row_id_world_id) {
         0
     } else {
-        18
+        1
     };
     let walkers_to_load =
         get_num_extra_walkers_to_load::<WALKER_SIZE>(loc.row_id_world_id.word_id, size);
 
-    let row_cycle = row_cycle + walkers_to_load * 18;
-    row_cycle
+    (first_row_miss, walkers_to_load)
 }
 pub fn get_num_extra_walkers_to_load<const WALKER_SIZE: usize>(
     start_world_id: WordId,

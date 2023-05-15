@@ -178,18 +178,17 @@ impl DrawFn for GearboxAllDrawer {
                 |data_trace: &Vec<Vec<usize>>, chart: &mut ChartContext<_, _>| {
                     let max_cycle = data_trace.iter().flatten().max().unwrap();
 
-                    let data = data_trace
-                        .iter()
-                        .enumerate()
-                        .map(move |(i, single_task_cycle)| {
-                            single_task_cycle
-                                .iter()
-                                .enumerate()
-                                .map(move |(j, single_cycle)| {
-                                    (i, j, *single_cycle as f64 / *max_cycle as f64)
-                                })
-                        })
-                        .flatten();
+                    let data =
+                        data_trace
+                            .iter()
+                            .enumerate()
+                            .flat_map(move |(i, single_task_cycle)| {
+                                single_task_cycle.iter().enumerate().map(
+                                    move |(j, single_cycle)| {
+                                        (i, j, *single_cycle as f64 / *max_cycle as f64)
+                                    },
+                                )
+                            });
                     let max_x = data_trace.len() as f32;
                     let max_y = data_trace[0].len() as f32;
                     chart

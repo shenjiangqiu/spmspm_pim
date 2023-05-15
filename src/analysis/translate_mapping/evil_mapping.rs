@@ -12,11 +12,9 @@ pub fn build_evil_row_mapping(graph: &CsMatI<Pattern, u32>, evil_threshold: usiz
         let nnz = row.nnz();
         if top_rows.len() < evil_threshold {
             top_rows.push(Reverse((nnz, row_id)));
-        } else {
-            if nnz > top_rows.peek().unwrap().0 .0 {
-                top_rows.pop();
-                top_rows.push(Reverse((nnz, row_id)));
-            }
+        } else if nnz > top_rows.peek().unwrap().0 .0 {
+            top_rows.pop();
+            top_rows.push(Reverse((nnz, row_id)));
         }
     }
     assert_eq!(top_rows.len(), evil_threshold);

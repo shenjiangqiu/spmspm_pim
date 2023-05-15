@@ -213,13 +213,11 @@ impl<T: IcntPacket> RingSimulator<T> {
                                 } else {
                                     self.left_buffer[right_node].push_front(packet);
                                 }
+                            } else if self.left_buffer[node].len() < self.buffer_capacity {
+                                tracing::debug!("from left {} to left {}", right_node, node);
+                                self.temp_left_buffer[node].push_back(packet);
                             } else {
-                                if self.left_buffer[node].len() < self.buffer_capacity {
-                                    tracing::debug!("from left {} to left {}", right_node, node);
-                                    self.temp_left_buffer[node].push_back(packet);
-                                } else {
-                                    self.left_buffer[right_node].push_front(packet);
-                                }
+                                self.left_buffer[right_node].push_front(packet);
                             }
                             // if the packet can't be routed, push it back to the input buffer
                         }
@@ -234,13 +232,11 @@ impl<T: IcntPacket> RingSimulator<T> {
                                 } else {
                                     self.right_buffer[left_node].push_front(packet);
                                 }
+                            } else if self.right_buffer[node].len() < self.buffer_capacity {
+                                self.temp_right_buffer[node].push_back(packet);
+                                tracing::debug!("from right {} to right {}", left_node, node);
                             } else {
-                                if self.right_buffer[node].len() < self.buffer_capacity {
-                                    self.temp_right_buffer[node].push_back(packet);
-                                    tracing::debug!("from right {} to right {}", left_node, node);
-                                } else {
-                                    self.right_buffer[left_node].push_front(packet);
-                                }
+                                self.right_buffer[left_node].push_front(packet);
                             }
                             // if the packet can't be routed, push it back to the input buffer
                         }
@@ -464,7 +460,7 @@ mod tests {
                 (0..1000)
                     .map(move |_| TestPacket {
                         next_hop: target_port,
-                        direction: direction,
+                        direction,
                         source: i,
                     })
                     .peekable()
@@ -477,17 +473,14 @@ mod tests {
             // push packets into the simulator
             for (i, p) in packs.iter_mut().enumerate() {
                 if let Some(packet) = p.peek() {
-                    match simulator.add(i, *packet) {
-                        Ok(_) => {
-                            p.next().unwrap();
-                        }
-                        Err(_) => {}
+                    if simulator.add(i, *packet).is_ok() {
+                        p.next().unwrap();
                     };
                 }
             }
             simulator.cycle();
             for i in 0..num_ports {
-                if let Some(_) = simulator.pop(i) {
+                if simulator.pop(i).is_some() {
                     total_finished += 1;
                     // println!(
                     //     "total finished: {}/{} at port {}",

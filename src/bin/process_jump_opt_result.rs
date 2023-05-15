@@ -1,3 +1,5 @@
+#![allow(unused, clippy::too_many_arguments, clippy::type_complexity)]
+
 use std::{collections::BTreeMap, path::PathBuf};
 
 use clap::Parser;
@@ -61,7 +63,7 @@ fn main() -> eyre::Result<()> {
                 let dispatching = single_result.dispatcher_reading_cycle;
                 let total = (*real_local, dispatching, remote_write);
 
-                let jump_type = index.into();
+                let jump_type = index;
                 let total_cycle = total_cycle
                     .entry(mapping_type)
                     .or_default()

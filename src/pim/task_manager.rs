@@ -186,7 +186,7 @@ impl<LevelType: LevelTrait> GraphATasks<LevelType> {
         LevelType::Storage: Ord,
     {
         let mut tasks: VecDeque<GraphARowTasks<LevelType>> = VecDeque::new();
-        for (to, row) in graph_a.outer_iterator().into_iter().enumerate() {
+        for (to, row) in graph_a.outer_iterator().enumerate() {
             let patches: Vec<(usize, &GraphBRow<LevelType::Storage>)> = row
                 .indices()
                 .iter()

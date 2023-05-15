@@ -149,7 +149,7 @@ pub trait GearboxSimTrait<'matrix, 'config> {
         let total_rows = input_vec.rows();
         // print every 1% or every 60s
         let mut next_print_percent = total_rows / 100;
-        let mut next_print_time = TIME_TO_LOG as u64;
+        let mut next_print_time = TIME_TO_LOG;
         //each data size if 8 bytes and there are 512 rows in a subarray
 
         for (target_id, row) in input_vec.outer_iterator().enumerate() {
@@ -161,7 +161,7 @@ pub trait GearboxSimTrait<'matrix, 'config> {
                 let speed = target_id as f32 / min;
                 tracing::trace!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
                 next_print_percent = target_id + total_rows / 100;
-                next_print_time = now.elapsed().as_secs() + TIME_TO_LOG as u64;
+                next_print_time = now.elapsed().as_secs() + TIME_TO_LOG;
                 // if next_print_time > 3000 {
                 //     break;
                 // }
@@ -261,6 +261,7 @@ pub trait GearboxSimTrait<'matrix, 'config> {
     }
     fn report(&self, name: String, batch: usize, topk: f32) -> Self::SingleResult;
 }
+type BatchTopk = (usize, f32);
 
 /// the tool to perform analysis of gearbox of multiple config and graphs
 pub trait AnalyzeTool {
@@ -275,12 +276,11 @@ pub trait AnalyzeTool {
         Mapping = T,
         SingleResult = Self::ResultType,
     >;
-
     /// analyze the gearbox of certain dram type
     fn analyze_gearbox_inner<LevelType: LevelTrait>(
         config: &ConfigV2,
         _total_size: &LevelType::Storage,
-    ) -> Vec<((usize, f32), Vec<Self::ResultType>)>
+    ) -> Vec<(BatchTopk, Vec<Self::ResultType>)>
     where
         LevelType::Storage: Debug + Sync,
         LevelType::Mapping: Debug,
@@ -315,7 +315,7 @@ pub trait AnalyzeTool {
     /// the entry point of the analysis
     /// ## Return
     /// a vector of (config, results)
-    fn analyze_gearbox(config: &ConfigV2) -> Vec<((usize, f32), Vec<Self::ResultType>)> {
+    fn analyze_gearbox(config: &ConfigV2) -> Vec<(BatchTopk, Vec<Self::ResultType>)> {
         match config.dram_type {
             DramType::DDR3 => unimplemented!(),
             DramType::DDR4 => {
@@ -545,9 +545,9 @@ pub trait AnalyzeTool {
 /// ```
 pub fn get_mean_std_max_from_mapper<T>(
     data: &[T],
-    mapper: impl Fn(&T) -> usize,
+    mapper: impl FnMut(&T) -> usize + Clone,
 ) -> (f64, f64, usize) {
-    get_mean_std_max_from_iter(data.into_iter().map(|x| mapper(x)))
+    get_mean_std_max_from_iter(data.iter().map(mapper))
 }
 
 /// give an array of data, return each filed's mean, std, max
@@ -643,11 +643,11 @@ mod tests {
                 let mut res = BTreeMap::new();
                 res.insert(
                     "a".to_string(),
-                    get_mean_std_max_from_iter(data_vec.into_iter().map(|x| x.a)),
+                    get_mean_std_max_from_iter(data_vec.iter().map(|x| x.a)),
                 );
                 res.insert(
                     "b".to_string(),
-                    get_mean_std_max_from_iter(data_vec.into_iter().map(|x| x.b)),
+                    get_mean_std_max_from_iter(data_vec.iter().map(|x| x.b)),
                 );
                 res
             }

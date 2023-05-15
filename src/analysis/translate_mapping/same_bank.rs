@@ -34,8 +34,7 @@ impl SameBankMapping {
     ) -> (Self, CsMatI<Pattern, u32>) {
         // step 1, select the evil rows
         let initial_mapping =
-            super::evil_mapping::build_evil_row_mapping(&graph_csr, evil_threshold);
-        drop(graph_csr);
+            super::evil_mapping::build_evil_row_mapping(graph_csr, evil_threshold);
         //step 2, create mapping for remaining rows
         let (initial_evil, initial_non_evil) = initial_mapping.split_at(evil_threshold);
         let non_evil_mapping = build_non_evil_mapping(
@@ -45,7 +44,7 @@ impl SameBankMapping {
             initial_non_evil,
         );
         let mapping = initial_evil
-            .into_iter()
+            .iter()
             .cloned()
             .chain(non_evil_mapping)
             .collect_vec();

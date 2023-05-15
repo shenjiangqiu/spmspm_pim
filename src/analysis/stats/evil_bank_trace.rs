@@ -99,6 +99,6 @@ where
     }
 
     fn get_matrix_b(&self) -> &CsMatI<Pattern, u32> {
-        &self.matrix_b
+        self.matrix_b
     }
 }

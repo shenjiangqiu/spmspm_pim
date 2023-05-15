@@ -83,9 +83,8 @@ pub fn get_num_extra_walkers_to_load<const WALKER_SIZE: usize>(
     let end_world_id = start_world_id.0 + size.0 - 1;
     let start_partiton = start_world_id.0 / (WALKER_SIZE / 4);
     let end_partiton = end_world_id / (WALKER_SIZE / 4);
-    let num_walkers_to_load = end_partiton - start_partiton;
 
-    num_walkers_to_load
+    end_partiton - start_partiton
 }
 
 #[cfg(test)]

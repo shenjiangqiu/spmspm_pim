@@ -72,7 +72,7 @@ fn get_memory_free() -> u64 {
 /// parse the memory limit from the environment variable MEMORY_LIMIT, if error, return the current memory available
 fn parse_memory_limit() -> u64 {
     let limit = match env::var("MEMORY_LIMIT") {
-        Ok(limmit) => parse_size::parse_size(&limmit).unwrap_or_else(|e| {
+        Ok(limmit) => parse_size::parse_size(limmit).unwrap_or_else(|e| {
             eprintln!("failed to parse memory limit: {}", e);
             get_memory_free()
         }),
@@ -300,7 +300,6 @@ mod tests {
         let var = Arc::new(Mutex::new(0));
         let cond = Arc::new(Condvar::new());
         let threads = (0..10)
-            .into_iter()
             .map(|i| {
                 let var = var.clone();
                 let cond = cond.clone();

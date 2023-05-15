@@ -56,7 +56,7 @@ fn draw<'a, DB: DrawingBackend + 'a>(
         Rectangle::new(
             [
                 (id as f32 * gap, 0f32),
-                (id as f32 * gap + width, speedup.0 as f32),
+                (id as f32 * gap + width, speedup.0),
             ],
             RED.filled(),
         )
@@ -65,11 +65,8 @@ fn draw<'a, DB: DrawingBackend + 'a>(
     for (id, (_, speedup)) in data.iter().enumerate() {
         chart.draw_series([Rectangle::new(
             [
-                ((id as f32 * gap - 0.01), speedup.1 as f32),
-                (
-                    id as f32 * gap + width * 1.2,
-                    speedup.1 as f32 + 0.01 * max_height,
-                ),
+                ((id as f32 * gap - 0.01), speedup.1),
+                (id as f32 * gap + width * 1.2, speedup.1 + 0.01 * max_height),
             ],
             YELLOW.mix(0.5).filled(),
         )])?;
@@ -88,11 +85,8 @@ fn draw<'a, DB: DrawingBackend + 'a>(
     for (id, (_, speedup)) in data.iter().enumerate() {
         chart.draw_series([Rectangle::new(
             [
-                ((id as f32 * gap - 0.01), speedup.2 as f32),
-                (
-                    id as f32 * gap + width * 1.2,
-                    speedup.2 as f32 + 0.01 * max_height,
-                ),
+                ((id as f32 * gap - 0.01), speedup.2),
+                (id as f32 * gap + width * 1.2, speedup.2 + 0.01 * max_height),
             ],
             GREEN.mix(0.5).filled(),
         )])?;
@@ -113,11 +107,8 @@ fn draw<'a, DB: DrawingBackend + 'a>(
     for (id, (_, speedup)) in data.iter().enumerate() {
         chart.draw_series([Rectangle::new(
             [
-                ((id as f32 * gap - 0.01), speedup.3 as f32),
-                (
-                    id as f32 * gap + width * 1.2,
-                    speedup.3 as f32 + 0.01 * max_height,
-                ),
+                ((id as f32 * gap - 0.01), speedup.3),
+                (id as f32 * gap + width * 1.2, speedup.3 + 0.01 * max_height),
             ],
             BLUE.mix(0.5).filled(),
         )])?;

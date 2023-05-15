@@ -125,7 +125,7 @@ impl SameBankWeightedMapping {
                 bank_rows.push(row_id);
                 continue;
             }
-            while let Some(row) = graph_iter.next() {
+            for row in graph_iter.by_ref() {
                 row_id += 1;
                 accumualted_nnz += row.nnz();
                 if accumualted_nnz as f32 > target_nnz {
@@ -239,11 +239,7 @@ impl Mapping for SameBankWeightedMapping {
         let bank_id = location.bank_id;
         let subarray_id =
             get_global_subarray_id_from_local_subarray_id(subarray_id, bank_id, self.subarray_bits);
-        (
-            subarray_id.into(),
-            location.row_id.into(),
-            location.col_id.into(),
-        )
+        (subarray_id, location.row_id.into(), location.col_id.into())
     }
 
     fn get_result_dense_location(
@@ -263,7 +259,7 @@ impl Mapping for SameBankWeightedMapping {
         let row_id = real_shift >> self.col_bits;
         let col_id = real_shift & ((1 << self.col_bits) - 1);
 
-        (subarray_id.into(), row_id.into(), col_id.into())
+        (subarray_id, row_id.into(), col_id.into())
     }
 
     fn get_matrix_b_location_with_shift(
@@ -273,7 +269,7 @@ impl Mapping for SameBankWeightedMapping {
     ) -> (SubarrayId, PhysicRowId, PhysicColId) {
         let location = self.row_id_mappings.get(mat_b_row_id.0).unwrap();
         let col_id = location.col_id + shift * 4;
-        let row_id = location.row_id + col_id >> self.col_bits;
+        let row_id = location.row_id + (col_id >> self.col_bits);
         let col_id = col_id & ((1 << self.col_bits) - 1);
         let subarray_id = location.subarray_id;
         let bank_id = location.bank_id;

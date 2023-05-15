@@ -762,7 +762,7 @@ impl GearboxSim {
         let total_rows = input_vec.rows();
         // print every 1% or every 60s
         let mut next_print_percent = total_rows / 100;
-        let mut next_print_time = TIME_TO_LOG as u64;
+        let mut next_print_time = TIME_TO_LOG;
         for (target_id, row) in input_vec.outer_iterator().enumerate() {
             if target_id >= next_print_percent || now.elapsed().as_secs() >= next_print_time {
                 let time = now.elapsed().as_secs_f32();
@@ -772,7 +772,7 @@ impl GearboxSim {
                 let speed = target_id as f32 / min;
                 info!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
                 next_print_percent = target_id + total_rows / 100;
-                next_print_time = now.elapsed().as_secs() + TIME_TO_LOG as u64;
+                next_print_time = now.elapsed().as_secs() + TIME_TO_LOG;
                 if stop_signal::read() {
                     break;
                 }

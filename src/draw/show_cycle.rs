@@ -160,8 +160,7 @@ impl DrawFn for GearboxAllDrawer {
                         let remote = result.total_result.global_max_acc_cycle_remote;
                         let dispatching = result.total_result.global_max_dispatching;
                         let real_local = result.total_result.global_max_real_local;
-                        let total = real_local + dispatching + remote;
-                        total
+                        real_local + dispatching + remote
                     })
                     .max()
                     .unwrap();
@@ -175,7 +174,7 @@ impl DrawFn for GearboxAllDrawer {
                     print!("{} ", total);
                 }
             }
-            println!("");
+            println!();
         }
 
         root.present()?;

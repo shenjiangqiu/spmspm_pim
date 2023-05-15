@@ -1,3 +1,4 @@
+#![allow(unused, clippy::too_many_arguments)]
 use std::{collections::BTreeMap, path::PathBuf};
 
 use clap::Parser;
@@ -129,7 +130,6 @@ fn main() -> eyre::Result<()> {
 
     Ok(())
 }
-
 fn print_fn<'a>(
     result: &'a common::RealJumpResultMap,
     start: impl FnOnce(),

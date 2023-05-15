@@ -7,11 +7,8 @@ pub fn translate(
     mapping: &[usize],
 ) -> TriMatI<Pattern, u32> {
     // the mapping is  new_to_old, should be the inverse of the old_to_new
-    let mapping: BTreeMap<usize, usize> = mapping
-        .into_iter()
-        .enumerate()
-        .map(|(i, v)| (*v, i))
-        .collect();
+    let mapping: BTreeMap<usize, usize> =
+        mapping.iter().enumerate().map(|(i, v)| (*v, i)).collect();
     let mut output_matrix = TriMatI::new((input_matrix.rows(), input_matrix.cols()));
     for (v, (i, j)) in input_matrix.into_iter() {
         output_matrix.add_triplet(mapping[&(i as usize)], mapping[&(j as usize)], *v);

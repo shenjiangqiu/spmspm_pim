@@ -11,7 +11,7 @@ fn main() {
         fs::read_to_string(path).unwrap().parse().unwrap()
     });
     let addr = format!("127.0.0.1:{}", port);
-    let mut stream = TcpStream::connect(&addr).unwrap();
+    let mut stream = TcpStream::connect(addr).unwrap();
     stream.write_all(&33u32.to_le_bytes()).unwrap();
 }
 #[cfg(test)]

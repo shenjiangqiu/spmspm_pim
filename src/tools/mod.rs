@@ -1,6 +1,6 @@
-mod rayon_play;
 pub mod file_server;
 mod flat_interleave;
+mod rayon_play;
 pub use flat_interleave::{FlatInterleave, FlatInterleaveTrait};
 pub mod crossbare_simulator;
 pub mod crossbare_simulator_no_conflic;

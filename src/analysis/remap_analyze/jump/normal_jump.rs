@@ -31,7 +31,7 @@ impl<const WALKER_SIZE: usize> UpdatableJumpCycle for NormalJumpCycle<WALKER_SIZ
         let remaining_row_cycle = remaining_row * 18;
         let jumps = (location.row_id_world_id.word_id.0 as isize
             - evil_row_status.word_id.0 as isize)
-            .abs() as usize;
+            .unsigned_abs();
         let jumps = (jumps + 6) / 7;
         // update the statistics
         // fix bug here, should add the coverd when not totally covered

@@ -237,7 +237,7 @@ impl Mapping for SameBankMapping {
     ) -> (SubarrayId, PhysicRowId, PhysicColId) {
         let location = self.row_id_mappings.get(mat_b_row_id.0).unwrap();
         let col_id = location.col_id + shift * 4;
-        let row_id = location.row_id + col_id >> self.col_bits;
+        let row_id = location.row_id + (col_id >> self.col_bits);
         let col_id = col_id & ((1 << self.col_bits) - 1);
         let subarray_id = location.subarray_id;
         let bank_id = location.bank_id;

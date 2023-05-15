@@ -9,7 +9,9 @@
 //! - the dispatching stage send the received packages to local subarrays.
 //!  w
 use crate::{
-    analysis::results::SubArrayResult,
+    analysis::{
+        remap_analyze::row_cycle::*, results::SubArrayResult, RingTask, RingTasksInAllBanks,
+    },
     tools::{
         crossbare_simulator::CrossBareSimulator,
         crossbare_simulator_no_conflic::CrossBareSimulatorNoConflict,
@@ -340,7 +342,7 @@ struct Ring {
     /// each port repersent a bank
     /// each bank have multiple subarrays
     /// Vec: Bank,Subarray,Tasks
-    tasks: Vec<Vec<Vec<(RingPort, RingPort, (RingId, RingPort))>>>,
+    tasks: RingTasksInAllBanks,
     banks: usize,
     subarrays: usize,
     ring_result: RingResult,
@@ -379,7 +381,7 @@ impl Ring {
 
     fn report_current_round(&mut self) -> usize {
         // simulate the ring process
-        let mut paths = vec![0; self.banks as usize];
+        let mut paths = vec![0; self.banks];
         for (source, next_port, (_target_layer, _target_port)) in
             self.tasks.iter().flatten().flatten()
         {
@@ -439,30 +441,6 @@ impl Tsv {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct LogicRowId(usize);
-
-/// the col id in matrix(0..matrix_cols)
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct LogicColId(usize);
-
-/// the row id in a subarray(0..subarray_rows)
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct PhysicRowId(usize);
-
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct SubarrayId(usize);
-
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct RingId(usize);
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct RingBufferId(usize);
-
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct TsvId(usize);
-
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
-struct RingPort(u8);
 #[allow(dead_code)]
 
 pub struct Hardware {
@@ -499,9 +477,7 @@ struct TsvReportV2 {
 }
 
 #[allow(dead_code)]
-fn compute_result<'a>(
-    mut tsv_traffic: Vec<VecDeque<&'a (RingPort, RingPort, (RingId, RingPort))>>,
-) -> TsvReport {
+fn compute_result(mut tsv_traffic: Vec<VecDeque<&RingTask>>) -> TsvReport {
     let ports = tsv_traffic.len();
     let mut cycle = 0;
     let mut max_use = 0;
@@ -547,26 +523,22 @@ fn compute_result<'a>(
     TsvReport {
         cycle,
         max_use,
-        real_use: real_use,
+        real_use,
         cycle_no_conflict,
         max_use_valid,
     }
 }
 #[allow(dead_code)]
 
-fn get_ring_interleave(
-    rings_tasks: Vec<&Vec<Vec<Vec<(RingPort, RingPort, (RingId, RingPort))>>>>,
-) -> Vec<Vec<VecDeque<&(RingPort, RingPort, (RingId, RingPort))>>> {
-    let tsv_traffic = rings_tasks
+fn get_ring_interleave(rings_tasks: Vec<&RingTasksInAllBanks>) -> Vec<Vec<VecDeque<&RingTask>>> {
+    rings_tasks
         .into_iter()
         .map(|r| {
-            r.into_iter()
-                .map(|bank| bank.into_iter().flat_interleave().collect())
+            r.iter()
+                .map(|bank| bank.iter().flat_interleave().collect())
                 .collect()
         })
-        .collect();
-    // now we got the remote traffic from ring to base layer, then we should make a detailed simulation to calculate the cycle
-    tsv_traffic
+        .collect()
 }
 #[allow(dead_code)]
 struct RingTraffic<T> {
@@ -680,13 +652,13 @@ impl Hardware {
         }
     }
     #[allow(dead_code)]
-    fn get_tsv_interleave(&self) -> Vec<VecDeque<&(RingPort, RingPort, (RingId, RingPort))>> {
+    fn get_tsv_interleave(&self) -> Vec<VecDeque<&RingTask>> {
         let tsv_traffic = self.ring.iter().enumerate().map(|(ring_id, r)| {
             r.tasks
                 .iter()
                 .flat_interleave()
                 .flat_interleave()
-                .filter(move |d| d.2 .0 .0 as usize != ring_id)
+                .filter(move |d| d.2 .0 .0 != ring_id)
         });
         // now we got the remote traffic from ring to base layer, then we should make a detailed simulation to calculate the cycle
         let tsv_traffic: Vec<VecDeque<_>> = tsv_traffic.map(|t| t.collect()).collect();
@@ -715,8 +687,7 @@ impl Hardware {
 
         // first get the traffic for each bank and each ring
         let rings_tasks = self.ring.iter().map(|r| &r.tasks).collect_vec();
-        let ring_bank_traffic: Vec<Vec<VecDeque<&(RingPort, RingPort, (RingId, RingPort))>>> =
-            get_ring_interleave(rings_tasks);
+        let ring_bank_traffic: Vec<Vec<VecDeque<&RingTask>>> = get_ring_interleave(rings_tasks);
         // second, build the hardware:
         // - the ring simulator for each ring
         let ports = self.config.channels.num;
@@ -745,7 +716,7 @@ impl Hardware {
 
     fn calculate_icnt<'a, Cross>(
         &'a self,
-        mut ring_bank_traffic: Vec<Vec<VecDeque<&'a (RingPort, RingPort, (RingId, RingPort))>>>,
+        mut ring_bank_traffic: Vec<Vec<VecDeque<&'a RingTask>>>,
         mut crossbar_simulator: Cross,
     ) -> usize
     where
@@ -1161,7 +1132,7 @@ impl<'a> GearboxSim<'a> {
         let total_rows = input_vec.rows();
         // print every 1% or every 60s
         let mut next_print_percent = total_rows / 100;
-        let mut next_print_time = TIME_TO_LOG as u64;
+        let mut next_print_time = TIME_TO_LOG;
         //each data size if 8 bytes and there are 512 rows in a subarray
 
         for (target_id, row) in input_vec.outer_iterator().enumerate() {
@@ -1173,7 +1144,7 @@ impl<'a> GearboxSim<'a> {
                 let speed = target_id as f32 / min;
                 tracing::trace!("{target_id} of {total_rows} rows processed, time eclips: {min:.2}, estimate remaining time:{min_r:.2},speed: {speed} rows per min");
                 next_print_percent = target_id + total_rows / 100;
-                next_print_time = now.elapsed().as_secs() + TIME_TO_LOG as u64;
+                next_print_time = now.elapsed().as_secs() + TIME_TO_LOG;
                 // if next_print_time > 3000 {
                 //     break;
                 // }
@@ -1973,7 +1944,7 @@ mod tests {
     #[test]
     fn test_ring_interleave() {
         // first build
-        let rings_tasks: Vec<Vec<Vec<(RingPort, RingPort, (RingId, RingPort))>>> = (0..4)
+        let rings_tasks: RingTasksInAllBanks = (0..4)
             .map(|bank_id| {
                 (0..4)
                     .map(|subarray_id| {

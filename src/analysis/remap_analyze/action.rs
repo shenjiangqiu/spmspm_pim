@@ -22,13 +22,9 @@ impl RowCycleArrayReduce for ReduceAction {
         &mut self,
         source: &[AllJumpCycles],
         target: &mut T,
-        mut mapper: impl FnMut(&AllJumpCycles) -> &T,
+        mapper: impl FnMut(&AllJumpCycles) -> &T,
     ) {
-        let normal_jump_cycle = source
-            .iter()
-            .map(|x| mapper(x))
-            .max_by_key(|x| x.total())
-            .unwrap();
+        let normal_jump_cycle = source.iter().map(mapper).max_by_key(|x| x.total()).unwrap();
 
         target.add(normal_jump_cycle);
         let total = normal_jump_cycle.total();

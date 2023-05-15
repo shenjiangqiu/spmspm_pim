@@ -249,8 +249,7 @@ impl RealJumpSimulator {
         let dispatcher_expand = self
             .dispatcher_status
             .iter()
-            .map(|x| repeat(x.0).take(subarrays))
-            .flatten();
+            .flat_map(|x| repeat(x.0).take(subarrays));
 
         let local_stage = self
             .col_cycles_local
@@ -626,25 +625,23 @@ impl super::Simulator for RealJumpSimulator {
                                 matrix_b_row_id,
                                 target_col,
                             );
+                        } else if location.subarray_id == dense_location.subarray_id {
+                            // send write task to subarray
+                            self.write_dense_local(
+                                target_id.into(),
+                                LogicColId(target_col as usize),
+                                &dense_location,
+                            );
                         } else {
-                            if location.subarray_id == dense_location.subarray_id {
-                                // send write task to subarray
-                                self.write_dense_local(
-                                    target_id.into(),
-                                    LogicColId(target_col as usize),
-                                    &dense_location,
-                                );
-                            } else {
-                                // first send to the remote dispacher, ring and tsv,
-                                self.write_tsv_sending(location.subarray_id);
-                                self.write_tsv_reading(dense_location.subarray_id);
-                                self.write_dense_remote(
-                                    target_id.into(),
-                                    LogicColId(target_col as usize),
-                                    &dense_location,
-                                );
-                                // then send to the subarray
-                            }
+                            // first send to the remote dispacher, ring and tsv,
+                            self.write_tsv_sending(location.subarray_id);
+                            self.write_tsv_reading(dense_location.subarray_id);
+                            self.write_dense_remote(
+                                target_id.into(),
+                                LogicColId(target_col as usize),
+                                &dense_location,
+                            );
+                            // then send to the subarray
                         }
                     }
                 }

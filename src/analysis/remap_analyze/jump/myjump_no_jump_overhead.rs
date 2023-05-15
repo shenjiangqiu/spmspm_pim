@@ -33,7 +33,7 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
 
         let normal_cycle = (row_status.word_id.0 as isize
             - location.row_id_world_id.word_id.0 as isize)
-            .abs() as usize;
+            .unsigned_abs();
         let min_jump_cycle = (re_map_times + 1).min(normal_cycle);
         let min_jump_cycle = (min_jump_cycle + 6) / 7;
         let min_jump_and_row_cycle = min_jump_cycle.max(first_row_cycle);

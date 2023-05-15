@@ -141,7 +141,7 @@ impl DrawFn for GearboxAllDrawer {
                     }
                 }
             }
-            println!("");
+            println!();
         }
 
         root.present()?;

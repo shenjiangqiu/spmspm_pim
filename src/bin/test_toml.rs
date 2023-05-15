@@ -17,7 +17,7 @@ fn main() {
 
     for _i in 0..10000 {
         let config_str = include_str!("../../configs/real_jump_same_bank-1-16.toml");
-        let config: ConfigV2 = toml::from_str(config_str).unwrap();
+        let _config: ConfigV2 = toml::from_str(config_str).unwrap();
         // black_box(config);
     }
     println!("time: {:?}", current_time.elapsed());

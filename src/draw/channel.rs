@@ -180,8 +180,8 @@ impl DrawFn for GearboxAllDrawer {
                             write!(buffer_writer_input, "{} ", idata)?;
                             write!(buffer_writer_output, "{} ", odata)?;
                         }
-                        writeln!(buffer_writer_input, "")?;
-                        writeln!(buffer_writer_output, "")?;
+                        writeln!(buffer_writer_input)?;
+                        writeln!(buffer_writer_output)?;
                     }
                     drop(buffer_writer_input);
                     drop(buffer_writer_output);

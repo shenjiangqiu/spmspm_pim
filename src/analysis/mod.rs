@@ -22,10 +22,16 @@ use std::sync::RwLock;
 use tracing::info;
 use tracing::metadata::LevelFilter;
 pub mod mapping;
+use self::remap_analyze::row_cycle::*;
 use self::three_stages::analyze_refined_dispatcher_overflow;
 pub mod old;
 pub use old::*;
 pub mod three_stages;
+/// (From Port, Next Port. TargetRing, TargetPort)
+pub type RingTask = (RingPort, RingPort, (RingId, RingPort));
+pub type RingTasksInASubarray = Vec<RingTask>;
+pub type RingTasksInABank = Vec<RingTasksInASubarray>;
+pub type RingTasksInAllBanks = Vec<RingTasksInABank>;
 
 pub const EVIL_RATE: f32 = 0.0005;
 

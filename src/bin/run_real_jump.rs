@@ -1,3 +1,4 @@
+#![allow(unused, clippy::too_many_arguments, clippy::type_complexity)]
 use std::{
     collections::BTreeMap,
     fs::File,
@@ -68,13 +69,13 @@ fn run_with_mapping(
     let result = match map {
         MappingType::SameBank => {
             let (mapping, matrix_csr) =
-                real_jump::build_same_bank_mapping(&config, matrix_tri, matrix_csr);
-            run_with_mapping_sp(&config, &map, &mapping, &matrix_csr)
+                real_jump::build_same_bank_mapping(config, matrix_tri, matrix_csr);
+            run_with_mapping_sp(config, &map, &mapping, &matrix_csr)
         }
         MappingType::SameBankWeightedMapping => {
             let (mapping, matrix_csr) =
-                real_jump::build_weighted_mapping(&config, matrix_tri, matrix_csr);
-            run_with_mapping_sp(&config, &map, &mapping, &matrix_csr)
+                real_jump::build_weighted_mapping(config, matrix_tri, matrix_csr);
+            run_with_mapping_sp(config, &map, &mapping, &matrix_csr)
         }
         _ => unreachable!(),
     };

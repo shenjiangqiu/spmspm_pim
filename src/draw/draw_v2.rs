@@ -223,36 +223,28 @@ fn draw_lines<'a, DB: plotters::prelude::DrawingBackend + 'a>(
 ) -> Result<(), Box<dyn Error + 'a>> {
     chart.draw_series(LineSeries::new(
         [
-            (i as f32, 0, j as f32),
-            (i as f32, total_cycle, j as f32),
-            (i as f32 + 0.2, total_cycle, j as f32 + 0.2),
+            (i, 0, j),
+            (i, total_cycle, j),
+            (i + 0.2, total_cycle, j + 0.2),
         ],
         BLUE,
     ))?;
     chart.draw_series(LineSeries::new(
         [
-            (i as f32, total_cycle, j as f32),
-            (i as f32, total_cycle + total_ring.max(total_tsv), j as f32),
-            (
-                i as f32 + 0.2,
-                total_cycle + total_ring.max(total_tsv),
-                j as f32 + 0.2,
-            ),
+            (i, total_cycle, j),
+            (i, total_cycle + total_ring.max(total_tsv), j),
+            (i + 0.2, total_cycle + total_ring.max(total_tsv), j + 0.2),
         ],
         GREEN,
     ))?;
     chart.draw_series(LineSeries::new(
         [
-            (i as f32, total_cycle + total_ring.max(total_tsv), j as f32),
+            (i, total_cycle + total_ring.max(total_tsv), j),
+            (i, total_cycle + total_ring.max(total_tsv) + total_remote, j),
             (
-                i as f32,
+                i + 0.2,
                 total_cycle + total_ring.max(total_tsv) + total_remote,
-                j as f32,
-            ),
-            (
-                i as f32 + 0.2,
-                total_cycle + total_ring.max(total_tsv) + total_remote,
-                j as f32 + 0.2,
+                j + 0.2,
             ),
         ],
         RED,

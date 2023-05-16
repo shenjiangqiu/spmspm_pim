@@ -344,7 +344,7 @@ mod tests {
     #[test]
     fn test_average_mapping() {
         let graph: TriMatI<Pattern, u32> = sprs::io::read_matrix_market_from_bufread(
-            &mut tools::file_server::file_reader("mtx/test_large.mtx").unwrap(),
+            &mut tools::file_server::file_reader("test_mtx/test_large.mtx").unwrap(),
         )
         .unwrap();
         let evil_rows = 2;

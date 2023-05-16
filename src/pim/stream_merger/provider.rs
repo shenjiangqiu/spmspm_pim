@@ -248,7 +248,7 @@ mod tests {
             },
         );
         let mut context = SimulationContext::<ddr4::Level>::new(&config);
-        let graph_b = sprs::io::read_matrix_market("mtx/test.mtx")
+        let graph_b = sprs::io::read_matrix_market("test_mtx/test.mtx")
             .unwrap()
             .to_csr();
         let mut provider = Provider::<ddr4::Level>::new(0, 10, 10, 10, 10, 10, &graph_b);
@@ -297,7 +297,7 @@ mod tests {
             },
         );
         let mut context = SimulationContext::<ddr4::Level>::new(&config);
-        let graph_b = sprs::io::read_matrix_market("mtx/test.mtx")
+        let graph_b = sprs::io::read_matrix_market("test_mtx/test.mtx")
             .unwrap()
             .to_csr();
         let mut provider = Provider::<ddr4::Level>::new(0, 10, 10, 10, 10, 10, &graph_b);

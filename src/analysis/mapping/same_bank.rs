@@ -261,7 +261,7 @@ mod tests {
     fn test() {
         init_logger_stderr(LevelFilter::DEBUG);
         let matrix: TriMatI<Pattern, u32> =
-            sprs::io::read_matrix_market("mtx/bcspwr03.mtx").unwrap();
+            sprs::io::read_matrix_market("test_mtx/bcspwr03.mtx").unwrap();
         let matrix = matrix.to_csr();
         let mapping = super::SameBankMapping::new(4, 4, 4, 4, &matrix);
         println!("{:?}", mapping);
@@ -271,7 +271,7 @@ mod tests {
     fn test_dist() {
         init_logger_stderr(LevelFilter::DEBUG);
         let matrix: TriMatI<Pattern, u32> =
-            sprs::io::read_matrix_market("mtx/bcspwr03.mtx").unwrap();
+            sprs::io::read_matrix_market("test_mtx/bcspwr03.mtx").unwrap();
         let matrix = matrix.to_csr();
         let mapping = super::SameBankMapping::new(4, 4, 4, 4, &matrix);
         let mut bank_counts = BTreeMap::new();

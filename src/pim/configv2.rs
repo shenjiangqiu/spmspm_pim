@@ -110,7 +110,7 @@ impl ConfigV2 {
             activate_cycle: 22,
             cas: 22,
             subarrays: 16,
-            graph_path: vec!["mtx/test.mtx".to_string()],
+            graph_path: vec!["test_mtx/test.mtx".to_string()],
             output_path: PathBuf::from("output/ddr4.json"),
             chips: LevelConfig {
                 num: 8,

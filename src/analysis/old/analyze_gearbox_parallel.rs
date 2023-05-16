@@ -884,7 +884,7 @@ impl SubarrayStatus {
 //                 num: 1,
 //                 ..Default::default()
 //             },
-//             graph_path: vec!["mtx/test.mtx".to_string()],
+//             graph_path: vec!["test_mtx/test.mtx".to_string()],
 //             ..Config::from_ddr4_3200(
 //                 LevelConfig {
 //                     num: 1,
@@ -924,7 +924,7 @@ impl SubarrayStatus {
 //                 num: 1,
 //                 ..Default::default()
 //             },
-//             graph_path: vec!["mtx/test.mtx".to_string()],
+//             graph_path: vec!["test_mtx/test.mtx".to_string()],
 //             columns: 8,
 
 //             ..Config::from_ddr4_3200(

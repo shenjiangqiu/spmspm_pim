@@ -598,7 +598,7 @@ mod tests {
                 max_msg_generated: 2,
             },
         );
-        let graph_b = sprs::io::read_matrix_market("mtx/test.mtx")
+        let graph_b = sprs::io::read_matrix_market("test_mtx/test.mtx")
             .unwrap()
             .to_csr();
 
@@ -651,7 +651,7 @@ mod tests {
                 max_msg_generated: 2,
             },
         );
-        let graph_b = sprs::io::read_matrix_market("mtx/test.mtx")
+        let graph_b = sprs::io::read_matrix_market("test_mtx/test.mtx")
             .unwrap()
             .to_csr();
 
@@ -723,7 +723,7 @@ mod tests {
                 max_msg_generated: 2,
             },
         );
-        let graph_b = sprs::io::read_matrix_market("mtx/test.mtx")
+        let graph_b = sprs::io::read_matrix_market("test_mtx/test.mtx")
             .unwrap()
             .to_csr();
 

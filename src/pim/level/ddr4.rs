@@ -229,7 +229,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_mapping() {
-        let graph = sprs::io::read_matrix_market("mtx/test.mtx")
+        let graph = sprs::io::read_matrix_market("test_mtx/test.mtx")
             .unwrap()
             .to_csr();
         let total_size = Storage::new(1, 1, 8, 4, 4, 2, 2, 16);

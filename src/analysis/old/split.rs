@@ -172,7 +172,7 @@ pub fn split_matrix_by_row(input_matrix: CsMat<Pattern>, start_points: Vec<usize
 //     }
 //     #[test]
 //     fn test_split() {
-//         let matrix: CsMat<Pattern> = sprs::io::read_matrix_market("mtx/test.mtx")
+//         let matrix: CsMat<Pattern> = sprs::io::read_matrix_market("test_mtx/test.mtx")
 //             .unwrap()
 //             .to_csr();
 
@@ -183,7 +183,7 @@ pub fn split_matrix_by_row(input_matrix: CsMat<Pattern>, start_points: Vec<usize
 
 //     #[test]
 //     fn test_split_col() {
-//         let matrix: CsMat<Pattern> = sprs::io::read_matrix_market("mtx/test.mtx")
+//         let matrix: CsMat<Pattern> = sprs::io::read_matrix_market("test_mtx/test.mtx")
 //             .unwrap()
 //             .to_csr();
 //         print_matrix(matrix.view());

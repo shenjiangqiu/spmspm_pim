@@ -380,7 +380,7 @@ mod tests {
         let total_size = ddr4::Storage {
             data: [1, 1, 1, 1, 1, 2, 100, 4],
         };
-        let graph_a = sprs::io::read_matrix_market("mtx/test.mtx")
+        let graph_a = sprs::io::read_matrix_market("test_mtx/test.mtx")
             .unwrap()
             .to_csr();
         let graph_b = graph_a.transpose_view().to_csr();

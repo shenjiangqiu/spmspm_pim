@@ -639,7 +639,7 @@ pub fn compute_bank_cycle_parallel<LevelType: LevelTrait>(
 //                 num: 1,
 //                 ..Default::default()
 //             },
-//             graph_path: vec!["mtx/test.mtx".to_string()],
+//             graph_path: vec!["test_mtx/test.mtx".to_string()],
 //             ..Config::from_ddr4_3200(
 //                 LevelConfig {
 //                     num: 1,
@@ -679,7 +679,7 @@ pub fn compute_bank_cycle_parallel<LevelType: LevelTrait>(
 //                 num: 1,
 //                 ..Default::default()
 //             },
-//             graph_path: vec!["mtx/test.mtx".to_string()],
+//             graph_path: vec!["test_mtx/test.mtx".to_string()],
 //             columns: 8,
 
 //             ..Config::from_ddr4_3200(
@@ -741,7 +741,7 @@ pub fn compute_bank_cycle_parallel<LevelType: LevelTrait>(
 //                 num: 4,
 //                 ..Default::default()
 //             },
-//             graph_path: vec!["mtx/test.mtx".to_string()],
+//             graph_path: vec!["test_mtx/test.mtx".to_string()],
 //             ..Config::from_ddr4_3200(
 //                 LevelConfig {
 //                     num: 1,
@@ -753,7 +753,7 @@ pub fn compute_bank_cycle_parallel<LevelType: LevelTrait>(
 //                 },
 //             )
 //         };
-//         let single_matrix: CsMat<Pattern> = sprs::io::read_matrix_market("mtx/test.mtx")
+//         let single_matrix: CsMat<Pattern> = sprs::io::read_matrix_market("test_mtx/test.mtx")
 //             .unwrap()
 //             .to_csr();
 //         let input_matrix = single_matrix.transpose_view().to_csr();

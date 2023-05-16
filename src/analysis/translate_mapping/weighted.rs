@@ -127,7 +127,7 @@ mod tests {
     fn test_dist() {
         init_logger_stderr(LevelFilter::DEBUG);
         let matrix: TriMatI<Pattern, u32> =
-            sprs::io::read_matrix_market("mtx/bcspwr03.mtx").unwrap();
+            sprs::io::read_matrix_market("test_mtx/bcspwr03.mtx").unwrap();
         let (mapping, translated_matrix) =
             super::SameBankWeightedMapping::new(2, 2, 2, 4, 16, &matrix, &matrix.to_csr());
         let translated_csr = translated_matrix.to_csr();

@@ -18,20 +18,23 @@ pub struct NormalJumpCycle<const WALKER_SIZE: usize> {
 impl<const WALKER_SIZE: usize> UpdatableJumpCycle for NormalJumpCycle<WALKER_SIZE> {
     fn update(
         &mut self,
-        evil_row_status: &RowIdWordId,
+        row_status: &RowIdWordId,
         location: &RowLocation,
         size: WordId,
         _remap_cycle: usize,
     ) {
         // fix the bug here,
+        let words_per_waler = WALKER_SIZE / 4;
+        // fix the bug here! the ohe is smaller when the WALKER_SIZE is smaller
+        let real_loc_word_id = location.row_id_world_id.word_id.0 % words_per_waler;
+        let real_row_status_word_id = row_status.word_id.0 % words_per_waler;
 
         let (first_row, remaining_row) =
-            get_total_row_cycle::<WALKER_SIZE>(evil_row_status, location, size);
+            get_total_row_cycle::<WALKER_SIZE>(row_status, location, size);
         let first_row_cycle = first_row * 18;
         let remaining_row_cycle = remaining_row * 18;
-        let jumps = (location.row_id_world_id.word_id.0 as isize
-            - evil_row_status.word_id.0 as isize)
-            .unsigned_abs();
+        let jumps: usize =
+            (real_loc_word_id as isize - real_row_status_word_id as isize).unsigned_abs();
         let jumps = (jumps + 6) / 7;
         // update the statistics
         // fix bug here, should add the coverd when not totally covered
@@ -100,5 +103,97 @@ impl<const WALKER_SIZE: usize> AddableJumpCycle for NormalJumpCycle<WALKER_SIZE>
             normal_jump_cycle.jumps_not_covered_when_no_row_open;
         self.jumps_not_covered_when_more_shift +=
             normal_jump_cycle.jumps_not_covered_when_more_shift;
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_jump() {
+        let mut ideal_jump: NormalJumpCycle<32> = NormalJumpCycle::default();
+        let row_status = RowIdWordId {
+            row_id: PhysicRowId(0),
+            word_id: WordId(0),
+        };
+        let location = RowLocation {
+            row_id_world_id: RowIdWordId {
+                row_id: PhysicRowId(0),
+                word_id: WordId(0),
+            },
+
+            subarray_id: SubarrayId(0),
+        };
+        // no need to jump, the extra size is 1*18=18
+        ideal_jump.update(&row_status, &location, WordId(10), 3);
+        let total = ideal_jump.total();
+        // 0 first row, 1 extra row, 10 words, 3 cal, 1 jump(0-0)no cover
+        assert_eq!(total, 18 + 10);
+    }
+
+    #[test]
+    fn test_jump_different_row() {
+        let mut ideal_jump: NormalJumpCycle<32> = NormalJumpCycle::default();
+        let row_status = RowIdWordId {
+            row_id: PhysicRowId(0),
+            word_id: WordId(0),
+        };
+        let location = RowLocation {
+            row_id_world_id: RowIdWordId {
+                row_id: PhysicRowId(1),
+                word_id: WordId(0),
+            },
+
+            subarray_id: SubarrayId(0),
+        };
+        // no need to jump, the extra size is 1*18=18
+        ideal_jump.update(&row_status, &location, WordId(10), 3);
+        let total = ideal_jump.total();
+        // 1 first row, 1 extra row, 10 words, 3 cal, 1 jump(0-0) covererd by first row
+        assert_eq!(total, 18 + 10 + 18);
+    }
+
+    #[test]
+    fn test_jump_different_row_with_jump_small() {
+        // the gap is 4 words not 4 bytes! so the remap jump is always 1 or 2
+        let mut ideal_jump: NormalJumpCycle<32> = NormalJumpCycle::default();
+        let row_status = RowIdWordId {
+            row_id: PhysicRowId(0),
+            word_id: WordId(0),
+        };
+        let location = RowLocation {
+            row_id_world_id: RowIdWordId {
+                row_id: PhysicRowId(1),
+                word_id: WordId(6),
+            },
+
+            subarray_id: SubarrayId(0),
+        };
+        // no need to jump, the extra size is 1*18=18
+        ideal_jump.update(&row_status, &location, WordId(16), 3);
+        let total = ideal_jump.total();
+        // 1 first row, 2 extra row, 16 words, 3 cal, 2 jump(0-4-6) covererd by first row
+        assert_eq!(total, 18 + 16 + 18 + 18);
+    }
+    #[test]
+    fn test_jump_different_row_with_jump_large() {
+        // the gap is 4 words not 4 bytes! so the remap jump is always 1 or 2
+        let mut ideal_jump: NormalJumpCycle<32> = NormalJumpCycle::default();
+        let row_status = RowIdWordId {
+            row_id: PhysicRowId(0),
+            word_id: WordId(0),
+        };
+        let location = RowLocation {
+            row_id_world_id: RowIdWordId {
+                row_id: PhysicRowId(1),
+                word_id: WordId(16),
+            },
+
+            subarray_id: SubarrayId(0),
+        };
+        // no need to jump, the extra size is 1*18=18
+        // 1 first row, 1 extra row, 16 words, 3 cal, 1 jump(0-16) covererd by first row
+        ideal_jump.update(&row_status, &location, WordId(16), 3);
+        let total = ideal_jump.total();
+        assert_eq!(total, 18 + 16 + 18);
     }
 }

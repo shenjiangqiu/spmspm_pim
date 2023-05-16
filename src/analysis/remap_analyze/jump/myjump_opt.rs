@@ -48,7 +48,13 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
         let gap = GAP;
         self.total_accesses += 1;
         self.gloabl_row_accesses += 1;
-        if row_status.row_id != loc.row_id_world_id.row_id {
+        let words_per_waler = WALKER_SIZE / 4;
+        // fix the bug here! the ohe is smaller when the WALKER_SIZE is smaller
+        let real_loc_word_id = loc.row_id_world_id.word_id.0 % words_per_waler;
+        let real_row_status_word_id = row_status.word_id.0 % words_per_waler;
+        let (first_row, remaining_row) = get_total_row_cycle::<WALKER_SIZE>(row_status, loc, size);
+
+        if first_row != 0 {
             self.row_misses += 1;
             self.global_row_miss += 1;
             self.row_cycle_total += 18;
@@ -58,7 +64,6 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
             self.global_row_hits += 1;
         }
 
-        let (first_row, remaining_row) = get_total_row_cycle::<WALKER_SIZE>(row_status, loc, size);
         let first_row_cycle = first_row * 18;
         let remaining_row_cycle = remaining_row * 18;
         let extra_walkers_to_read =
@@ -68,14 +73,13 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
         self.global_row_cycles += extra_walkers_to_read * 18;
 
         // first find the nearest stop
-        let re_map_times =
-            (loc.row_id_world_id.word_id.0 % gap).min(gap - loc.row_id_world_id.word_id.0 % gap);
+        let re_map_times = (real_loc_word_id % gap).min(gap - real_loc_word_id % gap);
 
-        let normal_cycle =
-            (row_status.word_id.0 as isize - loc.row_id_world_id.word_id.0 as isize).unsigned_abs();
-
-        let min_jump_cycle = (re_map_times + 1 + remap_unit).min(normal_cycle);
-        let min_jump_cycle = (min_jump_cycle + 6) / 7;
+        let normal_jumps =
+            (real_row_status_word_id as isize - real_loc_word_id as isize).unsigned_abs();
+        let remap_cycle = (re_map_times + 6) / 7 + 1 + remap_unit;
+        let normal_cycle = (normal_jumps + 6) / 7;
+        let min_jump_cycle = (remap_cycle).min(normal_cycle);
 
         let min_jump_and_row_cycle = min_jump_cycle.max(first_row_cycle);
 
@@ -84,11 +88,13 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
         self.one_jump_cycle += size.0;
 
         // update the histogram
-        if min_jump_cycle < (re_map_times + 1 + remap_unit) {
+        if min_jump_and_row_cycle < remap_cycle {
             // my jump is not used so the time is saved
             self.opt_saved_times += 1;
 
-            let new_min_jump_and_row_cycle = min_jump_cycle.max(first_row_cycle);
+            let new_min_jump_and_row_cycle = remap_cycle
+                .min(normal_cycle + remap_unit)
+                .max(first_row_cycle);
             let saved_cycle = new_min_jump_and_row_cycle - min_jump_and_row_cycle;
             debug_assert!(new_min_jump_and_row_cycle >= min_jump_and_row_cycle);
             self.opt_saved_cycles += saved_cycle;
@@ -128,7 +134,14 @@ impl<const GAP: usize, const WALKER_SIZE: usize> AddableJumpCycle for MyJumpOpt<
     fn add(&mut self, other: &Self) {
         self.multi_jump_cycle += other.multi_jump_cycle;
         self.one_jump_cycle += other.one_jump_cycle;
-
+        self.row_cycle_total += other.row_cycle_total;
+        self.total_accesses += other.total_accesses;
+        self.row_hits += other.row_hits;
+        self.row_misses += other.row_misses;
+        self.gloabl_row_accesses += other.gloabl_row_accesses;
+        self.global_row_hits += other.global_row_hits;
+        self.global_row_miss += other.global_row_miss;
+        self.global_row_cycles += other.global_row_cycles;
         self.opt_saved_times += other.opt_saved_times;
         self.opt_saved_cycles += other.opt_saved_cycles;
         self.all_cycle_hist_0 += other.all_cycle_hist_0;
@@ -136,5 +149,106 @@ impl<const GAP: usize, const WALKER_SIZE: usize> AddableJumpCycle for MyJumpOpt<
         self.all_cycle_hist_3_4 += other.all_cycle_hist_3_4;
         self.all_cycle_hist_5_8 += other.all_cycle_hist_5_8;
         self.all_cycle_hist_9_and_more += other.all_cycle_hist_9_and_more;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_jump() {
+        let mut ideal_jump: MyJumpOpt<4, 32> = MyJumpOpt::default();
+        let row_status = RowIdWordId {
+            row_id: PhysicRowId(0),
+            word_id: WordId(0),
+        };
+        let location = RowLocation {
+            row_id_world_id: RowIdWordId {
+                row_id: PhysicRowId(0),
+                word_id: WordId(0),
+            },
+
+            subarray_id: SubarrayId(0),
+        };
+        // no need to jump, the extra size is 1*18=18
+        ideal_jump.update(&row_status, &location, WordId(10), 3);
+        let total = ideal_jump.total();
+        // 0 first row, 1 extra row, 10 words, 3 cal, 1 jump(0-0)no cover
+        assert_eq!(total, 18 + 10);
+        assert_eq!(ideal_jump.opt_saved_times, 1);
+        assert_eq!(ideal_jump.opt_saved_cycles, 3);
+    }
+
+    #[test]
+    fn test_jump_different_row() {
+        let mut ideal_jump: MyJumpOpt<4, 32> = MyJumpOpt::default();
+        let row_status = RowIdWordId {
+            row_id: PhysicRowId(0),
+            word_id: WordId(0),
+        };
+        let location = RowLocation {
+            row_id_world_id: RowIdWordId {
+                row_id: PhysicRowId(1),
+                word_id: WordId(0),
+            },
+
+            subarray_id: SubarrayId(0),
+        };
+        // no need to jump, the extra size is 1*18=18
+        ideal_jump.update(&row_status, &location, WordId(10), 3);
+        let total = ideal_jump.total();
+        // 1 first row, 1 extra row, 10 words, 3 cal, 1 jump(0-0) covererd by first row
+        assert_eq!(total, 18 + 10 + 18);
+        assert_eq!(ideal_jump.opt_saved_times, 0);
+        assert_eq!(ideal_jump.opt_saved_cycles, 0);
+    }
+
+    #[test]
+    fn test_jump_different_row_with_jump_small() {
+        // the gap is 4 words not 4 bytes! so the remap jump is always 1 or 2
+        let mut ideal_jump: MyJumpOpt<4, 32> = MyJumpOpt::default();
+        let row_status = RowIdWordId {
+            row_id: PhysicRowId(0),
+            word_id: WordId(0),
+        };
+        let location = RowLocation {
+            row_id_world_id: RowIdWordId {
+                row_id: PhysicRowId(1),
+                word_id: WordId(6),
+            },
+
+            subarray_id: SubarrayId(0),
+        };
+        // no need to jump, the extra size is 1*18=18
+        ideal_jump.update(&row_status, &location, WordId(16), 3);
+        let total = ideal_jump.total();
+        // 1 first row, 2 extra row, 16 words, 3 cal, 2 jump(0-4-6) covererd by first row
+        assert_eq!(total, 18 + 16 + 18 + 18);
+        assert_eq!(ideal_jump.opt_saved_times, 0);
+        assert_eq!(ideal_jump.opt_saved_cycles, 0);
+    }
+    #[test]
+    fn test_jump_different_row_with_jump_large() {
+        // the gap is 4 words not 4 bytes! so the remap jump is always 1 or 2
+        let mut ideal_jump: MyJumpOpt<4, 32> = MyJumpOpt::default();
+        let row_status = RowIdWordId {
+            row_id: PhysicRowId(0),
+            word_id: WordId(0),
+        };
+        let location = RowLocation {
+            row_id_world_id: RowIdWordId {
+                row_id: PhysicRowId(1),
+                word_id: WordId(16),
+            },
+
+            subarray_id: SubarrayId(0),
+        };
+        // no need to jump, the extra size is 1*18=18
+        // 1 first row, 1 extra row, 16 words, 3 cal, 1 jump(0-16) covererd by first row
+        ideal_jump.update(&row_status, &location, WordId(16), 3);
+        let total = ideal_jump.total();
+        assert_eq!(total, 18 + 16 + 18);
+        assert_eq!(ideal_jump.opt_saved_times, 0);
+        assert_eq!(ideal_jump.opt_saved_cycles, 0);
     }
 }

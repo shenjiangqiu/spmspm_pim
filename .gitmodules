@@ -1,0 +1,6 @@
+[submodule "spmspm_macro"]
+	path = spmspm_macro
+	url = git@github.com:shenjiangqiu/spmspm_macro.git
+[submodule "sprs"]
+	path = sprs
+	url = git@github.com:shenjiangqiu/sprs.git

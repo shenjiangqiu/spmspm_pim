@@ -18,9 +18,6 @@ jobs:
         submodules: recursive
     - name: Install Rust
       run: rustup update stable
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
     - name: Generate code coverage

@@ -59,7 +59,7 @@ fn main() -> eyre::Result<()> {
                 jumps_not_covered_when_more_shift,
             } = normal_256;
             println!(
-                "normal_256: jump_one_cycle: {:?}, jump_multiple_cycle: {:?}, total_jumps_all: {:?}, total_jumps_covered_by_row_open: {:?}, jumps_not_covered_when_no_row_open: {:?}, jumps_not_covered_when_more_shift: {:?}",
+                "normal_256: jump_one_cycle: {:?} jump_multiple_cycle: {:?} total_jumps_all: {:?} total_jumps_covered_by_row_open: {:?} jumps_not_covered_when_no_row_open: {:?} jumps_not_covered_when_more_shift: {:?}",
                 jump_one_cycle, jump_multiple_cycle, total_jumps_all, total_jumps_covered_by_row_open, jumps_not_covered_when_no_row_open, jumps_not_covered_when_more_shift
             );
             let NormalJumpCycle {
@@ -71,11 +71,11 @@ fn main() -> eyre::Result<()> {
                 jumps_not_covered_when_more_shift,
             } = normal_32;
             println!(
-                "normal_32: jump_one_cycle: {:?}, jump_multiple_cycle: {:?}, total_jumps_all: {:?}, total_jumps_covered_by_row_open: {:?}, jumps_not_covered_when_no_row_open: {:?}, jumps_not_covered_when_more_shift: {:?}",
+                "normal_32: jump_one_cycle: {:?} jump_multiple_cycle: {:?} total_jumps_all: {:?} total_jumps_covered_by_row_open: {:?} jumps_not_covered_when_no_row_open: {:?} jumps_not_covered_when_more_shift: {:?}",
                 jump_one_cycle, jump_multiple_cycle, total_jumps_all, total_jumps_covered_by_row_open, jumps_not_covered_when_no_row_open, jumps_not_covered_when_more_shift
             );
 
-            let my_jump256: MyJumpOpt<16, 256> = remote_write.my_jump_opt_16_256;
+            let my_jump256: MyJumpOpt<4, 256> = remote_write.my_jump_opt_4_256;
             let MyJumpOpt {
                 multi_jump_cycle,
                 one_jump_cycle,
@@ -96,10 +96,10 @@ fn main() -> eyre::Result<()> {
                 global_row_cycles,
             } = my_jump256;
             println!(
-                "my_jump256: multi_jump_cycle: {:?}, one_jump_cycle: {:?}, opt_saved_times: {:?}, opt_saved_cycles: {:?}, all_cycle_hist_0: {:?}, all_cycle_hist_1_2: {:?}, all_cycle_hist_3_4: {:?}, all_cycle_hist_5_8: {:?}, all_cycle_hist_9_and_more: {:?}",
+                "my_jump256: multi_jump_cycle: {:?} one_jump_cycle: {:?} opt_saved_times: {:?} opt_saved_cycles: {:?} all_cycle_hist_0: {:?} all_cycle_hist_1_2: {:?} all_cycle_hist_3_4: {:?} all_cycle_hist_5_8: {:?} all_cycle_hist_9_and_more: {:?}",
                 multi_jump_cycle, one_jump_cycle, opt_saved_times, opt_saved_cycles, all_cycle_hist_0, all_cycle_hist_1_2, all_cycle_hist_3_4, all_cycle_hist_5_8, all_cycle_hist_9_and_more
             );
-            let my_jump_32 = remote_write.my_jump_opt_16_32;
+            let my_jump_32 = remote_write.my_jump_opt_4_32;
             let MyJumpOpt {
                 multi_jump_cycle,
                 one_jump_cycle,
@@ -120,7 +120,7 @@ fn main() -> eyre::Result<()> {
                 global_row_cycles,
             } = my_jump_32;
             println!(
-                "my_jump_32 multi_jump_cycle: {:?}, one_jump_cycle: {:?}, opt_saved_times: {:?}, opt_saved_cycles: {:?}, all_cycle_hist_0: {:?}, all_cycle_hist_1_2: {:?}, all_cycle_hist_3_4: {:?}, all_cycle_hist_5_8: {:?}, all_cycle_hist_9_and_more: {:?}",
+                "my_jump_32 multi_jump_cycle: {:?} one_jump_cycle: {:?} opt_saved_times: {:?} opt_saved_cycles: {:?} all_cycle_hist_0: {:?} all_cycle_hist_1_2: {:?} all_cycle_hist_3_4: {:?} all_cycle_hist_5_8: {:?} all_cycle_hist_9_and_more: {:?}",
                 multi_jump_cycle, one_jump_cycle, opt_saved_times, opt_saved_cycles, all_cycle_hist_0, all_cycle_hist_1_2, all_cycle_hist_3_4, all_cycle_hist_5_8, all_cycle_hist_9_and_more
             );
 

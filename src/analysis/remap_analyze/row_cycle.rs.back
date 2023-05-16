@@ -93,22 +93,22 @@ pub struct RowCycle {
     pub ideal_jump_cycle_128: IdealJumpCycle<128>,
     pub ideal_jump_cycle_64: IdealJumpCycle<64>,
     pub ideal_jump_cycle_32: IdealJumpCycle<32>,
-    pub my_jump_cycle_16_256: MyJumpCycle<16, 256>,
-    pub my_jump_cycle_16_128: MyJumpCycle<16, 128>,
-    pub my_jump_cycle_16_64: MyJumpCycle<16, 64>,
-    pub my_jump_cycle_16_32: MyJumpCycle<16, 32>,
-    pub my_jump_cycle_16_no_overhead_256: MyJumpNoOverhead<16, 256>,
-    pub my_jump_cycle_16_no_overhead_128: MyJumpNoOverhead<16, 128>,
-    pub my_jump_cycle_16_no_overhead_64: MyJumpNoOverhead<16, 64>,
-    pub my_jump_cycle_16_no_overhead_32: MyJumpNoOverhead<16, 32>,
-    pub my_jump_cycle_16_opt_256: MyJumpOpt<16, 256>,
-    pub my_jump_cycle_16_opt_128: MyJumpOpt<16, 128>,
-    pub my_jump_cycle_16_opt_64: MyJumpOpt<16, 64>,
-    pub my_jump_cycle_16_opt_32: MyJumpOpt<16, 32>,
-    pub my_jump_cycle_16_only_256: MyJumpOnly<16, 256>,
-    pub my_jump_cycle_16_only_128: MyJumpOnly<16, 128>,
-    pub my_jump_cycle_16_only_64: MyJumpOnly<16, 64>,
-    pub my_jump_cycle_16_only_32: MyJumpOnly<16, 32>,
+    pub my_jump_cycle_4_256: MyJumpCycle<16, 256>,
+    pub my_jump_cycle_4_128: MyJumpCycle<16, 128>,
+    pub my_jump_cycle_4_64: MyJumpCycle<16, 64>,
+    pub my_jump_cycle_4_32: MyJumpCycle<16, 32>,
+    pub my_jump_cycle_4_no_overhead_256: MyJumpNoOverhead<16, 256>,
+    pub my_jump_cycle_4_no_overhead_128: MyJumpNoOverhead<16, 128>,
+    pub my_jump_cycle_4_no_overhead_64: MyJumpNoOverhead<16, 64>,
+    pub my_jump_cycle_4_no_overhead_32: MyJumpNoOverhead<16, 32>,
+    pub my_jump_cycle_4_opt_256: MyJumpOpt<16, 256>,
+    pub my_jump_cycle_4_opt_128: MyJumpOpt<16, 128>,
+    pub my_jump_cycle_4_opt_64: MyJumpOpt<16, 64>,
+    pub my_jump_cycle_4_opt_32: MyJumpOpt<16, 32>,
+    pub my_jump_cycle_4_only_256: MyJumpOnly<16, 256>,
+    pub my_jump_cycle_4_only_128: MyJumpOnly<16, 128>,
+    pub my_jump_cycle_4_only_64: MyJumpOnly<16, 64>,
+    pub my_jump_cycle_4_only_32: MyJumpOnly<16, 32>,
 }
 
 pub(crate) trait RowCycleAction {
@@ -163,22 +163,22 @@ impl RowCycle {
 //             JumpTypes::Ideal128 => &mut self.row_cycle.ideal_jump_cycle_128,
 //             JumpTypes::Ideal64 => &mut self.row_cycle.ideal_jump_cycle_64,
 //             JumpTypes::Ideal32 => &mut self.row_cycle.ideal_jump_cycle_32,
-//             JumpTypes::My16_256 => &mut self.row_cycle.my_jump_cycle_16_256,
-//             JumpTypes::My16_128 => &mut self.row_cycle.my_jump_cycle_16_128,
-//             JumpTypes::My16_64 => &mut self.row_cycle.my_jump_cycle_16_64,
-//             JumpTypes::My16_32 => &mut self.row_cycle.my_jump_cycle_16_32,
-//             JumpTypes::My16NoOverhead256 => &mut self.row_cycle.my_jump_cycle_16_no_overhead_256,
-//             JumpTypes::My16NoOverhead128 => &mut self.row_cycle.my_jump_cycle_16_no_overhead_128,
-//             JumpTypes::My16NoOverhead64 => &mut self.row_cycle.my_jump_cycle_16_no_overhead_64,
-//             JumpTypes::My16NoOverhead32 => &mut self.row_cycle.my_jump_cycle_16_no_overhead_32,
-//             JumpTypes::My16Opt256 => &mut self.row_cycle.my_jump_cycle_16_opt_256,
-//             JumpTypes::My16Opt128 => &mut self.row_cycle.my_jump_cycle_16_opt_128,
-//             JumpTypes::My16Opt64 => &mut self.row_cycle.my_jump_cycle_16_opt_64,
-//             JumpTypes::My16Opt32 => &mut self.row_cycle.my_jump_cycle_16_opt_32,
-//             JumpTypes::My16Only256 => &mut self.row_cycle.my_jump_cycle_16_only_256,
-//             JumpTypes::My16Only128 => &mut self.row_cycle.my_jump_cycle_16_only_128,
-//             JumpTypes::My16Only64 => &mut self.row_cycle.my_jump_cycle_16_only_64,
-//             JumpTypes::My16Only32 => &mut self.row_cycle.my_jump_cycle_16_only_32,
+//             JumpTypes::My16_256 => &mut self.row_cycle.my_jump_cycle_4_256,
+//             JumpTypes::My16_128 => &mut self.row_cycle.my_jump_cycle_4_128,
+//             JumpTypes::My16_64 => &mut self.row_cycle.my_jump_cycle_4_64,
+//             JumpTypes::My16_32 => &mut self.row_cycle.my_jump_cycle_4_32,
+//             JumpTypes::My16NoOverhead256 => &mut self.row_cycle.my_jump_cycle_4_no_overhead_256,
+//             JumpTypes::My16NoOverhead128 => &mut self.row_cycle.my_jump_cycle_4_no_overhead_128,
+//             JumpTypes::My16NoOverhead64 => &mut self.row_cycle.my_jump_cycle_4_no_overhead_64,
+//             JumpTypes::My16NoOverhead32 => &mut self.row_cycle.my_jump_cycle_4_no_overhead_32,
+//             JumpTypes::My16Opt256 => &mut self.row_cycle.my_jump_cycle_4_opt_256,
+//             JumpTypes::My16Opt128 => &mut self.row_cycle.my_jump_cycle_4_opt_128,
+//             JumpTypes::My16Opt64 => &mut self.row_cycle.my_jump_cycle_4_opt_64,
+//             JumpTypes::My16Opt32 => &mut self.row_cycle.my_jump_cycle_4_opt_32,
+//             JumpTypes::My16Only256 => &mut self.row_cycle.my_jump_cycle_4_only_256,
+//             JumpTypes::My16Only128 => &mut self.row_cycle.my_jump_cycle_4_only_128,
+//             JumpTypes::My16Only64 => &mut self.row_cycle.my_jump_cycle_4_only_64,
+//             JumpTypes::My16Only32 => &mut self.row_cycle.my_jump_cycle_4_only_32,
 //             JumpTypes::End => return None,
 //         };
 //         self.jump_type.next();
@@ -212,22 +212,22 @@ impl RowCycle {
 //             JumpTypes::Ideal128 => self.row_cycle.ideal_jump_cycle_128.total(),
 //             JumpTypes::Ideal64 => self.row_cycle.ideal_jump_cycle_64.total(),
 //             JumpTypes::Ideal32 => self.row_cycle.ideal_jump_cycle_32.total(),
-//             JumpTypes::My16_256 => self.row_cycle.my_jump_cycle_16_256.total(),
-//             JumpTypes::My16_128 => self.row_cycle.my_jump_cycle_16_128.total(),
-//             JumpTypes::My16_64 => self.row_cycle.my_jump_cycle_16_64.total(),
-//             JumpTypes::My16_32 => self.row_cycle.my_jump_cycle_16_32.total(),
-//             JumpTypes::My16NoOverhead256 => self.row_cycle.my_jump_cycle_16_no_overhead_256.total(),
-//             JumpTypes::My16NoOverhead128 => self.row_cycle.my_jump_cycle_16_no_overhead_128.total(),
-//             JumpTypes::My16NoOverhead64 => self.row_cycle.my_jump_cycle_16_no_overhead_64.total(),
-//             JumpTypes::My16NoOverhead32 => self.row_cycle.my_jump_cycle_16_no_overhead_32.total(),
-//             JumpTypes::My16Opt256 => self.row_cycle.my_jump_cycle_16_opt_256.total(),
-//             JumpTypes::My16Opt128 => self.row_cycle.my_jump_cycle_16_opt_128.total(),
-//             JumpTypes::My16Opt64 => self.row_cycle.my_jump_cycle_16_opt_64.total(),
-//             JumpTypes::My16Opt32 => self.row_cycle.my_jump_cycle_16_opt_32.total(),
-//             JumpTypes::My16Only256 => self.row_cycle.my_jump_cycle_16_only_256.total(),
-//             JumpTypes::My16Only128 => self.row_cycle.my_jump_cycle_16_only_128.total(),
-//             JumpTypes::My16Only64 => self.row_cycle.my_jump_cycle_16_only_64.total(),
-//             JumpTypes::My16Only32 => self.row_cycle.my_jump_cycle_16_only_32.total(),
+//             JumpTypes::My16_256 => self.row_cycle.my_jump_cycle_4_256.total(),
+//             JumpTypes::My16_128 => self.row_cycle.my_jump_cycle_4_128.total(),
+//             JumpTypes::My16_64 => self.row_cycle.my_jump_cycle_4_64.total(),
+//             JumpTypes::My16_32 => self.row_cycle.my_jump_cycle_4_32.total(),
+//             JumpTypes::My16NoOverhead256 => self.row_cycle.my_jump_cycle_4_no_overhead_256.total(),
+//             JumpTypes::My16NoOverhead128 => self.row_cycle.my_jump_cycle_4_no_overhead_128.total(),
+//             JumpTypes::My16NoOverhead64 => self.row_cycle.my_jump_cycle_4_no_overhead_64.total(),
+//             JumpTypes::My16NoOverhead32 => self.row_cycle.my_jump_cycle_4_no_overhead_32.total(),
+//             JumpTypes::My16Opt256 => self.row_cycle.my_jump_cycle_4_opt_256.total(),
+//             JumpTypes::My16Opt128 => self.row_cycle.my_jump_cycle_4_opt_128.total(),
+//             JumpTypes::My16Opt64 => self.row_cycle.my_jump_cycle_4_opt_64.total(),
+//             JumpTypes::My16Opt32 => self.row_cycle.my_jump_cycle_4_opt_32.total(),
+//             JumpTypes::My16Only256 => self.row_cycle.my_jump_cycle_4_only_256.total(),
+//             JumpTypes::My16Only128 => self.row_cycle.my_jump_cycle_4_only_128.total(),
+//             JumpTypes::My16Only64 => self.row_cycle.my_jump_cycle_4_only_64.total(),
+//             JumpTypes::My16Only32 => self.row_cycle.my_jump_cycle_4_only_32.total(),
 //             JumpTypes::End => return None,
 //         };
 //         self.jump_type.next();
@@ -289,84 +289,84 @@ impl RowCycle {
 //                 self.row_cycle.ideal_jump_cycle_32.get_multi_jump(),
 //             ),
 //             JumpTypes::My16_256 => (
-//                 self.row_cycle.my_jump_cycle_16_256.get_one_jump(),
-//                 self.row_cycle.my_jump_cycle_16_256.get_multi_jump(),
+//                 self.row_cycle.my_jump_cycle_4_256.get_one_jump(),
+//                 self.row_cycle.my_jump_cycle_4_256.get_multi_jump(),
 //             ),
 //             JumpTypes::My16_128 => (
-//                 self.row_cycle.my_jump_cycle_16_128.get_one_jump(),
-//                 self.row_cycle.my_jump_cycle_16_128.get_multi_jump(),
+//                 self.row_cycle.my_jump_cycle_4_128.get_one_jump(),
+//                 self.row_cycle.my_jump_cycle_4_128.get_multi_jump(),
 //             ),
 //             JumpTypes::My16_64 => (
-//                 self.row_cycle.my_jump_cycle_16_64.get_one_jump(),
-//                 self.row_cycle.my_jump_cycle_16_64.get_multi_jump(),
+//                 self.row_cycle.my_jump_cycle_4_64.get_one_jump(),
+//                 self.row_cycle.my_jump_cycle_4_64.get_multi_jump(),
 //             ),
 //             JumpTypes::My16_32 => (
-//                 self.row_cycle.my_jump_cycle_16_32.get_one_jump(),
-//                 self.row_cycle.my_jump_cycle_16_32.get_multi_jump(),
+//                 self.row_cycle.my_jump_cycle_4_32.get_one_jump(),
+//                 self.row_cycle.my_jump_cycle_4_32.get_multi_jump(),
 //             ),
 //             JumpTypes::My16NoOverhead256 => (
 //                 self.row_cycle
-//                     .my_jump_cycle_16_no_overhead_256
+//                     .my_jump_cycle_4_no_overhead_256
 //                     .get_one_jump(),
 //                 self.row_cycle
-//                     .my_jump_cycle_16_no_overhead_256
+//                     .my_jump_cycle_4_no_overhead_256
 //                     .get_multi_jump(),
 //             ),
 //             JumpTypes::My16NoOverhead128 => (
 //                 self.row_cycle
-//                     .my_jump_cycle_16_no_overhead_128
+//                     .my_jump_cycle_4_no_overhead_128
 //                     .get_one_jump(),
 //                 self.row_cycle
-//                     .my_jump_cycle_16_no_overhead_128
+//                     .my_jump_cycle_4_no_overhead_128
 //                     .get_multi_jump(),
 //             ),
 //             JumpTypes::My16NoOverhead64 => (
 //                 self.row_cycle
-//                     .my_jump_cycle_16_no_overhead_64
+//                     .my_jump_cycle_4_no_overhead_64
 //                     .get_one_jump(),
 //                 self.row_cycle
-//                     .my_jump_cycle_16_no_overhead_64
+//                     .my_jump_cycle_4_no_overhead_64
 //                     .get_multi_jump(),
 //             ),
 //             JumpTypes::My16NoOverhead32 => (
 //                 self.row_cycle
-//                     .my_jump_cycle_16_no_overhead_32
+//                     .my_jump_cycle_4_no_overhead_32
 //                     .get_one_jump(),
 //                 self.row_cycle
-//                     .my_jump_cycle_16_no_overhead_32
+//                     .my_jump_cycle_4_no_overhead_32
 //                     .get_multi_jump(),
 //             ),
 //             JumpTypes::My16Opt256 => (
-//                 self.row_cycle.my_jump_cycle_16_opt_256.get_one_jump(),
-//                 self.row_cycle.my_jump_cycle_16_opt_256.get_multi_jump(),
+//                 self.row_cycle.my_jump_cycle_4_opt_256.get_one_jump(),
+//                 self.row_cycle.my_jump_cycle_4_opt_256.get_multi_jump(),
 //             ),
 //             JumpTypes::My16Opt128 => (
-//                 self.row_cycle.my_jump_cycle_16_opt_128.get_one_jump(),
-//                 self.row_cycle.my_jump_cycle_16_opt_128.get_multi_jump(),
+//                 self.row_cycle.my_jump_cycle_4_opt_128.get_one_jump(),
+//                 self.row_cycle.my_jump_cycle_4_opt_128.get_multi_jump(),
 //             ),
 //             JumpTypes::My16Opt64 => (
-//                 self.row_cycle.my_jump_cycle_16_opt_64.get_one_jump(),
-//                 self.row_cycle.my_jump_cycle_16_opt_64.get_multi_jump(),
+//                 self.row_cycle.my_jump_cycle_4_opt_64.get_one_jump(),
+//                 self.row_cycle.my_jump_cycle_4_opt_64.get_multi_jump(),
 //             ),
 //             JumpTypes::My16Opt32 => (
-//                 self.row_cycle.my_jump_cycle_16_opt_32.get_one_jump(),
-//                 self.row_cycle.my_jump_cycle_16_opt_32.get_multi_jump(),
+//                 self.row_cycle.my_jump_cycle_4_opt_32.get_one_jump(),
+//                 self.row_cycle.my_jump_cycle_4_opt_32.get_multi_jump(),
 //             ),
 //             JumpTypes::My16Only256 => (
-//                 self.row_cycle.my_jump_cycle_16_only_256.get_one_jump(),
-//                 self.row_cycle.my_jump_cycle_16_only_256.get_multi_jump(),
+//                 self.row_cycle.my_jump_cycle_4_only_256.get_one_jump(),
+//                 self.row_cycle.my_jump_cycle_4_only_256.get_multi_jump(),
 //             ),
 //             JumpTypes::My16Only128 => (
-//                 self.row_cycle.my_jump_cycle_16_only_128.get_one_jump(),
-//                 self.row_cycle.my_jump_cycle_16_only_128.get_multi_jump(),
+//                 self.row_cycle.my_jump_cycle_4_only_128.get_one_jump(),
+//                 self.row_cycle.my_jump_cycle_4_only_128.get_multi_jump(),
 //             ),
 //             JumpTypes::My16Only64 => (
-//                 self.row_cycle.my_jump_cycle_16_only_64.get_one_jump(),
-//                 self.row_cycle.my_jump_cycle_16_only_64.get_multi_jump(),
+//                 self.row_cycle.my_jump_cycle_4_only_64.get_one_jump(),
+//                 self.row_cycle.my_jump_cycle_4_only_64.get_multi_jump(),
 //             ),
 //             JumpTypes::My16Only32 => (
-//                 self.row_cycle.my_jump_cycle_16_only_32.get_one_jump(),
-//                 self.row_cycle.my_jump_cycle_16_only_32.get_multi_jump(),
+//                 self.row_cycle.my_jump_cycle_4_only_32.get_one_jump(),
+//                 self.row_cycle.my_jump_cycle_4_only_32.get_multi_jump(),
 //             ),
 //             JumpTypes::End => return None,
 //         };
@@ -449,68 +449,68 @@ impl RowCycle {
 //                 source: &self.source.ideal_jump_cycle_32,
 //             }),
 //             JumpTypes::My16_256 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_256,
-//                 source: &self.source.my_jump_cycle_16_256,
+//                 target: &mut self.target.my_jump_cycle_4_256,
+//                 source: &self.source.my_jump_cycle_4_256,
 //             }),
 //             JumpTypes::My16_128 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_128,
-//                 source: &self.source.my_jump_cycle_16_128,
+//                 target: &mut self.target.my_jump_cycle_4_128,
+//                 source: &self.source.my_jump_cycle_4_128,
 //             }),
 //             JumpTypes::My16_64 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_64,
-//                 source: &self.source.my_jump_cycle_16_64,
+//                 target: &mut self.target.my_jump_cycle_4_64,
+//                 source: &self.source.my_jump_cycle_4_64,
 //             }),
 //             JumpTypes::My16_32 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_32,
-//                 source: &self.source.my_jump_cycle_16_32,
+//                 target: &mut self.target.my_jump_cycle_4_32,
+//                 source: &self.source.my_jump_cycle_4_32,
 //             }),
 //             JumpTypes::My16NoOverhead256 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_no_overhead_256,
-//                 source: &self.source.my_jump_cycle_16_no_overhead_256,
+//                 target: &mut self.target.my_jump_cycle_4_no_overhead_256,
+//                 source: &self.source.my_jump_cycle_4_no_overhead_256,
 //             }),
 //             JumpTypes::My16NoOverhead128 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_no_overhead_128,
-//                 source: &self.source.my_jump_cycle_16_no_overhead_128,
+//                 target: &mut self.target.my_jump_cycle_4_no_overhead_128,
+//                 source: &self.source.my_jump_cycle_4_no_overhead_128,
 //             }),
 //             JumpTypes::My16NoOverhead64 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_no_overhead_64,
-//                 source: &self.source.my_jump_cycle_16_no_overhead_64,
+//                 target: &mut self.target.my_jump_cycle_4_no_overhead_64,
+//                 source: &self.source.my_jump_cycle_4_no_overhead_64,
 //             }),
 //             JumpTypes::My16NoOverhead32 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_no_overhead_32,
-//                 source: &self.source.my_jump_cycle_16_no_overhead_32,
+//                 target: &mut self.target.my_jump_cycle_4_no_overhead_32,
+//                 source: &self.source.my_jump_cycle_4_no_overhead_32,
 //             }),
 //             JumpTypes::My16Opt256 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_opt_256,
-//                 source: &self.source.my_jump_cycle_16_opt_256,
+//                 target: &mut self.target.my_jump_cycle_4_opt_256,
+//                 source: &self.source.my_jump_cycle_4_opt_256,
 //             }),
 //             JumpTypes::My16Opt128 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_opt_128,
-//                 source: &self.source.my_jump_cycle_16_opt_128,
+//                 target: &mut self.target.my_jump_cycle_4_opt_128,
+//                 source: &self.source.my_jump_cycle_4_opt_128,
 //             }),
 //             JumpTypes::My16Opt64 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_opt_64,
-//                 source: &self.source.my_jump_cycle_16_opt_64,
+//                 target: &mut self.target.my_jump_cycle_4_opt_64,
+//                 source: &self.source.my_jump_cycle_4_opt_64,
 //             }),
 //             JumpTypes::My16Opt32 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_opt_32,
-//                 source: &self.source.my_jump_cycle_16_opt_32,
+//                 target: &mut self.target.my_jump_cycle_4_opt_32,
+//                 source: &self.source.my_jump_cycle_4_opt_32,
 //             }),
 //             JumpTypes::My16Only256 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_only_256,
-//                 source: &self.source.my_jump_cycle_16_only_256,
+//                 target: &mut self.target.my_jump_cycle_4_only_256,
+//                 source: &self.source.my_jump_cycle_4_only_256,
 //             }),
 //             JumpTypes::My16Only128 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_only_128,
-//                 source: &self.source.my_jump_cycle_16_only_128,
+//                 target: &mut self.target.my_jump_cycle_4_only_128,
+//                 source: &self.source.my_jump_cycle_4_only_128,
 //             }),
 //             JumpTypes::My16Only64 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_only_64,
-//                 source: &self.source.my_jump_cycle_16_only_64,
+//                 target: &mut self.target.my_jump_cycle_4_only_64,
+//                 source: &self.source.my_jump_cycle_4_only_64,
 //             }),
 //             JumpTypes::My16Only32 => Box::new(TargetSourcePair {
-//                 target: &mut self.target.my_jump_cycle_16_only_32,
-//                 source: &self.source.my_jump_cycle_16_only_32,
+//                 target: &mut self.target.my_jump_cycle_4_only_32,
+//                 source: &self.source.my_jump_cycle_4_only_32,
 //             }),
 //             JumpTypes::End => return None,
 //         };

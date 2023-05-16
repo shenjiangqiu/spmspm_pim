@@ -13,6 +13,9 @@ jobs:
   codecov:
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
     - name: Install Rust
       run: rustup update stable
     - uses: actions/checkout@v3

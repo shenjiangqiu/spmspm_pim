@@ -670,7 +670,7 @@ impl Hardware {
                 .iter()
                 .flat_interleave()
                 .flat_interleave()
-                .filter(move |d| d.2 .0 .0 != ring_id)
+                .filter(move |d: &&(RingPort, RingPort, (RingId, RingPort))| d.2 .0 .0 != ring_id)
         });
         // now we got the remote traffic from ring to base layer, then we should make a detailed simulation to calculate the cycle
         let tsv_traffic: Vec<VecDeque<_>> = tsv_traffic.map(|t| t.collect()).collect();

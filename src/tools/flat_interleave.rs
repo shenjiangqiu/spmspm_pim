@@ -62,6 +62,10 @@ impl<U: IntoIterator> Iterator for FlatInterleave<U> {
         if self.finished {
             return None;
         }
+        if self.iters.is_empty() {
+            self.finished = true;
+            return None;
+        }
         let mut index = self.current_index;
         loop {
             if let Some(x) = self.iters[index].next() {
@@ -80,15 +84,13 @@ impl<U: IntoIterator> Iterator for FlatInterleave<U> {
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         let mut min = 0;
-        let mut max = None;
+        let mut max = Some(0);
         for iter in &self.iters {
             let (a, b) = iter.size_hint();
             min += a;
             max = match (max, b) {
                 (Some(x), Some(y)) => Some(x + y),
-                (Some(x), None) => Some(x),
-                (None, Some(y)) => Some(y),
-                (None, None) => None,
+                _ => None,
             };
         }
         (min, max)
@@ -169,5 +171,19 @@ mod tests {
             b,
             vec![1, 7, 4, 10, 2, 8, 5, 11, 3, 9, 6, 12, 99, 10, 100, 200, 300]
         );
+    }
+    #[test]
+    fn test_empty() {
+        let a: Vec<Vec<()>> = vec![];
+        let mut iter = a.into_iter().flat_interleave();
+        assert!(iter.next().is_none());
+        assert_eq!(iter.size_hint(), (0, Some(0)));
+    }
+    #[test]
+    fn test_empty_inner() {
+        let a: Vec<Vec<()>> = vec![vec![], vec![]];
+        let mut iter = a.into_iter().flat_interleave();
+        assert!(iter.next().is_none());
+        assert_eq!(iter.size_hint(), (0, Some(0)));
     }
 }

@@ -30,8 +30,16 @@ use crate::{
         EVIL_RATE,
     },
     pim::configv2::ConfigV3,
-    tools::{self, file_server},
+    tools::{self, file_server, FlatInterleaveTrait},
 };
+/// ## rust function
+/// ## Author: Jiangqiu Shen
+/// ## Date: 2023-05-16
+/// Description: the temp tasks receive by one subarray
+#[derive(Default)]
+struct WriteTasks {
+    tasks_from_sources: BTreeMap<SubarrayId, Vec<RowIdWordId>>,
+}
 
 struct RealJumpSimulator {
     /// the local read of evil row
@@ -50,7 +58,19 @@ struct RealJumpSimulator {
     subarray_bits: usize,
     /// the (sending,receiving) status of each bank
     dispatcher_status: Vec<(usize, usize)>,
+
     /// the cycle of each remap calculation
+    remap_cycle: usize,
+
+    /// write tasks
+    write_tasks: BTreeMap<SubarrayId, WriteTasks>,
+}
+struct WriteDenseInfo<'a> {
+    source_subarray_id: SubarrayId,
+    col_location: &'a RowLocation,
+    write_tasks: &'a mut WriteTasks,
+    status: &'a mut RowIdWordId,
+    cycle: &'a mut AllJumpCycles,
     remap_cycle: usize,
 }
 
@@ -102,6 +122,7 @@ impl RealJumpSimulator {
                 global_subarray_size
             ],
             remap_cycle,
+            write_tasks: Default::default(),
         }
     }
 
@@ -132,15 +153,50 @@ impl RealJumpSimulator {
         let new_status: &RowIdWordId = &self.evil_row_status[location.subarray_id.0];
         debug!(?new_status);
     }
+    /// ## rust function
+    /// ## Author: Jiangqiu Shen
+    /// ## Date: 2023-05-16
+    /// Description: write the dense data
+    fn write_dense_lazy(write_dense_info: WriteDenseInfo) {
+        // fix bug here, instead of simply update the cycle, we should record the tasks first and then reduce it after each round
+        let WriteDenseInfo {
+            source_subarray_id,
+            col_location,
+            write_tasks,
+            status,
+            ..
+        } = write_dense_info;
+        debug!(
+            ?status,
+            "write col for subarray{}: {:?}", col_location.subarray_id.0, col_location
+        );
+        // let mut update_action = UpdateAction {
+        //     row_status: status,
+        //     loc: col_location,
+        //     size: WordId(1),
+        //     remap_cycle,
+        // };
+        // cycle.apply_mut(&mut update_action);
+        // *status = col_location.row_id_world_id.clone();
 
-    fn write_dense(
-        _target_id: LogicRowId,
-        _target_col: LogicColId,
-        col_location: &RowLocation,
-        status: &mut RowIdWordId,
-        cycle: &mut AllJumpCycles,
-        remap_cycle: usize,
-    ) {
+        write_tasks
+            .tasks_from_sources
+            .entry(source_subarray_id)
+            .or_default()
+            .push(col_location.row_id_world_id.clone());
+
+        debug!(?status);
+    }
+
+    fn write_dense_now(write_dense_info: WriteDenseInfo) {
+        let WriteDenseInfo {
+            col_location,
+            status,
+            cycle,
+            remap_cycle,
+            ..
+        } = write_dense_info;
+        // fix bug here, instead of simply update the cycle, we should record the tasks first and then reduce it after each round
         debug!(
             ?status,
             "write col for subarray{}: {:?}", col_location.subarray_id.0, col_location
@@ -153,14 +209,10 @@ impl RealJumpSimulator {
         };
         cycle.apply_mut(&mut update_action);
         *status = col_location.row_id_world_id.clone();
+
         debug!(?status);
     }
-    fn write_dense_remote(
-        &mut self,
-        target_id: LogicRowId,
-        target_col: LogicColId,
-        col_location: &RowLocation,
-    ) {
+    fn write_dense_remote(&mut self, source_subarray_id: SubarrayId, col_location: &RowLocation) {
         let current_status = self
             .col_status_remote
             .get_mut(col_location.subarray_id.0)
@@ -170,22 +222,21 @@ impl RealJumpSimulator {
             .col_cycles_remote
             .get_mut(col_location.subarray_id.0)
             .unwrap();
-
-        Self::write_dense(
-            target_id,
-            target_col,
+        let write_tasks = self
+            .write_tasks
+            .entry(col_location.subarray_id)
+            .or_insert(Default::default());
+        let write_dense_info = WriteDenseInfo {
+            source_subarray_id,
             col_location,
-            current_status,
-            current_cycle,
-            self.remap_cycle,
-        );
+            write_tasks,
+            status: current_status,
+            cycle: current_cycle,
+            remap_cycle: self.remap_cycle,
+        };
+        Self::write_dense_lazy(write_dense_info);
     }
-    fn write_dense_local(
-        &mut self,
-        target_id: LogicRowId,
-        target_col: LogicColId,
-        col_location: &RowLocation,
-    ) {
+    fn write_dense_local(&mut self, source_subarray_id: SubarrayId, col_location: &RowLocation) {
         let current_status = self
             .col_status_local
             .get_mut(col_location.subarray_id.0)
@@ -195,15 +246,19 @@ impl RealJumpSimulator {
             .col_cycles_local
             .get_mut(col_location.subarray_id.0)
             .unwrap();
-
-        Self::write_dense(
-            target_id,
-            target_col,
+        let write_tasks = self
+            .write_tasks
+            .entry(col_location.subarray_id)
+            .or_insert(Default::default());
+        let write_dense_info = WriteDenseInfo {
+            source_subarray_id,
             col_location,
-            current_status,
-            current_cycle,
-            self.remap_cycle,
-        );
+            write_tasks,
+            status: current_status,
+            cycle: current_cycle,
+            remap_cycle: self.remap_cycle,
+        };
+        Self::write_dense_now(write_dense_info);
     }
 
     fn read_local(&mut self, location: &RowLocation, word_size: WordId) {
@@ -240,6 +295,30 @@ impl RealJumpSimulator {
 
     ///[normal, ideal, from_source, my, smart]
     fn update_result(&mut self, result: &mut RealJumpResult) {
+        // first reduce the write tasks
+        let current_tasks = std::mem::take(&mut self.write_tasks);
+        for (target_subarray, tasks) in current_tasks.into_iter() {
+            let tasks = tasks.tasks_from_sources;
+            // first we need to flat interleave the tasks
+            let flat_tasks = tasks.into_values().flat_interleave();
+            let remote_dense_cycles = self.col_cycles_remote.get_mut(target_subarray.0).unwrap();
+            let remote_dense_status = self.col_status_remote.get_mut(target_subarray.0).unwrap();
+            for task in flat_tasks {
+                let loc = RowLocation {
+                    subarray_id: target_subarray,
+                    row_id_world_id: task,
+                };
+                let mut update_action = UpdateAction {
+                    row_status: remote_dense_status,
+                    loc: &loc,
+                    size: WordId(1),
+                    remap_cycle: self.remap_cycle,
+                };
+                remote_dense_cycles.apply_mut(&mut update_action);
+                *remote_dense_status = loc.row_id_world_id.clone();
+            }
+        }
+
         update_row_cycle(&self.col_cycles_local, &mut result.local_dense_col_cycles);
         update_row_cycle(&self.col_cycles_remote, &mut result.remote_dense_col_cycles);
         update_row_cycle(&self.evil_row_cycles, &mut result.evil_row_cycles);
@@ -601,7 +680,7 @@ impl super::Simulator for RealJumpSimulator {
                                 csr_translated.view(),
                             );
                             // send write task to subarray
-                            self.write_dense_local(target_id.into(), target_col, &col_location);
+                            self.write_dense_local(_subarray_id, &col_location);
                         }
                     }
                 } else {
@@ -627,20 +706,12 @@ impl super::Simulator for RealJumpSimulator {
                             );
                         } else if location.subarray_id == dense_location.subarray_id {
                             // send write task to subarray
-                            self.write_dense_local(
-                                target_id.into(),
-                                LogicColId(target_col as usize),
-                                &dense_location,
-                            );
+                            self.write_dense_local(location.subarray_id, &dense_location);
                         } else {
                             // first send to the remote dispacher, ring and tsv,
                             self.write_tsv_sending(location.subarray_id);
                             self.write_tsv_reading(dense_location.subarray_id);
-                            self.write_dense_remote(
-                                target_id.into(),
-                                LogicColId(target_col as usize),
-                                &dense_location,
-                            );
+                            self.write_dense_remote(location.subarray_id, &dense_location);
                             // then send to the subarray
                         }
                     }
@@ -652,12 +723,12 @@ impl super::Simulator for RealJumpSimulator {
                     let col_location =
                         mapping.get_dense_location(target_id.into(), col, csr_translated.view());
                     if subarray_id == col_location.subarray_id {
-                        self.write_dense_local(target_id.into(), col, &col_location);
+                        self.write_dense_local(subarray_id, &col_location);
                     } else {
                         // first send to the remote dispacher, ring and tsv,
                         self.write_tsv_sending(subarray_id);
                         self.write_tsv_reading(col_location.subarray_id);
-                        self.write_dense_remote(target_id.into(), col, &col_location);
+                        self.write_dense_remote(subarray_id, &col_location);
                     }
                 }
             }

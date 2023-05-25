@@ -3,5 +3,5 @@
 # jobs = 1
 rustflags = ["-C", "target-cpu=native"]
 [profile.release]
-# lto = true
+lto = true
 # strip = true

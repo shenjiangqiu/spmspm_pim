@@ -6,6 +6,7 @@ use std::iter::Iterator;
 
 /// the iterator returned by [`FlatInterleaveTrait::flat_interleave`]
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+#[derive(Debug, Clone)]
 pub struct FlatInterleave<U: IntoIterator> {
     iters: Vec<U::IntoIter>,
     finished: bool,

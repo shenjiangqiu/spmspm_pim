@@ -21,9 +21,11 @@ use crate::{
     algorithms::{bfs::Bfs, page_rank::PageRank, spmm::Spmm, FrontierType, SpmvAlgorithm},
     analysis::{
         remap_analyze::{
-            action::{ReduceAction, TotalAction, UpdateAction, UpdateBatchAction},
+            action::{ReduceAction, TotalAction, UpdateAction},
+            remote_updator::{
+                selective::SelectiveUpdator, sequential::SequentialRemoteUpdator, RemoteUpdator,
+            },
             row_cycle::*,
-            Simulator,
         },
         translate_mapping::{
             self, same_bank::SameBankMapping, weighted::SameBankWeightedMapping, TranslateMapping,
@@ -33,6 +35,8 @@ use crate::{
     pim::configv2::ConfigV3,
     tools::{self, file_server, FlatInterleaveTrait},
 };
+
+use super::IterativeSimulator;
 /// ## rust function
 /// ## Author: Jiangqiu Shen
 /// ## Date: 2023-05-16
@@ -52,6 +56,7 @@ struct RealJumpSimulator {
     /// the remote write
     col_status_remote: Vec<RowIdWordId>,
     col_cycles_remote: Vec<AllJumpCycles>,
+
     /// the local write
     col_status_local: Vec<RowIdWordId>,
     col_cycles_local: Vec<AllJumpCycles>,
@@ -66,10 +71,13 @@ struct RealJumpSimulator {
     /// write tasks
     write_tasks: BTreeMap<SubarrayId, WriteTasks>,
 }
-struct WriteDenseInfo<'a> {
+struct WriteDenseInfoRemote<'a> {
     source_subarray_id: SubarrayId,
     col_location: &'a RowLocation,
     write_tasks: &'a mut WriteTasks,
+}
+struct WriteDenseInfoLocal<'a> {
+    col_location: &'a RowLocation,
     status: &'a mut RowIdWordId,
     cycle: &'a mut AllJumpCycles,
     remap_cycle: usize,
@@ -105,6 +113,7 @@ impl RealJumpSimulator {
                 };
                 global_subarray_size
             ],
+
             dispatcher_status: vec![(0, 0); global_bank_size],
             evil_row_cycles: vec![Default::default(); global_subarray_size],
             evil_row_status: vec![
@@ -150,7 +159,7 @@ impl RealJumpSimulator {
         };
         self.evil_row_cycles[location.subarray_id.0].apply_mut(&mut update_action);
         // update the evil row status
-        self.evil_row_status[location.subarray_id.0] = location.row_id_word_id;
+        self.evil_row_status[location.subarray_id.0] = location.row_id_word_id.clone();
         let new_status: &RowIdWordId = &self.evil_row_status[location.subarray_id.0];
         debug!(?new_status);
     }
@@ -158,19 +167,15 @@ impl RealJumpSimulator {
     /// ## Author: Jiangqiu Shen
     /// ## Date: 2023-05-16
     /// Description: write the dense data
-    fn write_dense_lazy(write_dense_info: WriteDenseInfo) {
+    fn write_dense_lazy(write_dense_info: WriteDenseInfoRemote) {
         // fix bug here, instead of simply update the cycle, we should record the tasks first and then reduce it after each round
-        let WriteDenseInfo {
+        let WriteDenseInfoRemote {
             source_subarray_id,
             col_location,
             write_tasks,
-            status,
             ..
         } = write_dense_info;
-        debug!(
-            ?status,
-            "write col for subarray{}: {:?}", col_location.subarray_id.0, col_location
-        );
+
         // let mut update_action = UpdateAction {
         //     row_status: status,
         //     loc: col_location,
@@ -184,13 +189,11 @@ impl RealJumpSimulator {
             .tasks_from_sources
             .entry(source_subarray_id)
             .or_default()
-            .push(col_location.row_id_word_id);
-
-        debug!(?status);
+            .push(col_location.row_id_word_id.clone());
     }
 
-    fn write_dense_now(write_dense_info: WriteDenseInfo) {
-        let WriteDenseInfo {
+    fn write_dense_now(write_dense_info: WriteDenseInfoLocal) {
+        let WriteDenseInfoLocal {
             col_location,
             status,
             cycle,
@@ -209,35 +212,23 @@ impl RealJumpSimulator {
             remap_cycle,
         };
         cycle.apply_mut(&mut update_action);
-        *status = col_location.row_id_word_id;
+        *status = col_location.row_id_word_id.clone();
 
         debug!(?status);
     }
     fn write_dense_remote(&mut self, source_subarray_id: SubarrayId, col_location: &RowLocation) {
-        let current_status = self
-            .col_status_remote
-            .get_mut(col_location.subarray_id.0)
-            .unwrap();
-
-        let current_cycle = self
-            .col_cycles_remote
-            .get_mut(col_location.subarray_id.0)
-            .unwrap();
         let write_tasks = self
             .write_tasks
             .entry(col_location.subarray_id)
             .or_insert(Default::default());
-        let write_dense_info = WriteDenseInfo {
+        let write_dense_info = WriteDenseInfoRemote {
             source_subarray_id,
             col_location,
             write_tasks,
-            status: current_status,
-            cycle: current_cycle,
-            remap_cycle: self.remap_cycle,
         };
         Self::write_dense_lazy(write_dense_info);
     }
-    fn write_dense_local(&mut self, source_subarray_id: SubarrayId, col_location: &RowLocation) {
+    fn write_dense_local(&mut self, _source_subarray_id: SubarrayId, col_location: &RowLocation) {
         let current_status = self
             .col_status_local
             .get_mut(col_location.subarray_id.0)
@@ -247,14 +238,9 @@ impl RealJumpSimulator {
             .col_cycles_local
             .get_mut(col_location.subarray_id.0)
             .unwrap();
-        let write_tasks = self
-            .write_tasks
-            .entry(col_location.subarray_id)
-            .or_insert(Default::default());
-        let write_dense_info = WriteDenseInfo {
-            source_subarray_id,
+
+        let write_dense_info = WriteDenseInfoLocal {
             col_location,
-            write_tasks,
             status: current_status,
             cycle: current_cycle,
             remap_cycle: self.remap_cycle,
@@ -275,7 +261,7 @@ impl RealJumpSimulator {
             remap_cycle: self.remap_cycle,
         };
         self.non_evil_row_cycles[location.subarray_id.0].apply_mut(&mut update_action);
-        self.non_evil_status[location.subarray_id.0] = location.row_id_word_id;
+        self.non_evil_status[location.subarray_id.0] = location.row_id_word_id.clone();
         let new_status = &self.non_evil_status[location.subarray_id.0];
         debug!(?new_status);
     }
@@ -303,42 +289,27 @@ impl RealJumpSimulator {
             // first we need to flat interleave the tasks
             let flat_tasks = tasks.into_values().flat_interleave();
             let remote_dense_cycles = self.col_cycles_remote.get_mut(target_subarray.0).unwrap();
+
             let remote_dense_status = self.col_status_remote.get_mut(target_subarray.0).unwrap();
-            // for task in flat_tasks {
-            //     let loc = RowLocation {
-            //         subarray_id: target_subarray,
-            //         row_id_word_id: task,
-            //     };
-            //     let mut update_action = UpdateAction {
-            //         row_status: remote_dense_status,
-            //         loc: &loc,
-            //         size: WordId(1),
-            //         remap_cycle: self.remap_cycle,
-            //     };
-            //     remote_dense_cycles.apply_mut(&mut update_action);
-            //     *remote_dense_status = loc.row_id_word_id.clone();
-            // }
-            // fix bug here, we should use update batch here
-            let loc = flat_tasks
-                .map(|row_id_word_id| RowLocation {
-                    subarray_id: target_subarray,
-                    row_id_word_id,
-                })
-                .collect_vec();
-            let mut update_batch_action = UpdateBatchAction {
-                row_status: remote_dense_status,
-                loc: &loc,
-                size: WordId(1),
-                remap_cycle: self.remap_cycle,
-            };
-            remote_dense_cycles.apply_mut(&mut update_batch_action);
-            if let Some(row_loc) = loc.last() {
-                *remote_dense_status = row_loc.row_id_word_id;
+
+            for task in flat_tasks {
+                let mut update_action = UpdateAction {
+                    row_status: remote_dense_status,
+                    loc: &RowLocation {
+                        subarray_id: target_subarray,
+                        row_id_word_id: task,
+                    },
+                    size: WordId(1),
+                    remap_cycle: self.remap_cycle,
+                };
+                remote_dense_cycles.apply_mut(&mut update_action);
+                *remote_dense_status = task;
             }
         }
 
         update_row_cycle(&self.col_cycles_local, &mut result.local_dense_col_cycles);
         update_row_cycle(&self.col_cycles_remote, &mut result.remote_dense_col_cycles);
+
         update_row_cycle(&self.evil_row_cycles, &mut result.evil_row_cycles);
         update_row_cycle(&self.non_evil_row_cycles, &mut result.row_cycles);
 
@@ -403,6 +374,7 @@ impl RealJumpSimulator {
         // reset the cycle
         self.col_cycles_local = vec![Default::default(); self.col_cycles_local.len()];
         self.col_cycles_remote = vec![Default::default(); self.col_cycles_remote.len()];
+
         self.evil_row_cycles = vec![Default::default(); self.evil_row_cycles.len()];
         self.non_evil_row_cycles = vec![Default::default(); self.non_evil_row_cycles.len()];
 
@@ -446,6 +418,7 @@ impl RealJumpSimulator {
         // after each target_id, update the result and clear current status.
         self.update_result(result);
     }
+
     fn update_one_column(
         &mut self,
         matrix_b_row_id: u32,
@@ -553,45 +526,12 @@ fn update_row_cycle(
     AllJumpCycles::apply_reduce(current_round_cycle, final_cycle, &mut reduce_action);
     reduce_action.total_cycles
 }
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AllAlgorithomResults {
-    pub bfs: RealJumpResult,
-    pub page_rank: RealJumpResult,
-    pub spmm: RealJumpResult,
-}
-pub fn run_all_algorithms(
-    mapping: &impl TranslateMapping,
-    config: &ConfigV3,
-    translated_csr: CsMatViewI<Pattern, u32>,
-) -> Result<AllAlgorithomResults, eyre::ErrReport> {
-    let bfs = run_with_mapping(
-        mapping,
-        config,
-        translated_csr.view(),
-        Bfs::new(translated_csr.view()),
-        MAX_RUN_ROUNDS,
-    )?;
-    let page_rank = run_with_mapping(mapping, config, translated_csr, PageRank, 1)?;
-    let spmm = run_with_mapping(
-        mapping,
-        config,
-        translated_csr.view(),
-        Spmm::new(translated_csr.view()),
-        MAX_RUN_ROUNDS,
-    )?;
-    Ok(AllAlgorithomResults {
-        bfs,
-        page_rank,
-        spmm,
-    })
-}
 
-pub fn run_with_mapping(
+pub fn run_with_mapping<A: SpmvAlgorithm>(
     mapping: &impl TranslateMapping,
     config: &ConfigV3,
     matrix_csr: CsMatViewI<Pattern, u32>,
-    algorithm: impl SpmvAlgorithm,
-    max_rounds: usize,
+    mut algorithm: A,
 ) -> eyre::Result<RealJumpResult> {
     let remap_cycle = config.remap_cycle;
     info!("remap cycle: {}", remap_cycle);
@@ -602,7 +542,7 @@ pub fn run_with_mapping(
         remap_cycle,
     );
     info!("start to run simulator");
-    simulator.run(mapping, matrix_csr, algorithm, max_rounds)
+    simulator.run(mapping, matrix_csr, &mut algorithm)
 }
 pub fn build_same_bank_mapping(
     config: &ConfigV3,
@@ -636,10 +576,15 @@ pub fn build_weighted_mapping(
         matrix_csr,
     )
 }
-
-pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AllAlgorithomResults {
+    pub bfs: RealJumpResult,
+    pub page_rank: RealJumpResult,
+    pub spmm: RealJumpResult,
+}
+pub fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
     info!("start simulation");
-    let total_graph_results: Vec<eyre::Result<RealJumpResult>> = config
+    let total_graph_results: Vec<eyre::Result<AllAlgorithomResults>> = config
         .graph_path
         .par_iter()
         .map(|graph| {
@@ -735,15 +680,7 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
                     matrix_guard.pop().unwrap();
                     matrix_guard.pop().unwrap();
                     matrix_guard.pop().unwrap();
-
-                    run_with_mapping(
-                        &mapping,
-                        &config,
-                        translated_csr.view(),
-                        Spmm::new(translated_csr.view()),
-                        MAX_RUN_ROUNDS,
-                    )?
-                    // free the hardware guard here, it's automatically dropped
+                    run_all_algorithms(&mapping, &config, translated_csr.view())?
                 }
                 crate::pim::configv2::MappingType::SameBankWeightedMapping => {
                     let (mapping, translated_csr) =
@@ -760,13 +697,7 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
                     matrix_guard.pop().unwrap();
                     matrix_guard.pop().unwrap();
                     matrix_guard.pop().unwrap();
-                    run_with_mapping(
-                        &mapping,
-                        &config,
-                        translated_csr.view(),
-                        Spmm::new(translated_csr.view()),
-                        MAX_RUN_ROUNDS,
-                    )?
+                    run_all_algorithms(&mapping, &config, translated_csr.view())?
                 }
             };
             // it's automatically dropped, but we need to force drop it here to make sure the matrix drop before the matrix guard
@@ -791,6 +722,31 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
     )?;
 
     Ok(())
+}
+
+pub fn run_all_algorithms(
+    mapping: &impl TranslateMapping,
+    config: &ConfigV3,
+    translated_csr: CsMatViewI<Pattern, u32>,
+) -> Result<AllAlgorithomResults, eyre::ErrReport> {
+    let bfs = run_with_mapping(
+        mapping,
+        config,
+        translated_csr,
+        Bfs::new(translated_csr.view()),
+    )?;
+    let page_rank = run_with_mapping(mapping, config, translated_csr, PageRank)?;
+    let spmm = run_with_mapping(
+        mapping,
+        config,
+        translated_csr,
+        Spmm::new(translated_csr.view()),
+    )?;
+    Ok(AllAlgorithomResults {
+        bfs,
+        page_rank,
+        spmm,
+    })
 }
 #[derive(Default)]
 struct EvilColHandler {
@@ -826,15 +782,14 @@ pub struct RealJumpResult {
     // pub real_cycle: [usize; 7],
     pub real_local_cycle: [usize; NUM_JUMP_CYCLES],
 }
-pub const MAX_RUN_ROUNDS: usize = 10000;
-impl super::Simulator for RealJumpSimulator {
+const MAX_RUN_ROUNDS: usize = 10000;
+impl IterativeSimulator for RealJumpSimulator {
     type R = RealJumpResult;
     fn run(
         &mut self,
         mapping: &impl TranslateMapping,
         csr_translated: CsMatViewI<Pattern, u32>,
-        mut algorithm: impl SpmvAlgorithm,
-        max_rounds: usize,
+        algorithm: &mut impl SpmvAlgorithm,
     ) -> eyre::Result<Self::R> {
         let start_time = Instant::now();
         let mut next_print_time = Duration::from_secs(60);
@@ -856,7 +811,7 @@ impl super::Simulator for RealJumpSimulator {
                     );
                     next_print_time += Duration::from_secs(60);
                 }
-                if target_id + 1 > max_rounds {
+                if target_id + 1 >= MAX_RUN_ROUNDS {
                     break;
                 }
             }

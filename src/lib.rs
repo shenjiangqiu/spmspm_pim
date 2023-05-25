@@ -10,6 +10,7 @@ use once_cell::sync::Lazy;
 pub use pim::Simulator;
 pub mod tools;
 use crate::tools::stop_signal;
+pub mod algorithms;
 use lazy_static::lazy_static;
 use std::{
     env,

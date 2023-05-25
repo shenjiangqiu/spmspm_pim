@@ -5,7 +5,9 @@ mod myjump;
 mod myjump_no_jump_overhead;
 mod myjump_only;
 mod myjump_opt;
+mod myjump_opt_selective;
 mod normal_jump;
+mod normal_jump_selective;
 
 // pub(crate) mod smart_jump;
 
@@ -18,7 +20,9 @@ pub use myjump::MyJumpCycle;
 pub use myjump_no_jump_overhead::MyJumpNoOverhead;
 pub use myjump_only::MyJumpOnly;
 pub use myjump_opt::MyJumpOpt;
+pub use myjump_opt_selective::MyJumpOptSelective;
 pub use normal_jump::NormalJumpCycle;
+pub use normal_jump_selective::NormalJumpCycleSelective;
 
 pub(crate) trait AddTwo {
     fn add_two(&mut self);
@@ -62,13 +66,13 @@ pub fn get_total_row_cycle<const WALKER_SIZE: usize>(
     loc: &RowLocation,
     size: WordId,
 ) -> (usize, usize) {
-    let first_row_miss = if check_same_walker::<WALKER_SIZE>(row_status, &loc.row_id_world_id) {
+    let first_row_miss = if check_same_walker::<WALKER_SIZE>(row_status, &loc.row_id_word_id) {
         0
     } else {
         1
     };
     let walkers_to_load =
-        get_num_extra_walkers_to_load::<WALKER_SIZE>(loc.row_id_world_id.word_id, size);
+        get_num_extra_walkers_to_load::<WALKER_SIZE>(loc.row_id_word_id.word_id, size);
 
     (first_row_miss, walkers_to_load)
 }

@@ -92,6 +92,8 @@ fn main() -> eyre::Result<()> {
                 global_row_hits,
                 global_row_miss,
                 global_row_cycles,
+                total_read_words,
+                total_used_words,
             } = my_jump256;
             println!(
                 "my_jump256: multi_jump_cycle: {multi_jump_cycle:?} \
@@ -110,7 +112,9 @@ fn main() -> eyre::Result<()> {
                  gloabl_row_accesses: {gloabl_row_accesses:?} \
                  global_row_hits: {global_row_hits:?} \
                  global_row_miss: {global_row_miss:?} \
-                 global_row_cycles: {global_row_cycles:?}"
+                 global_row_cycles: {global_row_cycles:?} \
+                 total_read_words: {total_read_words:?} \
+                 total_used_words: {total_used_words:?}"
             );
             let my_jump_32 = remote_write.my_jump_opt_4_32;
             let MyJumpOpt {
@@ -131,6 +135,8 @@ fn main() -> eyre::Result<()> {
                 global_row_hits,
                 global_row_miss,
                 global_row_cycles,
+                total_read_words,
+                total_used_words,
             } = my_jump_32;
             println!(
                 "my_jump256: multi_jump_cycle: {multi_jump_cycle:?} \
@@ -149,7 +155,9 @@ fn main() -> eyre::Result<()> {
                  gloabl_row_accesses: {gloabl_row_accesses:?} \
                  global_row_hits: {global_row_hits:?} \
                  global_row_miss: {global_row_miss:?} \
-                 global_row_cycles: {global_row_cycles:?}"
+                 global_row_cycles: {global_row_cycles:?} \
+                 total_read_words: {total_read_words:?} \
+                 total_used_words: {total_used_words:?}"
             );
 
             println!("\n\n");

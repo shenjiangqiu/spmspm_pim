@@ -1,0 +1,196 @@
+total_cycles
+graph: mtx/gearbox/ca-hollywood-2009.mtx
+map: SameBank
+normal_256: jump_one_cycle: 37840638 jump_multiple_cycle: 87901200 total_jumps_all: 86049205 total_jumps_covered_by_row_open: 4433035 jumps_not_covered_when_no_row_open: 81616170 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 460147960 jump_multiple_cycle: 0 total_jumps_all: 26200227 total_jumps_covered_by_row_open: 20659600 jumps_not_covered_when_no_row_open: 5540627 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 84853047 one_jump_cycle: 30086252 opt_saved_times: 22336246 opt_saved_cycles: 56932886 all_cycle_hist_0: 1959264 all_cycle_hist_1_2: 14729765 all_cycle_hist_3_4: 6601521 all_cycle_hist_5_8: 6414621 all_cycle_hist_9_and_more: 381081 row_cycle_total: 12055230 total_accesses: 30086252 row_hits: 29416517 row_misses: 669735 gloabl_row_accesses: 30086252 global_row_hits: 29416517 global_row_miss: 669735 global_row_cycles: 12055230 total_read_words: 72949292 total_used_words: 0
+my_jump256: multi_jump_cycle: 429278951 one_jump_cycle: 30869009 opt_saved_times: 7327991 opt_saved_cycles: 21983973 all_cycle_hist_0: 4668782 all_cycle_hist_1_2: 26200227 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 423738324 total_accesses: 30869009 row_hits: 7327991 row_misses: 23541018 gloabl_row_accesses: 30869009 global_row_hits: 7327991 global_row_miss: 23541018 global_row_cycles: 423738324 total_read_words: 219197153 total_used_words: 0
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+normal_256: jump_one_cycle: 69310893 jump_multiple_cycle: 72870667 total_jumps_all: 76578657 total_jumps_covered_by_row_open: 10190489 jumps_not_covered_when_no_row_open: 66388168 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 477405441 jump_multiple_cycle: 0 total_jumps_all: 32617636 total_jumps_covered_by_row_open: 20548591 jumps_not_covered_when_no_row_open: 12069045 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 89900511 one_jump_cycle: 49089082 opt_saved_times: 44424216 opt_saved_cycles: 124473222 all_cycle_hist_0: 14251264 all_cycle_hist_1_2: 25218001 all_cycle_hist_3_4: 5678129 all_cycle_hist_5_8: 3367321 all_cycle_hist_9_and_more: 574367 row_cycle_total: 26790894 total_accesses: 49089082 row_hits: 47600699 row_misses: 1488383 gloabl_row_accesses: 49089082 global_row_hits: 47600699 global_row_miss: 1488383 global_row_cycles: 26790894 total_read_words: 144345594 total_used_words: 0
+my_jump256: multi_jump_cycle: 428461119 one_jump_cycle: 48944322 opt_saved_times: 25811429 opt_saved_cycles: 77434287 all_cycle_hist_0: 16326686 all_cycle_hist_1_2: 32617636 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 416392074 total_accesses: 48944322 row_hits: 25811429 row_misses: 23132893 gloabl_row_accesses: 48944322 global_row_hits: 25811429 global_row_miss: 23132893 global_row_cycles: 416392074 total_read_words: 234007466 total_used_words: 0
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/gearbox/ca-hollywood-2009.mtx
+graph: mtx/outerspace/2cubes_sphere/2cubes_sphere.mtx
+map: SameBank
+normal_256: jump_one_cycle: 240816 jump_multiple_cycle: 0 total_jumps_all: 61703 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 61703 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 240816 jump_multiple_cycle: 0 total_jumps_all: 61703 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 61703 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 61703 one_jump_cycle: 179113 opt_saved_times: 179113 opt_saved_cycles: 537339 all_cycle_hist_0: 117410 all_cycle_hist_1_2: 61703 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 179113 row_hits: 179113 row_misses: 0 gloabl_row_accesses: 179113 global_row_hits: 179113 global_row_miss: 0 global_row_cycles: 0 total_read_words: 179113 total_used_words: 0
+my_jump256: multi_jump_cycle: 61703 one_jump_cycle: 179113 opt_saved_times: 179113 opt_saved_cycles: 537339 all_cycle_hist_0: 117410 all_cycle_hist_1_2: 61703 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 179113 row_hits: 179113 row_misses: 0 gloabl_row_accesses: 179113 global_row_hits: 179113 global_row_miss: 0 global_row_cycles: 0 total_read_words: 179113 total_used_words: 0
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+normal_256: jump_one_cycle: 170217 jump_multiple_cycle: 0 total_jumps_all: 10795 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 10795 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 170217 jump_multiple_cycle: 0 total_jumps_all: 10795 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 10795 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 10795 one_jump_cycle: 159422 opt_saved_times: 159422 opt_saved_cycles: 478266 all_cycle_hist_0: 148627 all_cycle_hist_1_2: 10795 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 159422 row_hits: 159422 row_misses: 0 gloabl_row_accesses: 159422 global_row_hits: 159422 global_row_miss: 0 global_row_cycles: 0 total_read_words: 159422 total_used_words: 0
+my_jump256: multi_jump_cycle: 10795 one_jump_cycle: 159422 opt_saved_times: 159422 opt_saved_cycles: 478266 all_cycle_hist_0: 148627 all_cycle_hist_1_2: 10795 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 159422 row_hits: 159422 row_misses: 0 gloabl_row_accesses: 159422 global_row_hits: 159422 global_row_miss: 0 global_row_cycles: 0 total_read_words: 159422 total_used_words: 0
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/2cubes_sphere/2cubes_sphere.mtx
+graph: mtx/outerspace/cage12/cage12.mtx
+map: SameBank
+normal_256: jump_one_cycle: 100815 jump_multiple_cycle: 0 total_jumps_all: 16486 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 16486 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 100815 jump_multiple_cycle: 0 total_jumps_all: 16486 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 16486 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 16486 one_jump_cycle: 84329 opt_saved_times: 84329 opt_saved_cycles: 252987 all_cycle_hist_0: 67843 all_cycle_hist_1_2: 16486 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 84329 row_hits: 84329 row_misses: 0 gloabl_row_accesses: 84329 global_row_hits: 84329 global_row_miss: 0 global_row_cycles: 0 total_read_words: 84329 total_used_words: 0
+my_jump256: multi_jump_cycle: 16486 one_jump_cycle: 84329 opt_saved_times: 84329 opt_saved_cycles: 252987 all_cycle_hist_0: 67843 all_cycle_hist_1_2: 16486 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 84329 row_hits: 84329 row_misses: 0 gloabl_row_accesses: 84329 global_row_hits: 84329 global_row_miss: 0 global_row_cycles: 0 total_read_words: 84329 total_used_words: 0
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+normal_256: jump_one_cycle: 181120 jump_multiple_cycle: 0 total_jumps_all: 12005 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 12005 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 181120 jump_multiple_cycle: 0 total_jumps_all: 12005 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 12005 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 12005 one_jump_cycle: 169115 opt_saved_times: 169115 opt_saved_cycles: 507345 all_cycle_hist_0: 157110 all_cycle_hist_1_2: 12005 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 169115 row_hits: 169115 row_misses: 0 gloabl_row_accesses: 169115 global_row_hits: 169115 global_row_miss: 0 global_row_cycles: 0 total_read_words: 169115 total_used_words: 0
+my_jump256: multi_jump_cycle: 12005 one_jump_cycle: 169115 opt_saved_times: 169115 opt_saved_cycles: 507345 all_cycle_hist_0: 157110 all_cycle_hist_1_2: 12005 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 169115 row_hits: 169115 row_misses: 0 gloabl_row_accesses: 169115 global_row_hits: 169115 global_row_miss: 0 global_row_cycles: 0 total_read_words: 169115 total_used_words: 0
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/cage12/cage12.mtx
+graph: mtx/outerspace/filter3D/filter3D.mtx
+map: SameBank
+normal_256: jump_one_cycle: 363081 jump_multiple_cycle: 0 total_jumps_all: 56421 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 56421 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 363081 jump_multiple_cycle: 0 total_jumps_all: 56421 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 56421 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 56421 one_jump_cycle: 306660 opt_saved_times: 306660 opt_saved_cycles: 919980 all_cycle_hist_0: 250239 all_cycle_hist_1_2: 56421 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 306660 row_hits: 306660 row_misses: 0 gloabl_row_accesses: 306660 global_row_hits: 306660 global_row_miss: 0 global_row_cycles: 0 total_read_words: 306660 total_used_words: 0
+my_jump256: multi_jump_cycle: 56421 one_jump_cycle: 306660 opt_saved_times: 306660 opt_saved_cycles: 919980 all_cycle_hist_0: 250239 all_cycle_hist_1_2: 56421 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 306660 row_hits: 306660 row_misses: 0 gloabl_row_accesses: 306660 global_row_hits: 306660 global_row_miss: 0 global_row_cycles: 0 total_read_words: 306660 total_used_words: 0
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+normal_256: jump_one_cycle: 295323 jump_multiple_cycle: 0 total_jumps_all: 13172 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 13172 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 295323 jump_multiple_cycle: 0 total_jumps_all: 13172 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 13172 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 13172 one_jump_cycle: 282151 opt_saved_times: 282151 opt_saved_cycles: 846453 all_cycle_hist_0: 268979 all_cycle_hist_1_2: 13172 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 282151 row_hits: 282151 row_misses: 0 gloabl_row_accesses: 282151 global_row_hits: 282151 global_row_miss: 0 global_row_cycles: 0 total_read_words: 282151 total_used_words: 0
+my_jump256: multi_jump_cycle: 13172 one_jump_cycle: 282151 opt_saved_times: 282151 opt_saved_cycles: 846453 all_cycle_hist_0: 268979 all_cycle_hist_1_2: 13172 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 282151 row_hits: 282151 row_misses: 0 gloabl_row_accesses: 282151 global_row_hits: 282151 global_row_miss: 0 global_row_cycles: 0 total_read_words: 282151 total_used_words: 0
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/filter3D/filter3D.mtx
+graph: mtx/outerspace/filter3D/filter3D_E.mtx
+map: SameBank
+normal_256: jump_one_cycle: 363077 jump_multiple_cycle: 0 total_jumps_all: 56421 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 56421 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 363077 jump_multiple_cycle: 0 total_jumps_all: 56421 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 56421 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 56421 one_jump_cycle: 306656 opt_saved_times: 306656 opt_saved_cycles: 919968 all_cycle_hist_0: 250235 all_cycle_hist_1_2: 56421 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 306656 row_hits: 306656 row_misses: 0 gloabl_row_accesses: 306656 global_row_hits: 306656 global_row_miss: 0 global_row_cycles: 0 total_read_words: 306656 total_used_words: 0
+my_jump256: multi_jump_cycle: 56421 one_jump_cycle: 306656 opt_saved_times: 306656 opt_saved_cycles: 919968 all_cycle_hist_0: 250235 all_cycle_hist_1_2: 56421 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 306656 row_hits: 306656 row_misses: 0 gloabl_row_accesses: 306656 global_row_hits: 306656 global_row_miss: 0 global_row_cycles: 0 total_read_words: 306656 total_used_words: 0
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+normal_256: jump_one_cycle: 295083 jump_multiple_cycle: 0 total_jumps_all: 12739 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 12739 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 295083 jump_multiple_cycle: 0 total_jumps_all: 12739 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 12739 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 12739 one_jump_cycle: 282344 opt_saved_times: 282344 opt_saved_cycles: 847032 all_cycle_hist_0: 269605 all_cycle_hist_1_2: 12739 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 282344 row_hits: 282344 row_misses: 0 gloabl_row_accesses: 282344 global_row_hits: 282344 global_row_miss: 0 global_row_cycles: 0 total_read_words: 282344 total_used_words: 0
+my_jump256: multi_jump_cycle: 12739 one_jump_cycle: 282344 opt_saved_times: 282344 opt_saved_cycles: 847032 all_cycle_hist_0: 269605 all_cycle_hist_1_2: 12739 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 282344 row_hits: 282344 row_misses: 0 gloabl_row_accesses: 282344 global_row_hits: 282344 global_row_miss: 0 global_row_cycles: 0 total_read_words: 282344 total_used_words: 0
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/filter3D/filter3D_E.mtx
+graph: mtx/outerspace/mario002/mario002.mtx
+map: SameBank
+normal_256: jump_one_cycle: 73463 jump_multiple_cycle: 7471 total_jumps_all: 16624 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 16624 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 224392 jump_multiple_cycle: 0 total_jumps_all: 10114 total_jumps_covered_by_row_open: 9677 jumps_not_covered_when_no_row_open: 437 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 16624 one_jump_cycle: 64310 opt_saved_times: 63772 opt_saved_cycles: 188983 all_cycle_hist_0: 52948 all_cycle_hist_1_2: 9548 all_cycle_hist_3_4: 1814 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 64310 row_hits: 64310 row_misses: 0 gloabl_row_accesses: 64310 global_row_hits: 64310 global_row_miss: 0 global_row_cycles: 0 total_read_words: 64310 total_used_words: 0
+my_jump256: multi_jump_cycle: 190931 one_jump_cycle: 33461 opt_saved_times: 22878 opt_saved_cycles: 68634 all_cycle_hist_0: 23347 all_cycle_hist_1_2: 10114 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 190494 total_accesses: 33461 row_hits: 22878 row_misses: 10583 gloabl_row_accesses: 33461 global_row_hits: 22878 global_row_miss: 10583 global_row_cycles: 190494 total_read_words: 118125 total_used_words: 0
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+normal_256: jump_one_cycle: 60798 jump_multiple_cycle: 16740 total_jumps_all: 23290 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 23290 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 235096 jump_multiple_cycle: 0 total_jumps_all: 10441 total_jumps_covered_by_row_open: 10156 jumps_not_covered_when_no_row_open: 285 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 23290 one_jump_cycle: 54248 opt_saved_times: 53429 opt_saved_cycles: 154442 all_cycle_hist_0: 42717 all_cycle_hist_1_2: 7261 all_cycle_hist_3_4: 4270 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 54248 row_hits: 54248 row_misses: 0 gloabl_row_accesses: 54248 global_row_hits: 54248 global_row_miss: 0 global_row_cycles: 0 total_read_words: 54248 total_used_words: 0
+my_jump256: multi_jump_cycle: 200427 one_jump_cycle: 34669 opt_saved_times: 23550 opt_saved_cycles: 70650 all_cycle_hist_0: 24228 all_cycle_hist_1_2: 10441 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 200142 total_accesses: 34669 row_hits: 23550 row_misses: 11119 gloabl_row_accesses: 34669 global_row_hits: 23550 global_row_miss: 11119 global_row_cycles: 200142 total_read_words: 123621 total_used_words: 0
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/mario002/mario002.mtx
+graph: mtx/outerspace/offshore/offshore.mtx
+map: SameBank
+normal_256: jump_one_cycle: 213729 jump_multiple_cycle: 41143 total_jumps_all: 85453 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 85453 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 981825 jump_multiple_cycle: 0 total_jumps_all: 54391 total_jumps_covered_by_row_open: 42770 jumps_not_covered_when_no_row_open: 11621 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 85453 one_jump_cycle: 169419 opt_saved_times: 169419 opt_saved_cycles: 500973 all_cycle_hist_0: 105541 all_cycle_hist_1_2: 61871 all_cycle_hist_3_4: 2007 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 169419 row_hits: 169419 row_misses: 0 gloabl_row_accesses: 169419 global_row_hits: 169419 global_row_miss: 0 global_row_cycles: 0 total_read_words: 169419 total_used_words: 0
+my_jump256: multi_jump_cycle: 863561 one_jump_cycle: 118264 opt_saved_times: 70934 opt_saved_cycles: 212802 all_cycle_hist_0: 63873 all_cycle_hist_1_2: 54391 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 851940 total_accesses: 118264 row_hits: 70934 row_misses: 47330 gloabl_row_accesses: 118264 global_row_hits: 70934 global_row_miss: 47330 global_row_cycles: 851940 total_read_words: 496904 total_used_words: 0
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+normal_256: jump_one_cycle: 176415 jump_multiple_cycle: 3837 total_jumps_all: 13959 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 13959 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 322645 jump_multiple_cycle: 0 total_jumps_all: 12222 total_jumps_covered_by_row_open: 11336 jumps_not_covered_when_no_row_open: 886 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 13959 one_jump_cycle: 166293 opt_saved_times: 166293 opt_saved_cycles: 497402 all_cycle_hist_0: 154592 all_cycle_hist_1_2: 11022 all_cycle_hist_3_4: 679 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 166293 row_hits: 166293 row_misses: 0 gloabl_row_accesses: 166293 global_row_hits: 166293 global_row_miss: 0 global_row_cycles: 0 total_read_words: 166293 total_used_words: 0
+my_jump256: multi_jump_cycle: 226858 one_jump_cycle: 95787 opt_saved_times: 83233 opt_saved_cycles: 249699 all_cycle_hist_0: 83565 all_cycle_hist_1_2: 12222 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 225972 total_accesses: 95787 row_hits: 83233 row_misses: 12554 gloabl_row_accesses: 95787 global_row_hits: 83233 global_row_miss: 12554 global_row_cycles: 225972 total_read_words: 196219 total_used_words: 0
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/offshore/offshore.mtx
+graph: mtx/outerspace/scircuit/scircuit.mtx
+map: SameBank
+normal_256: jump_one_cycle: 68128 jump_multiple_cycle: 14582 total_jumps_all: 23869 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 23869 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 307065 jump_multiple_cycle: 0 total_jumps_all: 16291 total_jumps_covered_by_row_open: 13537 jumps_not_covered_when_no_row_open: 2754 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 23869 one_jump_cycle: 58841 opt_saved_times: 58841 opt_saved_cycles: 173133 all_cycle_hist_0: 42263 all_cycle_hist_1_2: 16578 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 58841 row_hits: 58841 row_misses: 0 gloabl_row_accesses: 58841 global_row_hits: 58841 global_row_miss: 0 global_row_cycles: 0 total_read_words: 58841 total_used_words: 0
+my_jump256: multi_jump_cycle: 267768 one_jump_cycle: 39297 opt_saved_times: 24574 opt_saved_cycles: 73722 all_cycle_hist_0: 23006 all_cycle_hist_1_2: 16291 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 265014 total_accesses: 39297 row_hits: 24574 row_misses: 14723 gloabl_row_accesses: 39297 global_row_hits: 24574 global_row_miss: 14723 global_row_cycles: 265014 total_read_words: 157081 total_used_words: 0
+
+
+
+map_end: SameBank
+
+
+map: SameBankWeightedMapping
+normal_256: jump_one_cycle: 90665 jump_multiple_cycle: 1670 total_jumps_all: 11171 total_jumps_covered_by_row_open: 0 jumps_not_covered_when_no_row_open: 11171 jumps_not_covered_when_more_shift: 0
+normal_32: jump_one_cycle: 223831 jump_multiple_cycle: 0 total_jumps_all: 8990 total_jumps_covered_by_row_open: 7278 jumps_not_covered_when_no_row_open: 1712 jumps_not_covered_when_more_shift: 0
+my_jump256: multi_jump_cycle: 11171 one_jump_cycle: 81164 opt_saved_times: 81164 opt_saved_cycles: 243013 all_cycle_hist_0: 70828 all_cycle_hist_1_2: 10336 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 0 total_accesses: 81164 row_hits: 81164 row_misses: 0 gloabl_row_accesses: 81164 global_row_hits: 81164 global_row_miss: 0 global_row_cycles: 0 total_read_words: 81164 total_used_words: 0
+my_jump256: multi_jump_cycle: 160760 one_jump_cycle: 63071 opt_saved_times: 54235 opt_saved_cycles: 162705 all_cycle_hist_0: 54081 all_cycle_hist_1_2: 8990 all_cycle_hist_3_4: 0 all_cycle_hist_5_8: 0 all_cycle_hist_9_and_more: 0 row_cycle_total: 159048 total_accesses: 63071 row_hits: 54235 row_misses: 8836 gloabl_row_accesses: 63071 global_row_hits: 54235 global_row_miss: 8836 global_row_cycles: 159048 total_read_words: 133759 total_used_words: 0
+
+
+
+map_end: SameBankWeightedMapping
+
+
+graph_end: mtx/outerspace/scircuit/scircuit.mtx
+total_cycles_end
+
+

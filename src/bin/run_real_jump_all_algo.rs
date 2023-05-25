@@ -9,10 +9,7 @@ mod common;
 use rayon::prelude::*;
 use spmspm_pim::{
     algorithms::{bfs::Bfs, spmm::Spmm},
-    analysis::{
-        remap_analyze::real_jump::{self, MAX_RUN_ROUNDS},
-        translate_mapping::TranslateMapping,
-    },
+    analysis::{remap_analyze::real_jump, translate_mapping::TranslateMapping},
     init_logger_info,
     pim::configv2::{ConfigV3, MappingType},
     tools::file_server,
@@ -29,7 +26,7 @@ fn main() -> eyre::Result<()> {
     let total_graphs = config.graph_path.len() * 2 * 3;
     TOTAL_TASKS.store(total_graphs, Ordering::SeqCst);
 
-    let result: common::RealJumpResultMap = config
+    let result: common::AllJumpResultMap = config
         .graph_path
         .clone()
         .into_par_iter()
@@ -46,7 +43,10 @@ fn main() -> eyre::Result<()> {
 fn run_with_graph_path(
     graph_path: String,
     config: &ConfigV3,
-) -> (String, BTreeMap<MappingType, real_jump::RealJumpResult>) {
+) -> (
+    String,
+    BTreeMap<MappingType, real_jump::AllAlgorithomResults>,
+) {
     let graph_path_file_name = graph_path.split('/').last().unwrap();
     let _span = tracing::span!(tracing::Level::INFO, "", g = graph_path_file_name).entered();
     let matrix_tri: TriMatI<Pattern, u32> = sprs::io::read_matrix_market_from_bufread(
@@ -67,7 +67,7 @@ fn run_with_mapping(
     matrix_tri: &TriMatI<Pattern, u32>,
     matrix_csr: &CsMatI<Pattern, u32>,
     parent_span: &EnteredSpan,
-) -> (MappingType, real_jump::RealJumpResult) {
+) -> (MappingType, real_jump::AllAlgorithomResults) {
     // first build the mapping for the graph
     let _span = tracing::span!(parent: parent_span, tracing::Level::INFO, "", m=?map).entered();
     let result = match map {
@@ -91,7 +91,7 @@ fn run_with_mapping_sp<T: TranslateMapping + Sync>(
     map: &MappingType,
     mapping: &T,
     matrix_csr: &CsMatI<Pattern, u32>,
-) -> real_jump::RealJumpResult {
+) -> real_jump::AllAlgorithomResults {
     let mut config = config.clone();
     config.mapping = map.clone();
 
@@ -100,14 +100,7 @@ fn run_with_mapping_sp<T: TranslateMapping + Sync>(
         "started;  {} tasks running",
         RUNNING_TASKS.load(Ordering::SeqCst)
     );
-    let reuslt = real_jump::run_with_mapping(
-        mapping,
-        &config,
-        matrix_csr.view(),
-        Spmm::new(matrix_csr.view()),
-        MAX_RUN_ROUNDS,
-    )
-    .unwrap();
+    let reuslt = real_jump::run_all_algorithms(mapping, &config, matrix_csr.view()).unwrap();
     RUNNING_TASKS.fetch_sub(1, Ordering::SeqCst);
     FINISHED_TASKS.fetch_add(1, Ordering::SeqCst);
     info!(

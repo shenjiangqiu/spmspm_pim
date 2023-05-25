@@ -1,11 +1,14 @@
 use serde::{Deserialize, Serialize};
 
-use crate::analysis::remap_analyze::row_cycle::*;
+use crate::analysis::remap_analyze::{
+    remote_updator::{selective::SelectiveUpdator, RemoteUpdator},
+    row_cycle::*,
+};
 
 use super::{get_total_row_cycle, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
-pub struct NormalJumpCycle<const WALKER_SIZE: usize> {
+pub struct NormalJumpCycleSelective<const WALKER_SIZE: usize> {
     pub jump_one_cycle: usize,
     pub jump_multiple_cycle: usize,
 
@@ -14,8 +17,9 @@ pub struct NormalJumpCycle<const WALKER_SIZE: usize> {
     pub total_jumps_covered_by_row_open: usize,
     pub jumps_not_covered_when_no_row_open: usize,
     pub jumps_not_covered_when_more_shift: usize,
+    pub extra_scan_cycles: usize,
 }
-impl<const WALKER_SIZE: usize> UpdatableJumpCycle for NormalJumpCycle<WALKER_SIZE> {
+impl<const WALKER_SIZE: usize> UpdatableJumpCycle for NormalJumpCycleSelective<WALKER_SIZE> {
     fn update(
         &mut self,
         row_status: &RowIdWordId,
@@ -61,8 +65,22 @@ impl<const WALKER_SIZE: usize> UpdatableJumpCycle for NormalJumpCycle<WALKER_SIZ
         }
         self.jump_one_cycle += size.0;
     }
+
+    fn batch_update(
+        &mut self,
+        row_status: &RowIdWordId,
+        loc: &[RowLocation],
+        size: WordId,
+        remap_cycle: usize,
+    ) {
+        let mut selective_updator =
+            SelectiveUpdator::<WALKER_SIZE, _>::new(self, *row_status, size, remap_cycle);
+        selective_updator.update(loc);
+        let extra_cycle = selective_updator.extra_scan_cycles;
+        self.extra_scan_cycles += extra_cycle;
+    }
 }
-impl<const WALKER_SIZE: usize> NormalJumpCycle<WALKER_SIZE> {
+impl<const WALKER_SIZE: usize> NormalJumpCycleSelective<WALKER_SIZE> {
     /// the rate of jumps that can be covered by row open, jumps that cannot be covered by row open when no row open, jumps that cannot be covered by row open when more shift
     pub fn cover_rate(&self) -> [f32; 3] {
         [
@@ -72,9 +90,9 @@ impl<const WALKER_SIZE: usize> NormalJumpCycle<WALKER_SIZE> {
         ]
     }
 }
-impl<const WALKER_SIZE: usize> JumpCycle for NormalJumpCycle<WALKER_SIZE> {
+impl<const WALKER_SIZE: usize> JumpCycle for NormalJumpCycleSelective<WALKER_SIZE> {
     fn total(&self) -> usize {
-        self.jump_multiple_cycle + self.jump_one_cycle
+        self.jump_multiple_cycle + self.jump_one_cycle + self.extra_scan_cycles
     }
 
     fn get_one_jump(&self) -> usize {
@@ -93,10 +111,12 @@ impl<const WALKER_SIZE: usize> JumpCycle for NormalJumpCycle<WALKER_SIZE> {
         &mut self.jump_multiple_cycle
     }
 }
-impl<const WALKER_SIZE: usize> AddableJumpCycle for NormalJumpCycle<WALKER_SIZE> {
-    fn add(&mut self, normal_jump_cycle: &NormalJumpCycle<WALKER_SIZE>) {
+impl<const WALKER_SIZE: usize> AddableJumpCycle for NormalJumpCycleSelective<WALKER_SIZE> {
+    fn add(&mut self, normal_jump_cycle: &NormalJumpCycleSelective<WALKER_SIZE>) {
         self.jump_one_cycle += normal_jump_cycle.jump_one_cycle;
         self.jump_multiple_cycle += normal_jump_cycle.jump_multiple_cycle;
+        self.extra_scan_cycles += normal_jump_cycle.extra_scan_cycles;
+
         self.total_jumps_all += normal_jump_cycle.total_jumps_all;
         self.total_jumps_covered_by_row_open += normal_jump_cycle.total_jumps_covered_by_row_open;
         self.jumps_not_covered_when_no_row_open +=
@@ -110,7 +130,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_jump() {
-        let mut ideal_jump: NormalJumpCycle<32> = NormalJumpCycle::default();
+        let mut ideal_jump: NormalJumpCycleSelective<32> = NormalJumpCycleSelective::default();
         let row_status = RowIdWordId {
             row_id: PhysicRowId(0),
             word_id: WordId(0),
@@ -132,7 +152,7 @@ mod tests {
 
     #[test]
     fn test_jump_different_row() {
-        let mut ideal_jump: NormalJumpCycle<32> = NormalJumpCycle::default();
+        let mut ideal_jump: NormalJumpCycleSelective<32> = NormalJumpCycleSelective::default();
         let row_status = RowIdWordId {
             row_id: PhysicRowId(0),
             word_id: WordId(0),
@@ -155,7 +175,7 @@ mod tests {
     #[test]
     fn test_jump_different_row_with_jump_small() {
         // the gap is 4 words not 4 bytes! so the remap jump is always 1 or 2
-        let mut ideal_jump: NormalJumpCycle<32> = NormalJumpCycle::default();
+        let mut ideal_jump: NormalJumpCycleSelective<32> = NormalJumpCycleSelective::default();
         let row_status = RowIdWordId {
             row_id: PhysicRowId(0),
             word_id: WordId(0),
@@ -177,7 +197,7 @@ mod tests {
     #[test]
     fn test_jump_different_row_with_jump_large() {
         // the gap is 4 words not 4 bytes! so the remap jump is always 1 or 2
-        let mut ideal_jump: NormalJumpCycle<32> = NormalJumpCycle::default();
+        let mut ideal_jump: NormalJumpCycleSelective<32> = NormalJumpCycleSelective::default();
         let row_status = RowIdWordId {
             row_id: PhysicRowId(0),
             word_id: WordId(0),

@@ -1,6 +1,9 @@
 use std::ops::AddAssign;
 
-use crate::analysis::remap_analyze::row_cycle::*;
+use crate::analysis::remap_analyze::{
+    remote_updator::{selective::SelectiveUpdator, RemoteUpdator},
+    row_cycle::*,
+};
 use derive_more::AddAssign;
 use serde::{Deserialize, Serialize};
 
@@ -11,10 +14,10 @@ use super::{
 
 /// the optimized jump cycle, the normal jump and the calculation is overlapped
 #[derive(Default, Clone, Serialize, Deserialize, Debug, Copy, AddAssign)]
-pub struct MyJumpOpt<const GAP: usize, const WALKER_SIZE: usize> {
+pub struct MyJumpOptSelective<const GAP: usize, const WALKER_SIZE: usize> {
     /// the cycle that jump to the target location
     pub multi_jump_cycle: usize,
-
+    pub extra_scan_cycle: usize,
     /// the cycle that perform stream data read(one jump)
     pub one_jump_cycle: usize,
     /// the row open cycle for the request
@@ -42,7 +45,7 @@ pub struct MyJumpOpt<const GAP: usize, const WALKER_SIZE: usize> {
     pub total_used_words: usize,
 }
 impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
-    for MyJumpOpt<GAP, WALKER_SIZE>
+    for MyJumpOptSelective<GAP, WALKER_SIZE>
 {
     fn update(
         &mut self,
@@ -118,11 +121,27 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
             _ => self.all_cycle_hist_9_and_more += 1,
         }
     }
+
+    fn batch_update(
+        &mut self,
+        row_status: &RowIdWordId,
+        loc: &[RowLocation],
+        size: WordId,
+        remap_cycle: usize,
+    ) {
+        let mut selective_updator =
+            SelectiveUpdator::<WALKER_SIZE, _>::new(self, *row_status, size, remap_cycle);
+        selective_updator.update(loc);
+        let extra_cycle = selective_updator.extra_scan_cycles;
+        self.extra_scan_cycle += extra_cycle;
+    }
 }
 
-impl<const GAP: usize, const WALKER_SIZE: usize> JumpCycle for MyJumpOpt<GAP, WALKER_SIZE> {
+impl<const GAP: usize, const WALKER_SIZE: usize> JumpCycle
+    for MyJumpOptSelective<GAP, WALKER_SIZE>
+{
     fn total(&self) -> usize {
-        self.multi_jump_cycle + self.one_jump_cycle
+        self.multi_jump_cycle + self.one_jump_cycle + self.extra_scan_cycle
     }
 
     fn get_one_jump(&self) -> usize {
@@ -140,7 +159,9 @@ impl<const GAP: usize, const WALKER_SIZE: usize> JumpCycle for MyJumpOpt<GAP, WA
     }
 }
 
-impl<const GAP: usize, const WALKER_SIZE: usize> AddableJumpCycle for MyJumpOpt<GAP, WALKER_SIZE> {
+impl<const GAP: usize, const WALKER_SIZE: usize> AddableJumpCycle
+    for MyJumpOptSelective<GAP, WALKER_SIZE>
+{
     fn add(&mut self, other: &Self) {
         self.add_assign(*other);
     }
@@ -151,7 +172,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_jump() {
-        let mut ideal_jump: MyJumpOpt<4, 32> = MyJumpOpt::default();
+        let mut ideal_jump: MyJumpOptSelective<4, 32> = MyJumpOptSelective::default();
         let row_status = RowIdWordId {
             row_id: PhysicRowId(0),
             word_id: WordId(0),
@@ -175,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_jump_different_row() {
-        let mut ideal_jump: MyJumpOpt<4, 32> = MyJumpOpt::default();
+        let mut ideal_jump: MyJumpOptSelective<4, 32> = MyJumpOptSelective::default();
         let row_status = RowIdWordId {
             row_id: PhysicRowId(0),
             word_id: WordId(0),
@@ -200,7 +221,7 @@ mod tests {
     #[test]
     fn test_jump_different_row_with_jump_small() {
         // the gap is 4 words not 4 bytes! so the remap jump is always 1 or 2
-        let mut ideal_jump: MyJumpOpt<4, 32> = MyJumpOpt::default();
+        let mut ideal_jump: MyJumpOptSelective<4, 32> = MyJumpOptSelective::default();
         let row_status = RowIdWordId {
             row_id: PhysicRowId(0),
             word_id: WordId(0),
@@ -224,7 +245,7 @@ mod tests {
     #[test]
     fn test_jump_different_row_with_jump_large() {
         // the gap is 4 words not 4 bytes! so the remap jump is always 1 or 2
-        let mut ideal_jump: MyJumpOpt<4, 32> = MyJumpOpt::default();
+        let mut ideal_jump: MyJumpOptSelective<4, 32> = MyJumpOptSelective::default();
         let row_status = RowIdWordId {
             row_id: PhysicRowId(0),
             word_id: WordId(0),

@@ -48,3 +48,19 @@ impl<'a> RowCycleActionMut for UpdateAction<'a> {
         item.update(self.row_status, self.loc, self.size, self.remap_cycle);
     }
 }
+
+/// ## rust function
+/// ## Author: Jiangqiu Shen
+/// ## Date: 2023-05-24
+/// Description: a Action which impl RowCycleActionMut, used to update the row cycle in batch mode
+pub struct UpdateBatchAction<'a> {
+    pub row_status: &'a RowIdWordId,
+    pub loc: &'a [RowLocation],
+    pub size: WordId,
+    pub remap_cycle: usize,
+}
+impl<'a> RowCycleActionMut for UpdateBatchAction<'a> {
+    fn apply_mut<T: JumpCycle + UpdatableJumpCycle + AddableJumpCycle>(&mut self, item: &mut T) {
+        item.batch_update(self.row_status, self.loc, self.size, self.remap_cycle);
+    }
+}

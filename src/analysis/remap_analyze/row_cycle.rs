@@ -31,6 +31,14 @@ jump_cycles!(
     MyJumpOnly<4, 128>,
     MyJumpOnly<4, 64>,
     MyJumpOnly<4, 32>,
+    NormalJumpCycleSelective<256>,
+    NormalJumpCycleSelective<128>,
+    NormalJumpCycleSelective<64>,
+    NormalJumpCycleSelective<32>,
+    MyJumpOptSelective<4, 256>,
+    MyJumpOptSelective<4, 128>,
+    MyJumpOptSelective<4, 64>,
+    MyJumpOptSelective<4, 32>,
 );
 
 // #[derive(JumpCyclesStruct, Default, Clone, Serialize, Deserialize, Debug)]

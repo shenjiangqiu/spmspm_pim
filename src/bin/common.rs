@@ -1,9 +1,13 @@
 #![allow(dead_code)]
 use std::collections::BTreeMap;
 
-use spmspm_pim::{analysis::remap_analyze::real_jump::RealJumpResult, pim::configv2::MappingType};
+use spmspm_pim::{
+    analysis::remap_analyze::real_jump::{AllAlgorithomResults, RealJumpResult},
+    pim::configv2::MappingType,
+};
 
 pub type RealJumpResultMap = BTreeMap<String, BTreeMap<MappingType, RealJumpResult>>;
+pub type AllJumpResultMap = BTreeMap<String, BTreeMap<MappingType, AllAlgorithomResults>>;
 
 fn main() {}
 

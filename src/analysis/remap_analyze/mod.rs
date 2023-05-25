@@ -1,15 +1,17 @@
 pub mod action;
 pub mod jump;
+pub mod real_jump;
+pub mod remote_updator;
+// pub mod real_jump_iterative;
 pub mod row_cycle;
 use serde::{Deserialize, Serialize};
-use sprs::{num_kinds::Pattern, CsMatI};
+use sprs::{num_kinds::Pattern, CsMatViewI};
 use tracing::info;
 
-use crate::pim::configv2::ConfigV3;
+use crate::{algorithms::SpmvAlgorithm, pim::configv2::ConfigV3};
 
 use super::translate_mapping::TranslateMapping;
 
-pub mod real_jump;
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub enum SimulationType {
     #[default]
@@ -33,6 +35,18 @@ pub trait Simulator {
     fn run(
         &mut self,
         mapping: &impl TranslateMapping,
-        matrix_tri_translated: &CsMatI<Pattern, u32>,
+        matrix_tri_translated: CsMatViewI<Pattern, u32>,
+        algorithm: impl SpmvAlgorithm,
+        max_rounds: usize,
+    ) -> eyre::Result<Self::R>;
+}
+
+pub trait IterativeSimulator {
+    type R;
+    fn run(
+        &mut self,
+        mapping: &impl TranslateMapping,
+        matrix_tri_translated: CsMatViewI<Pattern, u32>,
+        algorithm: &mut impl SpmvAlgorithm,
     ) -> eyre::Result<Self::R>;
 }

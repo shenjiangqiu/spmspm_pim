@@ -30,7 +30,7 @@ impl<const GAP: usize, const WALKER_SIZE: usize> UpdatableJumpCycle
 
         let words_per_waler = WALKER_SIZE / 4;
         // fix the bug here! the ohe is smaller when the WALKER_SIZE is smaller
-        let real_loc_word_id = loc.row_id_world_id.word_id.0 % words_per_waler;
+        let real_loc_word_id = loc.row_id_word_id.word_id.0 % words_per_waler;
         // let real_row_status_word_id = row_status.word_id.0 % words_per_waler;
 
         let (first_row, remaining_row) = get_total_row_cycle::<WALKER_SIZE>(row_status, loc, size);
@@ -88,7 +88,7 @@ mod tests {
             word_id: WordId(0),
         };
         let location = RowLocation {
-            row_id_world_id: RowIdWordId {
+            row_id_word_id: RowIdWordId {
                 row_id: PhysicRowId(0),
                 word_id: WordId(0),
             },
@@ -110,7 +110,7 @@ mod tests {
             word_id: WordId(0),
         };
         let location = RowLocation {
-            row_id_world_id: RowIdWordId {
+            row_id_word_id: RowIdWordId {
                 row_id: PhysicRowId(1),
                 word_id: WordId(0),
             },
@@ -133,7 +133,7 @@ mod tests {
             word_id: WordId(0),
         };
         let location = RowLocation {
-            row_id_world_id: RowIdWordId {
+            row_id_word_id: RowIdWordId {
                 row_id: PhysicRowId(1),
                 word_id: WordId(6),
             },
@@ -155,7 +155,7 @@ mod tests {
             word_id: WordId(0),
         };
         let location = RowLocation {
-            row_id_world_id: RowIdWordId {
+            row_id_word_id: RowIdWordId {
                 row_id: PhysicRowId(1),
                 word_id: WordId(16),
             },

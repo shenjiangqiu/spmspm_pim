@@ -569,15 +569,15 @@ pub fn run_all_algorithms(
         config,
         translated_csr.view(),
         Bfs::new(translated_csr.view()),
-        MAX_RUN_ROUNDS,
+        None,
     )?;
-    let page_rank = run_with_mapping(mapping, config, translated_csr, PageRank, 1)?;
+    let page_rank = run_with_mapping(mapping, config, translated_csr, PageRank, Some(1))?;
     let spmm = run_with_mapping(
         mapping,
         config,
         translated_csr.view(),
         Spmm::new(translated_csr.view()),
-        MAX_RUN_ROUNDS,
+        Some(MAX_RUN_ROUNDS),
     )?;
     Ok(AllAlgorithomResults {
         bfs,
@@ -591,7 +591,7 @@ pub fn run_with_mapping(
     config: &ConfigV3,
     matrix_csr: CsMatViewI<Pattern, u32>,
     algorithm: impl SpmvAlgorithm,
-    max_rounds: usize,
+    max_rounds: Option<usize>,
 ) -> eyre::Result<RealJumpResult> {
     let remap_cycle = config.remap_cycle;
     info!("remap cycle: {}", remap_cycle);
@@ -741,7 +741,7 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
                         &config,
                         translated_csr.view(),
                         Spmm::new(translated_csr.view()),
-                        MAX_RUN_ROUNDS,
+                        Some(MAX_RUN_ROUNDS),
                     )?
                     // free the hardware guard here, it's automatically dropped
                 }
@@ -765,7 +765,7 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
                         &config,
                         translated_csr.view(),
                         Spmm::new(translated_csr.view()),
-                        MAX_RUN_ROUNDS,
+                        Some(MAX_RUN_ROUNDS),
                     )?
                 }
             };
@@ -834,7 +834,7 @@ impl super::Simulator for RealJumpSimulator {
         mapping: &impl TranslateMapping,
         csr_translated: CsMatViewI<Pattern, u32>,
         mut algorithm: impl SpmvAlgorithm,
-        max_rounds: usize,
+        max_rounds: Option<usize>,
     ) -> eyre::Result<Self::R> {
         let start_time = Instant::now();
         let mut next_print_time = Duration::from_secs(60);
@@ -856,6 +856,9 @@ impl super::Simulator for RealJumpSimulator {
                     );
                     next_print_time += Duration::from_secs(60);
                 }
+            }
+            // stop if we reach the max rounds
+            if let Some(max_rounds) = max_rounds {
                 if target_id + 1 > max_rounds {
                     break;
                 }

@@ -37,7 +37,7 @@ pub trait Simulator {
         mapping: &impl TranslateMapping,
         matrix_tri_translated: CsMatViewI<Pattern, u32>,
         algorithm: impl SpmvAlgorithm,
-        max_rounds: usize,
+        max_rounds: Option<usize>,
     ) -> eyre::Result<Self::R>;
 }
 

@@ -105,7 +105,7 @@ fn run_with_mapping_sp<T: TranslateMapping + Sync>(
         &config,
         matrix_csr.view(),
         Spmm::new(matrix_csr.view()),
-        MAX_RUN_ROUNDS,
+        Some(MAX_RUN_ROUNDS),
     )
     .unwrap();
     RUNNING_TASKS.fetch_sub(1, Ordering::SeqCst);

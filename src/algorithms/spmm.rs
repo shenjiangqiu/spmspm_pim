@@ -33,3 +33,28 @@ impl<'a> SpmvAlgorithm for Spmm<'a> {
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use sprs::{CsMatI, CsVecI};
+
+    use super::*;
+
+    #[test]
+    fn test_next_frontier() {
+        let matrix = CsMatI::new_csc((3, 3), vec![0, 1, 2, 3], vec![0, 1, 2], vec![Pattern; 3]);
+        let mut spmm = Spmm::new(matrix.view());
+        assert_eq!(
+            spmm.next_frontier(),
+            Some(FrontierType::Some(CsVecI::new(3, vec![0], vec![Pattern])))
+        );
+        assert_eq!(
+            spmm.next_frontier(),
+            Some(FrontierType::Some(CsVecI::new(3, vec![1], vec![Pattern])))
+        );
+        assert_eq!(
+            spmm.next_frontier(),
+            Some(FrontierType::Some(CsVecI::new(3, vec![2], vec![Pattern])))
+        );
+        assert_eq!(spmm.next_frontier(), None);
+    }
+}

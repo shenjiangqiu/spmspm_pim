@@ -5,10 +5,11 @@
 pub mod bfs;
 pub mod page_rank;
 pub mod spmm;
-pub mod sssp;
+// sssp is identical to bfs now
+// pub mod sssp;
 use sprs::{num_kinds::Pattern, CsVecI};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum FrontierType {
     All,
     Some(CsVecI<Pattern, u32>),

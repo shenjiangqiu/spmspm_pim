@@ -7,3 +7,15 @@ impl SpmvAlgorithm for PageRank {
         Some(FrontierType::All)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::PageRank;
+    use crate::algorithms::SpmvAlgorithm;
+
+    #[test]
+    fn test_next_frontier() {
+        let mut page_rank = PageRank;
+        assert_eq!(page_rank.next_frontier(), Some(super::FrontierType::All));
+    }
+}

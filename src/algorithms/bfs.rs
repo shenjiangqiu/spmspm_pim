@@ -90,5 +90,6 @@ mod tests {
         while let Some(frontier) = bfs.next_frontier() {
             println!("{:?}", frontier);
         }
+        assert!(bfs.next_frontier().is_none());
     }
 }

@@ -77,7 +77,7 @@ fn main() -> eyre::Result<()> {
                             for walker_size in walker_size.into_iter().enumerate() {
                                 let (walker_size, cycle): (usize, TreeCycle) = walker_size;
                                 print!(
-                                    "walker_size-{}, {} {} {} {:.2}",
+                                    "walker_size-{}, {} {} {} {:.2} ",
                                     walker_size,
                                     cycle[0],
                                     cycle[1],

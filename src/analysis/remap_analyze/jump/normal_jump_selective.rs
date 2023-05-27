@@ -1,3 +1,5 @@
+use std::ops::AddAssign;
+
 use serde::{Deserialize, Serialize};
 
 use crate::analysis::remap_analyze::{
@@ -7,7 +9,9 @@ use crate::analysis::remap_analyze::{
 
 use super::{get_total_row_cycle, AddableJumpCycle, JumpCycle, UpdatableJumpCycle};
 
-#[derive(Default, Clone, Serialize, Deserialize, Debug, Copy)]
+#[derive(
+    Default, Clone, Serialize, Deserialize, Debug, Copy, PartialEq, Eq, derive_more::AddAssign,
+)]
 pub struct NormalJumpCycleSelective<const WALKER_SIZE: usize> {
     pub jump_one_cycle: usize,
     pub jump_multiple_cycle: usize,
@@ -113,16 +117,7 @@ impl<const WALKER_SIZE: usize> JumpCycle for NormalJumpCycleSelective<WALKER_SIZ
 }
 impl<const WALKER_SIZE: usize> AddableJumpCycle for NormalJumpCycleSelective<WALKER_SIZE> {
     fn add(&mut self, normal_jump_cycle: &NormalJumpCycleSelective<WALKER_SIZE>) {
-        self.jump_one_cycle += normal_jump_cycle.jump_one_cycle;
-        self.jump_multiple_cycle += normal_jump_cycle.jump_multiple_cycle;
-        self.extra_scan_cycles += normal_jump_cycle.extra_scan_cycles;
-
-        self.total_jumps_all += normal_jump_cycle.total_jumps_all;
-        self.total_jumps_covered_by_row_open += normal_jump_cycle.total_jumps_covered_by_row_open;
-        self.jumps_not_covered_when_no_row_open +=
-            normal_jump_cycle.jumps_not_covered_when_no_row_open;
-        self.jumps_not_covered_when_more_shift +=
-            normal_jump_cycle.jumps_not_covered_when_more_shift;
+        self.add_assign(*normal_jump_cycle)
     }
 }
 #[cfg(test)]

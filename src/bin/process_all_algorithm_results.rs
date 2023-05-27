@@ -35,22 +35,22 @@ fn main() -> eyre::Result<()> {
     print_fn(
         &result,
         || {
-            println!("total_cycles");
+            // println!("total_cycles");
         },
         || {
-            println!("total_cycles_end\n\n");
+            // println!("total_cycles_end\n\n");
         },
         |g| {
-            println!("graph: {}", g);
+            // println!("graph: {}", g);
         },
         |g| {
-            println!("graph_end: {}", g);
+            // println!("graph_end: {}", g);
         },
         |_g, m| {
-            println!("map: {:?}", m);
+            // println!("map: {:?}", m);
         },
         |_g, m| {
-            println!("map_end: {:?}\n\n", m);
+            // println!("map_end: {:?}\n\n", m);
         },
         |graph_name, mapping_type, single_result| {
             let AllAlgorithomResults {
@@ -87,14 +87,14 @@ fn main() -> eyre::Result<()> {
             for (jump_type, jump_result) in mapping_result {
                 let st = jump_result
                     .iter()
-                    .map(|(_graph_name, (real, disp, remote))| {
+                    .map(|(graph_name, (real, disp, remote))| {
                         // let total = real + disp + remote;
                         // let real_percent = *real as f64 / total as f64;
                         // let disp_percent = *disp as f64 / total as f64;
                         // let remote_percent = *remote as f64 / total as f64;
                         // format!(" | {} {} {}", real_percent, disp_percent, remote_percent)
                         let total = real + disp + remote;
-                        format!("| {} {} {} {}", real, disp, remote, total)
+                        format!(" | | | {graph_name} {} {} {} {}", real, disp, remote, total)
                     })
                     .join(" ");
                 println!("{algo_name}-{:?}-{:?}: {}", mapping_type, jump_type, st);

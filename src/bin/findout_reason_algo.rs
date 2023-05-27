@@ -65,28 +65,26 @@ fn main() -> eyre::Result<()> {
             for algo in all.into_iter().enumerate() {
                 let (algo_name, local_remote): (usize, TwoLocalRemote) = algo;
                 for local_or_remote in local_remote.into_iter().enumerate() {
-                    let (local_or_remote, normal_opt): (usize, TwoNormalOpt) = local_or_remote;
-                    for normal_opt in normal_opt.into_iter().enumerate() {
-                        let (normal_or_opt, select_type): (usize, TwoSelect) = normal_opt;
-                        for select_type in select_type.into_iter().enumerate() {
-                            let (select_type, walker_size): (usize, FourWalker) = select_type;
+                    let (local_or_remote, select_type): (usize, TwoSelect) = local_or_remote;
+
+                    for select_type in select_type.into_iter().enumerate() {
+                        let (select_type, walker_size): (usize, FourWalker) = select_type;
+                        print!(
+                            "g-{graph_name} algo-{} lo-re-{} sel-{} ",
+                            algo_name, local_or_remote, select_type
+                        );
+                        for walker_size in walker_size.into_iter().enumerate() {
+                            let (walker_size, cycle): (usize, TreeCycle) = walker_size;
                             print!(
-                                "algo-{} lo-re-{} no-op-{} sel-{} ",
-                                algo_name, local_or_remote, normal_or_opt, select_type
+                                "walker_size-{}, {} {} {} {:.2} ",
+                                walker_size,
+                                cycle[0],
+                                cycle[1],
+                                cycle[2],
+                                cycle[2] as f32 / (cycle[0] + cycle[1] + cycle[2]) as f32
                             );
-                            for walker_size in walker_size.into_iter().enumerate() {
-                                let (walker_size, cycle): (usize, TreeCycle) = walker_size;
-                                print!(
-                                    "walker_size-{}, {} {} {} {:.2} ",
-                                    walker_size,
-                                    cycle[0],
-                                    cycle[1],
-                                    cycle[2],
-                                    cycle[2] as f32 / (cycle[0] + cycle[1] + cycle[2]) as f32
-                                );
-                            }
-                            println!();
                         }
+                        println!();
                     }
                 }
             }
@@ -98,8 +96,7 @@ fn main() -> eyre::Result<()> {
 type TreeCycle = [usize; 3];
 type FourWalker = [TreeCycle; 4];
 type TwoSelect = [FourWalker; 2];
-type TwoNormalOpt = [TwoSelect; 2];
-type TwoLocalRemote = [TwoNormalOpt; 2];
+type TwoLocalRemote = [TwoSelect; 2];
 /// 2-local_remote, 2-normal_opt, 2-select_type, 4-walker_size, 3-cycle
 fn break_algorithm(bfs: &RealJumpResult) -> TwoLocalRemote {
     let local = bfs.row_cycles;
@@ -109,7 +106,7 @@ fn break_algorithm(bfs: &RealJumpResult) -> TwoLocalRemote {
     [local_update_break_down, remote_update_break_down]
 }
 /// 2-normal_opt, 2-select_type, 4-walker_size, 3-cycle
-fn break_down(local: AllJumpCycles) -> TwoNormalOpt {
+fn break_down(local: AllJumpCycles) -> TwoSelect {
     let local_normal_256 = local.normal_jump_cycle_256;
     let local_normal_128 = local.normal_jump_cycle_128;
     let local_normal_64 = local.normal_jump_cycle_64;
@@ -162,62 +159,62 @@ fn break_down(local: AllJumpCycles) -> TwoNormalOpt {
             local_selective_256.extra_scan_cycles,
         ],
     ];
-    let total_normal = [local_break_down, local_selective_break_down];
-    let local_opt_256 = local.my_jump_opt_4_256;
-    let local_opt_128 = local.my_jump_opt_4_128;
-    let local_opt_64 = local.my_jump_opt_4_64;
-    let local_opt_32 = local.my_jump_opt_4_32;
-    let local_opt_break_down = [
-        [
-            local_opt_256.multi_jump_cycle,
-            local_opt_256.one_jump_cycle,
-            0,
-        ],
-        [
-            local_opt_128.multi_jump_cycle,
-            local_opt_128.one_jump_cycle,
-            0,
-        ],
-        [
-            local_opt_64.multi_jump_cycle,
-            local_opt_64.one_jump_cycle,
-            0,
-        ],
-        [
-            local_opt_32.multi_jump_cycle,
-            local_opt_32.one_jump_cycle,
-            0,
-        ],
-    ];
-    let local_opt_selective_256 = local.my_jump_opt_selective_4_256;
-    let local_opt_selective_128 = local.my_jump_opt_selective_4_128;
-    let local_opt_selective_64 = local.my_jump_opt_selective_4_64;
-    let local_opt_selective_32 = local.my_jump_opt_selective_4_32;
-    let local_opt_selective_break_down = [
-        [
-            local_opt_selective_256.multi_jump_cycle,
-            local_opt_selective_256.one_jump_cycle,
-            local_opt_selective_256.extra_scan_cycle,
-        ],
-        [
-            local_opt_selective_128.multi_jump_cycle,
-            local_opt_selective_128.one_jump_cycle,
-            local_opt_selective_256.extra_scan_cycle,
-        ],
-        [
-            local_opt_selective_64.multi_jump_cycle,
-            local_opt_selective_64.one_jump_cycle,
-            local_opt_selective_256.extra_scan_cycle,
-        ],
-        [
-            local_opt_selective_32.multi_jump_cycle,
-            local_opt_selective_32.one_jump_cycle,
-            local_opt_selective_256.extra_scan_cycle,
-        ],
-    ];
-    let total_opt = [local_opt_break_down, local_opt_selective_break_down];
 
-    [total_normal, total_opt]
+    // let local_opt_256 = local.my_jump_opt_4_256;
+    // let local_opt_128 = local.my_jump_opt_4_128;
+    // let local_opt_64 = local.my_jump_opt_4_64;
+    // let local_opt_32 = local.my_jump_opt_4_32;
+    // let local_opt_break_down = [
+    //     [
+    //         local_opt_256.multi_jump_cycle,
+    //         local_opt_256.one_jump_cycle,
+    //         0,
+    //     ],
+    //     [
+    //         local_opt_128.multi_jump_cycle,
+    //         local_opt_128.one_jump_cycle,
+    //         0,
+    //     ],
+    //     [
+    //         local_opt_64.multi_jump_cycle,
+    //         local_opt_64.one_jump_cycle,
+    //         0,
+    //     ],
+    //     [
+    //         local_opt_32.multi_jump_cycle,
+    //         local_opt_32.one_jump_cycle,
+    //         0,
+    //     ],
+    // ];
+    // let local_opt_selective_256 = local.my_jump_opt_selective_4_256;
+    // let local_opt_selective_128 = local.my_jump_opt_selective_4_128;
+    // let local_opt_selective_64 = local.my_jump_opt_selective_4_64;
+    // let local_opt_selective_32 = local.my_jump_opt_selective_4_32;
+    // let local_opt_selective_break_down = [
+    //     [
+    //         local_opt_selective_256.multi_jump_cycle,
+    //         local_opt_selective_256.one_jump_cycle,
+    //         local_opt_selective_256.extra_scan_cycle,
+    //     ],
+    //     [
+    //         local_opt_selective_128.multi_jump_cycle,
+    //         local_opt_selective_128.one_jump_cycle,
+    //         local_opt_selective_256.extra_scan_cycle,
+    //     ],
+    //     [
+    //         local_opt_selective_64.multi_jump_cycle,
+    //         local_opt_selective_64.one_jump_cycle,
+    //         local_opt_selective_256.extra_scan_cycle,
+    //     ],
+    //     [
+    //         local_opt_selective_32.multi_jump_cycle,
+    //         local_opt_selective_32.one_jump_cycle,
+    //         local_opt_selective_256.extra_scan_cycle,
+    //     ],
+    // ];
+    // let total_opt = [local_opt_break_down, local_opt_selective_break_down];
+
+    [local_break_down, local_selective_break_down]
 }
 
 fn print_single_algorithm<'a>(

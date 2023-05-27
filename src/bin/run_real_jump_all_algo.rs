@@ -23,7 +23,7 @@ fn main() -> eyre::Result<()> {
     init_logger_info();
     let config: ConfigV3 =
         toml::from_str(include_str!("../../configs/real_jump_same_bank-1-16.toml")).unwrap();
-    let total_graphs = config.graph_path.len() * 2 * 3;
+    let total_graphs = config.graph_path.len() * 2;
     TOTAL_TASKS.store(total_graphs, Ordering::SeqCst);
 
     let result: common::AllJumpResultMap = config

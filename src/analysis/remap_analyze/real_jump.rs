@@ -331,7 +331,9 @@ impl RealJumpSimulator {
                 size: WordId(1),
                 remap_cycle: self.remap_cycle,
             };
+
             remote_dense_cycles.apply_mut(&mut update_batch_action);
+
             if let Some(row_loc) = loc.last() {
                 *remote_dense_status = row_loc.row_id_word_id;
             }

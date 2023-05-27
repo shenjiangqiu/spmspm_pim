@@ -3,10 +3,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use spmspm_pim::{
-    analysis::remap_analyze::{
-        jump::{MyJumpOpt, NormalJumpCycle},
-        real_jump::RealJumpResult,
-    },
+    analysis::remap_analyze::{jump::NormalJumpCycle, real_jump::RealJumpResult},
     pim::configv2::MappingType,
     tools::file_server,
 };
@@ -73,92 +70,92 @@ fn main() -> eyre::Result<()> {
                 jump_one_cycle, jump_multiple_cycle, total_jumps_all, total_jumps_covered_by_row_open, jumps_not_covered_when_no_row_open, jumps_not_covered_when_more_shift
             );
 
-            let my_jump256 = remote_write.my_jump_opt_4_256;
-            let MyJumpOpt {
-                multi_jump_cycle,
-                one_jump_cycle,
-                opt_saved_times,
-                opt_saved_cycles,
-                all_cycle_hist_0,
-                all_cycle_hist_1_2,
-                all_cycle_hist_3_4,
-                all_cycle_hist_5_8,
-                all_cycle_hist_9_and_more,
-                row_cycle_total,
-                total_accesses,
-                row_hits,
-                row_misses,
-                gloabl_row_accesses,
-                global_row_hits,
-                global_row_miss,
-                global_row_cycles,
-                total_read_words,
-                total_used_words,
-            } = my_jump256;
-            println!(
-                "my_jump256: multi_jump_cycle: {multi_jump_cycle:?} \
-                 one_jump_cycle: {one_jump_cycle:?} \
-                 opt_saved_times: {opt_saved_times:?} \
-                 opt_saved_cycles: {opt_saved_cycles:?} \
-                 all_cycle_hist_0: {all_cycle_hist_0:?} \
-                 all_cycle_hist_1_2: {all_cycle_hist_1_2:?} \
-                 all_cycle_hist_3_4: {all_cycle_hist_3_4:?} \
-                 all_cycle_hist_5_8: {all_cycle_hist_5_8:?} \
-                 all_cycle_hist_9_and_more: {all_cycle_hist_9_and_more:?} \
-                 row_cycle_total: {row_cycle_total:?} \
-                 total_accesses: {total_accesses:?} \
-                 row_hits: {row_hits:?} \
-                 row_misses: {row_misses:?} \
-                 gloabl_row_accesses: {gloabl_row_accesses:?} \
-                 global_row_hits: {global_row_hits:?} \
-                 global_row_miss: {global_row_miss:?} \
-                 global_row_cycles: {global_row_cycles:?} \
-                 total_read_words: {total_read_words:?} \
-                 total_used_words: {total_used_words:?}"
-            );
-            let my_jump_32 = remote_write.my_jump_opt_4_32;
-            let MyJumpOpt {
-                multi_jump_cycle,
-                one_jump_cycle,
-                opt_saved_times,
-                opt_saved_cycles,
-                all_cycle_hist_0,
-                all_cycle_hist_1_2,
-                all_cycle_hist_3_4,
-                all_cycle_hist_5_8,
-                all_cycle_hist_9_and_more,
-                row_cycle_total,
-                total_accesses,
-                row_hits,
-                row_misses,
-                gloabl_row_accesses,
-                global_row_hits,
-                global_row_miss,
-                global_row_cycles,
-                total_read_words,
-                total_used_words,
-            } = my_jump_32;
-            println!(
-                "my_jump256: multi_jump_cycle: {multi_jump_cycle:?} \
-                 one_jump_cycle: {one_jump_cycle:?} \
-                 opt_saved_times: {opt_saved_times:?} \
-                 opt_saved_cycles: {opt_saved_cycles:?} \
-                 all_cycle_hist_0: {all_cycle_hist_0:?} \
-                 all_cycle_hist_1_2: {all_cycle_hist_1_2:?} \
-                 all_cycle_hist_3_4: {all_cycle_hist_3_4:?} \
-                 all_cycle_hist_5_8: {all_cycle_hist_5_8:?} \
-                 all_cycle_hist_9_and_more: {all_cycle_hist_9_and_more:?} \
-                 row_cycle_total: {row_cycle_total:?} \
-                 total_accesses: {total_accesses:?} \
-                 row_hits: {row_hits:?} \
-                 row_misses: {row_misses:?} \
-                 gloabl_row_accesses: {gloabl_row_accesses:?} \
-                 global_row_hits: {global_row_hits:?} \
-                 global_row_miss: {global_row_miss:?} \
-                 global_row_cycles: {global_row_cycles:?} \
-                 total_read_words: {total_read_words:?} \
-                 total_used_words: {total_used_words:?}"
-            );
+            // // let my_jump256 = remote_write.my_jump_opt_4_256;
+            // let MyJumpOpt {
+            //     multi_jump_cycle,
+            //     one_jump_cycle,
+            //     opt_saved_times,
+            //     opt_saved_cycles,
+            //     all_cycle_hist_0,
+            //     all_cycle_hist_1_2,
+            //     all_cycle_hist_3_4,
+            //     all_cycle_hist_5_8,
+            //     all_cycle_hist_9_and_more,
+            //     row_cycle_total,
+            //     total_accesses,
+            //     row_hits,
+            //     row_misses,
+            //     gloabl_row_accesses,
+            //     global_row_hits,
+            //     global_row_miss,
+            //     global_row_cycles,
+            //     total_read_words,
+            //     total_used_words,
+            // } = my_jump256;
+            // println!(
+            //     "my_jump256: multi_jump_cycle: {multi_jump_cycle:?} \
+            //      one_jump_cycle: {one_jump_cycle:?} \
+            //      opt_saved_times: {opt_saved_times:?} \
+            //      opt_saved_cycles: {opt_saved_cycles:?} \
+            //      all_cycle_hist_0: {all_cycle_hist_0:?} \
+            //      all_cycle_hist_1_2: {all_cycle_hist_1_2:?} \
+            //      all_cycle_hist_3_4: {all_cycle_hist_3_4:?} \
+            //      all_cycle_hist_5_8: {all_cycle_hist_5_8:?} \
+            //      all_cycle_hist_9_and_more: {all_cycle_hist_9_and_more:?} \
+            //      row_cycle_total: {row_cycle_total:?} \
+            //      total_accesses: {total_accesses:?} \
+            //      row_hits: {row_hits:?} \
+            //      row_misses: {row_misses:?} \
+            //      gloabl_row_accesses: {gloabl_row_accesses:?} \
+            //      global_row_hits: {global_row_hits:?} \
+            //      global_row_miss: {global_row_miss:?} \
+            //      global_row_cycles: {global_row_cycles:?} \
+            //      total_read_words: {total_read_words:?} \
+            //      total_used_words: {total_used_words:?}"
+            // );
+            // let my_jump_32 = remote_write.my_jump_opt_4_32;
+            // let MyJumpOpt {
+            //     multi_jump_cycle,
+            //     one_jump_cycle,
+            //     opt_saved_times,
+            //     opt_saved_cycles,
+            //     all_cycle_hist_0,
+            //     all_cycle_hist_1_2,
+            //     all_cycle_hist_3_4,
+            //     all_cycle_hist_5_8,
+            //     all_cycle_hist_9_and_more,
+            //     row_cycle_total,
+            //     total_accesses,
+            //     row_hits,
+            //     row_misses,
+            //     gloabl_row_accesses,
+            //     global_row_hits,
+            //     global_row_miss,
+            //     global_row_cycles,
+            //     total_read_words,
+            //     total_used_words,
+            // } = my_jump_32;
+            // println!(
+            //     "my_jump256: multi_jump_cycle: {multi_jump_cycle:?} \
+            //      one_jump_cycle: {one_jump_cycle:?} \
+            //      opt_saved_times: {opt_saved_times:?} \
+            //      opt_saved_cycles: {opt_saved_cycles:?} \
+            //      all_cycle_hist_0: {all_cycle_hist_0:?} \
+            //      all_cycle_hist_1_2: {all_cycle_hist_1_2:?} \
+            //      all_cycle_hist_3_4: {all_cycle_hist_3_4:?} \
+            //      all_cycle_hist_5_8: {all_cycle_hist_5_8:?} \
+            //      all_cycle_hist_9_and_more: {all_cycle_hist_9_and_more:?} \
+            //      row_cycle_total: {row_cycle_total:?} \
+            //      total_accesses: {total_accesses:?} \
+            //      row_hits: {row_hits:?} \
+            //      row_misses: {row_misses:?} \
+            //      gloabl_row_accesses: {gloabl_row_accesses:?} \
+            //      global_row_hits: {global_row_hits:?} \
+            //      global_row_miss: {global_row_miss:?} \
+            //      global_row_cycles: {global_row_cycles:?} \
+            //      total_read_words: {total_read_words:?} \
+            //      total_used_words: {total_used_words:?}"
+            // );
 
             println!("\n\n");
         },

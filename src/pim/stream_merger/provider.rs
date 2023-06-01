@@ -229,6 +229,7 @@ mod tests {
     use super::Provider;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_bank_provider() {
         let mut current_cycle = 0;
         let config = Config::from_ddr4_3200(
@@ -278,6 +279,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_change_line() {
         let current_cycle = 0;
         let config = Config::from_ddr4_3200(

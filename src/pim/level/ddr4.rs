@@ -228,6 +228,7 @@ impl LevelTrait for Level {
 mod tests {
     use super::*;
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_mapping() {
         let graph = sprs::io::read_matrix_market("test_mtx/test.mtx")
             .unwrap()

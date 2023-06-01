@@ -579,6 +579,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_simple_stream_merger() {
         init_logger_debug();
         debug!("test_simple_stream_merger");
@@ -632,6 +633,7 @@ mod tests {
 
     /// test task and message pass from multiple level
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_2_merger_2_provider() {
         init_logger_debug();
         debug!("test_simple_stream_merger");
@@ -704,6 +706,7 @@ mod tests {
 
     /// test multiple task working in parallel
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_2_merger_2_provider_multitask() {
         init_logger_debug();
         debug!("test_simple_stream_merger");

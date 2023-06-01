@@ -81,6 +81,7 @@ mod tests {
     use super::Bfs;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_bfs() {
         let matrix: CsMatI<Pattern, u32> = sprs::io::read_matrix_market("test_mtx/test_large.mtx")
             .unwrap()

@@ -49,12 +49,18 @@ fn run_with_graph_path(
     String,
     BTreeMap<MappingType, real_jump::AllAlgorithomResults>,
 ) {
-    let graph_path_file_name = graph_path.split('/').last().unwrap();
+    // get the graph name after the last / or the whole path
+    let graph_path_file_name = graph_path.split('/').last().unwrap_or(graph_path.as_str());
     let _span = tracing::span!(tracing::Level::INFO, "", g = graph_path_file_name).entered();
     let matrix_tri: TriMatI<Pattern, u32> = sprs::io::read_matrix_market_from_bufread(
         &mut file_server::file_reader(&graph_path).unwrap(),
     )
     .unwrap();
+    println!(
+        "name: {}, nodes: {}",
+        graph_path_file_name,
+        matrix_tri.cols()
+    );
     let matrix_csr: CsMatI<Pattern, u32> = matrix_tri.to_csr();
     let result: BTreeMap<_, _> = [MappingType::SameBank, MappingType::SameBankWeightedMapping]
         .into_par_iter()

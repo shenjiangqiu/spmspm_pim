@@ -324,6 +324,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::needless_collect)]
+    #[cfg_attr(miri, ignore)]
     fn test_memory_acquire() -> eyre::Result<()> {
         init_logger_stderr(LevelFilter::INFO);
         std::env::set_var("MEMORY_LIMIT", "100");

@@ -124,6 +124,7 @@ mod tests {
 
     use crate::{analysis::translate_mapping::TranslateMapping, init_logger_stderr};
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_dist() {
         init_logger_stderr(LevelFilter::DEBUG);
         let matrix: TriMatI<Pattern, u32> =

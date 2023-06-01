@@ -234,6 +234,7 @@ fn rec_bar(
 mod tests {
     use super::*;
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_draw_area() -> eyre::Result<()> {
         let root = BitMapBackend::new("test.png", (1920, 1080)).into_drawing_area();
         root.fill(&WHITE)?;

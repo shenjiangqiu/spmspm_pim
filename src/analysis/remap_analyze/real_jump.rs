@@ -333,7 +333,14 @@ impl RealJumpSimulator {
             };
 
             remote_dense_cycles.apply_mut(&mut update_batch_action);
-
+            #[cfg(debug_assertions)]
+            {
+                // let no_select = remote_dense_cycles.normal_jump_cycle_32;
+                // let select = remote_dense_cycles.normal_jump_cycle_selective_32;
+                // if no_select.total() != select.total() {
+                //     error!("{:#?},{:#?}", no_select, select);
+                // }
+            }
             if let Some(row_loc) = loc.last() {
                 *remote_dense_status = row_loc.row_id_word_id;
             }
@@ -341,6 +348,18 @@ impl RealJumpSimulator {
 
         update_row_cycle(&self.col_cycles_local, &mut result.local_dense_col_cycles);
         update_row_cycle(&self.col_cycles_remote, &mut result.remote_dense_col_cycles);
+        #[cfg(debug_assertions)]
+        {
+            use tracing::error;
+            let no_select = result.remote_dense_col_cycles.normal_jump_cycle_32;
+            let select = result
+                .remote_dense_col_cycles
+                .normal_jump_cycle_selective_32;
+            if no_select.total() != select.total() {
+                error!("{:#?},{:#?}", no_select, select);
+            }
+        }
+
         update_row_cycle(&self.evil_row_cycles, &mut result.evil_row_cycles);
         update_row_cycle(&self.non_evil_row_cycles, &mut result.row_cycles);
 
@@ -401,7 +420,6 @@ impl RealJumpSimulator {
             .for_each(|(r, l)| {
                 *r += l;
             });
-
         // reset the cycle
         self.col_cycles_local = vec![Default::default(); self.col_cycles_local.len()];
         self.col_cycles_remote = vec![Default::default(); self.col_cycles_remote.len()];
@@ -683,32 +701,22 @@ pub(crate) fn run_simulation(config: ConfigV3) -> eyre::Result<()> {
             info!("memory sections: {:?}", memory_sections);
             let total_memory = memory_sections.iter().sum::<u64>();
             let kb = total_memory / 1024;
+
             let mb = kb / 1024;
             let gb = mb / 1024;
-            if gb > 0 {
-                info!(
-                    "total memory: {} GB, {} MB, for graph:{}",
-                    gb,
-                    mb % 1024,
-                    graph
-                );
-            } else if mb > 0 {
-                info!(
-                    "total memory: {} MB, {} KB, for graph:{}",
-                    mb,
-                    kb % 1024,
-                    graph
-                );
-            } else if kb > 0 {
-                info!(
-                    "total memory: {} KB {} B  for graph:{}",
-                    kb,
-                    total_memory % 1024,
-                    graph
-                );
+            let mb = if mb == 0 {
+                "".into()
             } else {
-                info!("total memory: {} B  for graph:{}", total_memory, graph);
-            }
+                format!("{} MB, ", mb % 1024)
+            };
+            let gb = if gb == 0 {
+                "".into()
+            } else {
+                format!("{} GB, ", gb)
+            };
+
+            info!("total memory: {}{}{} KB for graph:{}", gb, mb, kb, graph);
+
             let mut matrix_guard = crate::acquire_memory_sections(memory_sections);
             info!("Memory allocation succeed for graph: {}", graph);
             let matrix_tri: TriMatI<Pattern, u32> = sprs::io::read_matrix_market_from_bufread(

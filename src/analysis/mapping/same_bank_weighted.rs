@@ -288,6 +288,7 @@ mod tests {
     use crate::init_logger_stderr;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test() {
         init_logger_stderr(LevelFilter::DEBUG);
         let matrix: TriMatI<Pattern, u32> =
@@ -302,6 +303,7 @@ mod tests {
     ///
     /// Panics if now graph is found.
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_dist() {
         init_logger_stderr(LevelFilter::DEBUG);
         let matrix: TriMatI<Pattern, u32> =

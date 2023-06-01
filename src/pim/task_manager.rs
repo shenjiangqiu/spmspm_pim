@@ -376,6 +376,7 @@ mod tests {
     };
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_task_generation() {
         let total_size = ddr4::Storage {
             data: [1, 1, 1, 1, 1, 2, 100, 4],

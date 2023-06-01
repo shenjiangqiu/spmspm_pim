@@ -342,6 +342,7 @@ mod tests {
     use super::{AverageMapping, RowSubarrayMapping};
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_average_mapping() {
         let graph: TriMatI<Pattern, u32> = sprs::io::read_matrix_market_from_bufread(
             &mut tools::file_server::file_reader("test_mtx/test_large.mtx").unwrap(),

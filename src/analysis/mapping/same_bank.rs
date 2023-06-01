@@ -258,6 +258,7 @@ mod tests {
 
     use super::*;
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test() {
         init_logger_stderr(LevelFilter::DEBUG);
         let matrix: TriMatI<Pattern, u32> =
@@ -268,6 +269,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_dist() {
         init_logger_stderr(LevelFilter::DEBUG);
         let matrix: TriMatI<Pattern, u32> =

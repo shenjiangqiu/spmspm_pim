@@ -1,9 +1,11 @@
 #[cfg(test)]
 mod tests {
+
     use rayon::prelude::*;
     use tracing::{info, metadata::LevelFilter, Level};
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test() {
         tracing_subscriber::fmt()
             .with_env_filter(
@@ -14,6 +16,7 @@ mod tests {
             .try_init()
             .unwrap_or_default();
         let a = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
+
         a.par_iter().for_each(|x| {
             let _span = tracing::span!(Level::INFO, "LEVEL1", x).entered();
             a.par_iter().for_each(|y| {

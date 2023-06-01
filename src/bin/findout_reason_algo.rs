@@ -146,17 +146,17 @@ fn break_down(local: AllJumpCycles) -> TwoSelect {
         [
             local_selective_128.jump_multiple_cycle,
             local_selective_128.jump_one_cycle,
-            local_selective_256.extra_scan_cycles,
+            local_selective_128.extra_scan_cycles,
         ],
         [
             local_selective_64.jump_multiple_cycle,
             local_selective_64.jump_one_cycle,
-            local_selective_256.extra_scan_cycles,
+            local_selective_64.extra_scan_cycles,
         ],
         [
             local_selective_32.jump_multiple_cycle,
             local_selective_32.jump_one_cycle,
-            local_selective_256.extra_scan_cycles,
+            local_selective_32.extra_scan_cycles,
         ],
     ];
 

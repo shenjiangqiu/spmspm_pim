@@ -440,6 +440,7 @@ mod tests {
         assert_eq!(result, Err(p1));
     }
 
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn test_full_bandwith_long_ring() {
         run_full_bandwidth(Direction::Right, 16, |i| (i + 16 - 1) % 16);

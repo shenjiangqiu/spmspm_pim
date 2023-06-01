@@ -143,7 +143,6 @@ fn print_single_algorithm<'a>(
             .or_default();
         total_cycle.push((graph_name, total));
     }
-    println!("\n\n");
 }
 
 fn print_fn<'a>(
